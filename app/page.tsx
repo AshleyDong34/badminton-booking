@@ -12,6 +12,10 @@ type SignupRow = {
   status: "signed_up" | "waiting_list";
   notes: string | null;
   created_at: string;
+  // NEW (DB now has these)
+  student_id?: string | null;
+  email?: string | null;
+  cancel_token?: string | null;
 };
 
 type SessionRow = {
@@ -30,9 +34,12 @@ type SessionRow = {
 ------------------------------------------------ */
 function SessionCard({ session }: { session: SessionRow }) {
   const [name, setName] = useState("");
+  const [studentId, setStudentId] = useState(""); // NEW: capture student_id (whitelist-enforced)
+  const [email, setEmail] = useState("");         // NEW: capture email (used for confirmation)
   const [bookings, setBookings] = useState<string[]>([]);
   const [waitlist, setWaitlist] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [lastCancelUrl, setLastCancelUrl] = useState<string | null>(null); // NEW: show cancel URL after insert (until email is wired)
 
   // -------------------------------------------
   // Fetch all signups for this session (once on mount)
@@ -110,17 +117,36 @@ function SessionCard({ session }: { session: SessionRow }) {
   }, [session.id]);
   // end of realtime useEffect
 
+  function sbMsg(err: unknown) {
+    // supabase-js v2 PostgrestError usually has message/details/hint/code
+    const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
+    return (
+      e?.message ??
+      e?.details ??
+      e?.hint ??
+      e?.code ??
+      // fallbacks for non-enumerable objects in Next dev overlay
+      (typeof err === "object" ? String((err as any)) : String(err))
+    );
+  }
+
+
 
   // -------------------------------------------
   // Add a signup (decides signed_up vs waiting_list based on current count)
+  // NOTE: users DO NOT delete directly anymore; cancellations use token link.
   // -------------------------------------------
   const addBooking = async () => {
     const trimmed = name.trim();
-    if (!trimmed) {
-      alert("Enter a name!");
-      return;
-    }
+    const sid = studentId.trim();
+    const mail = email.trim();
+
+    if (!trimmed) { alert("Enter your name!"); return; }
+    if (!sid)     { alert("Enter your student ID (must be on whitelist)."); return; }
+    if (!mail || !mail.includes("@")) { alert("Enter a valid email."); return; }
+
     if (bookings.includes(trimmed) || waitlist.includes(trimmed)) {
+      // client-side duplicate guard (DB also has a unique index recommendation)
       alert("This name is already registered.");
       return;
     }
@@ -128,17 +154,38 @@ function SessionCard({ session }: { session: SessionRow }) {
     const status: SignupRow["status"] =
       bookings.length < session.capacity ? "signed_up" : "waiting_list";
 
-    const { error } = await supabase.from("signups").insert({
-      session_id: session.id,
-      name: trimmed,
-      status
-    });
+    // Ask the API to return cancel_token so we can show the cancel URL on success
+    const { data, error } = await supabase
+      .from("signups")
+      .insert({
+        session_id: session.id,
+        name: trimmed,
+        status,
+        student_id: sid,   // whitelist is enforced by RLS on this value
+        email: mail,       // used for confirmation email later
+      })
+      .select("cancel_token")
+      .single();
 
-    if (error) {
+  if (error) {
+    const msg = sbMsg(error).toLowerCase();
+
+    if (msg.includes("row-level security")) {
+      alert("Signup blocked: your student ID is not on the whitelist.");
+      // log quietly to avoid noisy red overlay
+      console.debug("RLS blocked insert (whitelist). Details:", sbMsg(error));
+    } else if (msg.includes("duplicate key") || msg.includes("unique")) {
+      alert("Duplicate signup detected for this session.");
+      console.debug("Unique constraint:", sbMsg(error));
+    } else if (msg.includes("foreign key")) {
+      alert("This session no longer exists.");
+      console.debug("Foreign key issue:", sbMsg(error));
+    } else {
       alert("Could not add signup.");
-      console.error(error);
-      return;
+      console.debug("Supabase insert error:", sbMsg(error));
     }
+    return;
+  }
 
     // Optimistic UI update (instant feedback)
     if (status === "signed_up") setBookings(prev => [...prev, trimmed]);
@@ -147,76 +194,35 @@ function SessionCard({ session }: { session: SessionRow }) {
       alert("Session full – added to waitlist.");
     }
 
+    // Show cancel URL (temporary, until emails are wired)
+    if (data?.cancel_token) {
+      const url = `${window.location.origin}/cancel?token=${data.cancel_token}`;
+      setLastCancelUrl(url);
+    }
+
     setName("");
+    // keep studentId/email so user doesn't retype, or clear if you prefer
+    setStudentId(""); 
+    setEmail("");
   };
 
+
   // -------------------------------------------
+  // Remove buttons (user-side) are disabled now.
+  // RLS denies delete/update for public users; cancellation uses token link instead.
+  // Keeping functions below for future admin UI or if you temporarily re-enable.
+  // -------------------------------------------
+
   // Remove from bookings; promote first waitlisted (oldest by created_at)
-  // -------------------------------------------
-  const removeBooking = async (indexToRemove: number) => {
-    const nameToRemove = bookings[indexToRemove];
-
-    // Delete exact row for this session + name + status
-    const { error: delErr } = await supabase
-      .from("signups")
-      .delete()
-      .eq("session_id", session.id)
-      .eq("name", nameToRemove)
-      .eq("status", "signed_up");
-
-    if (delErr) {
-      alert("Could not remove booking.");
-      console.error(delErr);
-      return;
-    }
-
-    const updatedBookings = bookings.filter((_, i) => i !== indexToRemove);
-
-    // Promote first person in waitlist (if any)
-    if (waitlist.length > 0) {
-      const [first, ...rest] = waitlist;
-
-      const { error: upErr } = await supabase
-        .from("signups")
-        .update({ status: "signed_up" })
-        .eq("session_id", session.id)
-        .eq("name", first)
-        .eq("status", "waiting_list");
-
-      if (upErr) {
-        // If promotion fails, just reflect the deletion
-        console.error("Promotion failed:", upErr);
-        setBookings(updatedBookings);
-        return;
-      }
-
-      setBookings([...updatedBookings, first]);
-      setWaitlist(rest);
-    } else {
-      setBookings(updatedBookings);
-    }
+  const removeBooking = async (_indexToRemove: number) => {
+    alert("Users cannot remove directly. Use the cancellation link from your confirmation email.");
+    return;
   };
 
-  // -------------------------------------------
   // Remove from waitlist only
-  // -------------------------------------------
-  const removeFromWaitlist = async (indexToRemove: number) => {
-    const nameToRemove = waitlist[indexToRemove];
-
-    const { error } = await supabase
-      .from("signups")
-      .delete()
-      .eq("session_id", session.id)
-      .eq("name", nameToRemove)
-      .eq("status", "waiting_list");
-
-    if (error) {
-      alert("Could not remove from waitlist.");
-      console.error(error);
-      return;
-    }
-
-    setWaitlist(waitlist.filter((_, i) => i !== indexToRemove));
+  const removeFromWaitlist = async (_indexToRemove: number) => {
+    alert("Users cannot remove directly. Use the cancellation link from your confirmation email.");
+    return;
   };
 
   return (
@@ -234,14 +240,35 @@ function SessionCard({ session }: { session: SessionRow }) {
         </p>
       )}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+      <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Enter your name"
-          style={{ flex: 1, padding: 8 }}
+          style={{ padding: 8 }}
+        />
+        <input
+          value={studentId}
+          onChange={(e) => setStudentId(e.target.value)}
+          placeholder="Enter your student ID (must be on whitelist)"
+          style={{ padding: 8 }}
+        />
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email (for confirmation + cancel link)"
+          style={{ padding: 8 }}
+          type="email"
         />
         <button onClick={addBooking}>Add</button>
+
+        {/* NEW: show cancel link after a successful insert (temporary) */}
+        {lastCancelUrl && (
+          <p style={{ marginTop: 6 }}>
+            <b>Save this link to cancel later:</b>{" "}
+            <a href={lastCancelUrl}>{lastCancelUrl}</a>
+          </p>
+        )}
       </div>
 
       {loading ? (
@@ -253,6 +280,7 @@ function SessionCard({ session }: { session: SessionRow }) {
             {bookings.map((b, i) => (
               <li key={`${b}-${i}`} style={{ marginBottom: 6 }}>
                 {b}{" "}
+                {/* Buttons disabled for users; left in place for future admin UI */}
                 <button onClick={() => removeBooking(i)} style={{ marginLeft: 8 }}>
                   Remove
                 </button>
@@ -274,6 +302,10 @@ function SessionCard({ session }: { session: SessionRow }) {
               </li>
             ))}
           </ul>
+
+          <p style={{ marginTop: 10, opacity: 0.8 }}>
+            To cancel your booking, use the link in your confirmation email.
+          </p>
         </>
       )}
     </section>
