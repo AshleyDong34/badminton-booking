@@ -12,7 +12,6 @@ type SignupRow = {
   status: "signed_up" | "waiting_list";
   notes: string | null;
   created_at: string;
-  // NEW (DB now has these)
   student_id?: string | null;
   email?: string | null;
   cancel_token?: string | null;
@@ -130,11 +129,10 @@ function SessionCard({ session }: { session: SessionRow }) {
     );
   }
 
-
-
-  // -------------------------------------------
-  // Add a signup (decides signed_up vs waiting_list based on current count)
-  // NOTE: users DO NOT delete directly anymore; cancellations use token link.
+    // -------------------------------------------
+  // Add a signup via SERVER RPC (single source of truth):
+  // - NO local status calculation
+  // - Read r_status and r_cancel_token from RPC (array result)
   // -------------------------------------------
   const addBooking = async () => {
     const trimmed = name.trim();
@@ -145,66 +143,68 @@ function SessionCard({ session }: { session: SessionRow }) {
     if (!sid)     { alert("Enter your student ID (must be on whitelist)."); return; }
     if (!mail || !mail.includes("@")) { alert("Enter a valid email."); return; }
 
+    // Optional client-side duplicate guard (DB has unique index)
     if (bookings.includes(trimmed) || waitlist.includes(trimmed)) {
-      // client-side duplicate guard (DB also has a unique index recommendation)
       alert("This name is already registered.");
       return;
     }
 
-    const status: SignupRow["status"] =
-      bookings.length < session.capacity ? "signed_up" : "waiting_list";
+    try {
+      const { data, error } = await supabase.rpc("insert_signup_guarded", {
+        p_session_id: session.id,
+        p_name: trimmed,
+        p_student_id: sid,
+        p_email: mail,
+      });
 
-    // Ask the API to return cancel_token so we can show the cancel URL on success
-    const { data, error } = await supabase
-      .from("signups")
-      .insert({
-        session_id: session.id,
-        name: trimmed,
-        status,
-        student_id: sid,   // whitelist is enforced by RLS on this value
-        email: mail,       // used for confirmation email later
-      })
-      .select("cancel_token")
-      .single();
+      if (error) {
+        const raw = (error.message || error.details || error.hint || error.code || "").toLowerCase();
+        console.debug("RPC insert_signup_guarded error:", raw);
+        if (raw.includes("weekly limit"))      alert("You’ve reached the weekly limit for this week.");
+        else if (raw.includes("whitelisted"))  alert("Signup blocked: your student ID is not on the whitelist.");
+        else if (raw.includes("duplicate") || raw.includes("unique")) alert("Duplicate signup detected for this session.");
+        else if (raw.includes("session not found")) alert("This session no longer exists.");
+        else alert(`Could not add signup. (${raw || "unknown error"})`);
+        return;
+      }
 
-  if (error) {
-    const msg = sbMsg(error).toLowerCase();
+      console.debug("RPC data:", data)
 
-    if (msg.includes("row-level security")) {
-      alert("Signup blocked: your student ID is not on the whitelist.");
-      // log quietly to avoid noisy red overlay
-      console.debug("RLS blocked insert (whitelist). Details:", sbMsg(error));
-    } else if (msg.includes("duplicate key") || msg.includes("unique")) {
-      alert("Duplicate signup detected for this session.");
-      console.debug("Unique constraint:", sbMsg(error));
-    } else if (msg.includes("foreign key")) {
-      alert("This session no longer exists.");
-      console.debug("Foreign key issue:", sbMsg(error));
-    } else {
-      alert("Could not add signup.");
-      console.debug("Supabase insert error:", sbMsg(error));
+      const row = Array.isArray(data) ? data[0] : data;
+
+      if (row?.r_status === "signed_up") {
+        setBookings(prev => [...prev, trimmed]);
+      } else if (row?.r_status === "waiting_list") {
+        setWaitlist(prev => [...prev, trimmed]);
+        alert("Session full – added to waitlist.");
+      } else {
+        // Fallback: refetch from DB and infer (shouldn't happen with RETURN QUERY)
+        const { data: fresh } = await supabase
+          .from("signups")
+          .select("name,status")
+          .eq("session_id", session.id)
+          .order("created_at", { ascending: true });
+        const names = (fresh ?? []) as { name: string; status: "signed_up" | "waiting_list" }[];
+        const me = names.find(n => n.name === trimmed);
+        if (me?.status === "signed_up") setBookings(prev => [...prev, trimmed]);
+        else { setWaitlist(prev => [...prev, trimmed]); alert("Session full – added to waitlist."); }
+      }
+
+      if (row?.r_cancel_token) {
+        const url = `${window.location.origin}/cancel?token=${row.r_cancel_token}`;
+        setLastCancelUrl(url);
+      }
+
+      setName("");
+      setStudentId("");
+      setEmail("");
+    } catch (e: any) {
+      const raw = (e?.message || e?.details || e?.hint || e?.code || "").toLowerCase();
+      console.debug("RPC threw:", raw);
+      alert(`Could not add signup. (${raw || "unexpected"})`);
     }
-    return;
-  }
-
-    // Optimistic UI update (instant feedback)
-    if (status === "signed_up") setBookings(prev => [...prev, trimmed]);
-    else {
-      setWaitlist(prev => [...prev, trimmed]);
-      alert("Session full – added to waitlist.");
-    }
-
-    // Show cancel URL (temporary, until emails are wired)
-    if (data?.cancel_token) {
-      const url = `${window.location.origin}/cancel?token=${data.cancel_token}`;
-      setLastCancelUrl(url);
-    }
-
-    setName("");
-    // keep studentId/email so user doesn't retype, or clear if you prefer
-    setStudentId(""); 
-    setEmail("");
   };
+
 
 
   // -------------------------------------------
