@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 
 // Minimal row types (helps TypeScript autocomplete)
@@ -346,14 +347,28 @@ export default function Home() {
 
   return (
     <main style={{ padding: 20, maxWidth: 780, margin: "0 auto" }}>
-      <h1>Badminton Booking (Supabase – Multiple Sessions)</h1>
+      {/* Top bar */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+        }}
+      >
+        <h1>Badminton Booking (Supabase – Multiple Sessions)</h1>
+
+        <Link href="/signin">Admin sign in</Link>
+      </div>
 
       {loading ? (
         <p>Loading sessions…</p>
       ) : sessions.length === 0 ? (
         <p>No sessions yet.</p>
       ) : (
-        sessions.map(sess => <SessionCard key={sess.id} session={sess} />)
+        sessions.map(sess => (
+          <SessionCard key={sess.id} session={sess} />
+        ))
       )}
     </main>
   );
