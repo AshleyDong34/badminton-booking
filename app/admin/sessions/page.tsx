@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
+import DeleteSessionButton from "./DeleteSessionButton";
+
 
 // Always fetch fresh data for admin pages (no caching).
 export const dynamic = "force-dynamic";
@@ -77,13 +79,7 @@ export default async function SessionsPage() {
                       Manage
                     </Link>
 
-                    {/* These two are placeholders until we implement the API routes */}
-                    <button className="underline" disabled title="Implement later">
-                      Close
-                    </button>
-                    <button className="underline" disabled title="Implement later">
-                      Delete
-                    </button>
+                    <DeleteSessionButton id={s.id} />
                   </td>
                 </tr>
               );
