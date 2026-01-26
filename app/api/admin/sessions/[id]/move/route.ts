@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
-import { isAdmin } from "@/lib/adminGuard";
+import { requireAdminRoute } from "@/lib/requireAdminRoute";
 
 export async function POST(
   req: NextRequest,
   ctx: { params: { id: string } | Promise<{ id: string }> }
 ) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const guard = await requireAdminRoute(req);
+  if (!guard.ok) return guard.res;
 
   const { id: sessionId } = await ctx.params;
 

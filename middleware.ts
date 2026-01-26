@@ -1,21 +1,34 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-
+// middleware.ts
+import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
 export const config = {
-matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*"], // keep it scoped
 };
 
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({ request });
 
-export function middleware(req: NextRequest) {
-const url = new URL(req.url);
-const hasDev = req.cookies.get("admin_dev")?.value === "1";
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value);
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
 
+  // This refreshes/validates the session via cookies
+  await supabase.auth.getUser();
 
-// TODO: extend with Supabase server session check later
-if (!hasDev) {
-url.pathname = "/signin";
-return NextResponse.redirect(url);
-}
-return NextResponse.next();
+  return response;
 }

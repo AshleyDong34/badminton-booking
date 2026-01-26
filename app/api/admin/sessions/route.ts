@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { requireAdminRoute } from "@/lib/requireAdminRoute";
 
 function ordinal(n: number) {
   const s = ["th", "st", "nd", "rd"];
@@ -25,10 +25,9 @@ function autoSessionName(startLocal: Date, endLocal: Date) {
   return `${weekday} ${day} ${startT}–${endT}`;
 }
 
-export async function POST(req: Request) {
-  const cookieStore = await cookies();
-  const isAdmin = cookieStore.get("admin_dev")?.value === "1";
-  if (!isAdmin) return new NextResponse("Not an admin", { status: 403 });
+export async function POST(req: NextRequest) {
+  const guard = await requireAdminRoute(req);
+  if (!guard.ok) return guard.res;
 
   const form = await req.formData();
 

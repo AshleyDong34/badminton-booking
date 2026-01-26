@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"; // access to coookies headers and url, only on server
 import { supabaseServer } from "@/lib/supabase-server"; // server side supabase client
-import { isAdmin } from "@/lib/adminGuard"; // checks for admin dev cookie.
+import { requireAdminRoute } from "@/lib/requireAdminRoute"; // checks for admin cookie.
 
 export async function POST(
   req: NextRequest,
   ctx: { params: { id: string } | Promise<{ id: string }> }
 ) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const guard = await requireAdminRoute(req);
+  if (!guard.ok) return guard.res;
 
   const { id: sessionId } = await ctx.params;
 

@@ -1,20 +1,37 @@
-import type { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { supabaseSSR } from "@/lib/supabase-ssr";
+import { supabaseServer } from "@/lib/supabase-server";
 
-export const ADMIN_COOKIE_NAME = "admin_dev";
+export async function requireAdmin() {
+  const supabase = await supabaseSSR();
 
-/** Read guard cookie */
-export function isAdmin(req: NextRequest) {
-  return req.cookies.get(ADMIN_COOKIE_NAME)?.value === "1";
-}
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return { ok: false as const, reason: "not_logged_in" as const };
 
-/** Set guard cookie on a response */
-export function setAdminCookie(res: NextResponse) {
-  res.cookies.set(ADMIN_COOKIE_NAME, "1", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 8, // 8 hours
-  });
+  // Already admin?
+  const { data: admin } = await supabase
+    .from("admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (admin) return { ok: true as const, user };
+
+  // Not admin yet → check if their email is in pending list
+  const email = (user.email ?? "").trim().toLowerCase();
+  if (!email) return { ok: false as const, reason: "not_admin" as const };
+
+  const { data: pending } = await supabase
+    .from("pending_admin_emails")
+    .select("email")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (!pending) return { ok: false as const, reason: "not_admin" as const };
+
+  const adminDb = supabaseServer();
+  await adminDb.from("admins").insert({ user_id: user.id }).throwOnError();
+  await adminDb.from("pending_admin_emails").delete().eq("email", email).throwOnError();
+
+  return { ok: true as const, user };
 }
