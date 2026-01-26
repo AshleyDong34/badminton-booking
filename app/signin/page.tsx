@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -21,17 +20,18 @@ export default function SignInPage() {
     }
 
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signInWithOtp({
-        email: mail,
-        options: {
-          emailRedirectTo: redirectTo,
-        },
+      const res = await fetch("/api/auth/request-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: mail }),
       });
+      const json = await res.json().catch(() => ({}));
 
-      if (error) throw error;
+      if (!res.ok) {
+        throw new Error(json.error ?? "Failed to send magic link");
+      }
 
-      setMsg("Magic link sent. Check your inbox (and Junk).");
+      setMsg(json.message ?? "Magic link sent. Check your inbox (and Junk).");
     } catch (err: any) {
       setMsg(err?.message ?? "Failed to send magic link");
     } finally {

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
-import { requireAdminRoute } from "@/lib/requireAdminRoute";
+import { requireAdmin } from "@/lib/adminGuard";
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdminRoute(req);
-  if (!guard.ok) return guard.res;
+  const guard = await requireAdmin();
+  if (!guard.ok) {
+    const status = guard.reason === "not_logged_in" ? 401 : 403;
+    const error = guard.reason === "not_logged_in" ? "Unauthorized" : "Forbidden";
+    return NextResponse.json({ error }, { status });
+  }
 
   const form = await req.formData();
 

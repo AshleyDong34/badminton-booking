@@ -1,4 +1,6 @@
 import { supabaseServer } from "@/lib/supabase-server";
+import { supabaseSSR } from "@/lib/supabase-ssr";
+import RemoveAdminForm from "./RemoveAdminForm";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,6 +17,9 @@ type PendingRow = {
 
 export default async function AdminsPage() {
   const db = supabaseServer();
+  const authClient = await supabaseSSR();
+  const { data: authData } = await authClient.auth.getUser();
+  const currentUserId = authData.user?.id ?? null;
 
   const { data: admins, error: aErr } = await db
     .from("admins")
@@ -25,6 +30,23 @@ export default async function AdminsPage() {
     .from("pending_admin_emails")
     .select("email,created_at")
     .order("created_at", { ascending: false });
+
+  const adminRows = admins ?? [];
+  const emailById = new Map<string, string>();
+
+  if (adminRows.length > 0) {
+    const results = await Promise.all(
+      adminRows.map(async (admin) => {
+        const { data, error } = await db.auth.admin.getUserById(admin.user_id);
+        if (error || !data.user?.email) return { id: admin.user_id, email: "" };
+        return { id: admin.user_id, email: data.user.email };
+      })
+    );
+
+    for (const r of results) {
+      if (r.email) emailById.set(r.id, r.email);
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -99,43 +121,37 @@ export default async function AdminsPage() {
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">Current admins</h2>
 
-        {(!admins || admins.length === 0) ? (
+        {adminRows.length === 0 ? (
           <p className="text-sm opacity-70">No admins found (this should not happen).</p>
         ) : (
           <div className="border rounded-2xl overflow-hidden">
             <table className="w-full border-collapse">
               <thead className="border-b">
                 <tr className="text-left">
-                  <th className="py-2 px-3">User ID</th>
+                  <th className="py-2 px-3">Email</th>
                   <th className="py-2 px-3">Since</th>
                   <th className="py-2 px-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {admins.map((a: AdminRow) => (
+                {adminRows.map((a: AdminRow) => {
+                  const isSelf = currentUserId ? a.user_id === currentUserId : false;
+                  const email = emailById.get(a.user_id) ?? "";
+
+                  return (
                   <tr key={a.user_id} className="border-b last:border-b-0">
-                    <td className="py-2 px-3 font-mono text-sm">{a.user_id}</td>
+                    <td className="py-2 px-3 text-sm" title={a.user_id}>
+                      {email || "Unknown"}
+                    </td>
                     <td className="py-2 px-3 text-sm opacity-70">
                       {new Date(a.created_at).toLocaleString("en-GB")}
                     </td>
                     <td className="py-2 px-3">
-                      <form
-                        action="/api/admin/admins/remove"
-                        method="post"
-                        onSubmit={(e) => {
-                          if (!confirm("Remove this admin? They will lose access immediately.")) {
-                            e.preventDefault();
-                          }
-                        }}
-                      >
-                        <input type="hidden" name="user_id" value={a.user_id} />
-                        <button className="underline" type="submit">
-                          Remove
-                        </button>
-                      </form>
+                      {!isSelf && <RemoveAdminForm userId={a.user_id} />}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
