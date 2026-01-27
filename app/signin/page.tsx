@@ -1,11 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function SignInPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function syncSession() {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (hash) {
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            if (isMounted) setMsg(error.message);
+            return;
+          }
+
+          window.history.replaceState(null, "", "/signin");
+          router.replace("/admin");
+          return;
+        }
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (isMounted && data.session) {
+        router.replace("/admin");
+      }
+    }
+
+    syncSession();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") {
+        router.replace("/admin");
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [router]);
 
   async function requestLink(e: React.FormEvent) {
     e.preventDefault();

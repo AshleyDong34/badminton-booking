@@ -30,29 +30,28 @@ export async function POST(req: NextRequest) {
   let isAllowed = Boolean(pending);
 
   if (!isAllowed) {
-    const { data: authUser, error: authErr } = await db
-      .schema("auth")
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
+    const { data: adminIds, error: adminIdsErr } = await db
+      .from("admins")
+      .select("user_id");
 
-    if (authErr) {
-      return NextResponse.json({ error: authErr.message }, { status: 500 });
+    if (adminIdsErr) {
+      return NextResponse.json({ error: adminIdsErr.message }, { status: 500 });
     }
 
-    if (authUser?.id) {
-      const { data: admin, error: adminErr } = await db
-        .from("admins")
-        .select("user_id")
-        .eq("user_id", authUser.id)
-        .maybeSingle();
+    for (const row of adminIds ?? []) {
+      const { data: adminUser, error: adminUserErr } = await db.auth.admin.getUserById(
+        row.user_id
+      );
 
-      if (adminErr) {
-        return NextResponse.json({ error: adminErr.message }, { status: 500 });
+      if (adminUserErr) {
+        return NextResponse.json({ error: adminUserErr.message }, { status: 500 });
       }
 
-      isAllowed = Boolean(admin);
+      const adminEmail = adminUser.user?.email?.toLowerCase();
+      if (adminEmail === email) {
+        isAllowed = true;
+        break;
+      }
     }
   }
 
@@ -67,7 +66,7 @@ export async function POST(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-  const redirectTo = new URL("/auth/callback", req.url).toString();
+  const redirectTo = new URL("/signin", req.url).toString();
 
   const { error: sendErr } = await authClient.auth.signInWithOtp({
     email,

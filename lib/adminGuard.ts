@@ -8,12 +8,16 @@ export async function requireAdmin() {
   const user = data.user;
   if (!user) return { ok: false as const, reason: "not_logged_in" as const };
 
+  const adminDb = supabaseServer();
+
   // Already admin?
-  const { data: admin } = await supabase
+  const { data: admin, error: adminErr } = await adminDb
     .from("admins")
     .select("user_id")
     .eq("user_id", user.id)
     .maybeSingle();
+
+  if (adminErr) return { ok: false as const, reason: "not_admin" as const };
 
   if (admin) return { ok: true as const, user };
 
@@ -21,16 +25,20 @@ export async function requireAdmin() {
   const email = (user.email ?? "").trim().toLowerCase();
   if (!email) return { ok: false as const, reason: "not_admin" as const };
 
-  const { data: pending } = await supabase
+  const { data: pending, error: pendingErr } = await adminDb
     .from("pending_admin_emails")
     .select("email")
     .eq("email", email)
     .maybeSingle();
 
+  if (pendingErr) return { ok: false as const, reason: "not_admin" as const };
+
   if (!pending) return { ok: false as const, reason: "not_admin" as const };
 
-  const adminDb = supabaseServer();
-  await adminDb.from("admins").insert({ user_id: user.id }).throwOnError();
+  await adminDb
+    .from("admins")
+    .upsert({ user_id: user.id }, { onConflict: "user_id" })
+    .throwOnError();
   await adminDb.from("pending_admin_emails").delete().eq("email", email).throwOnError();
 
   return { ok: true as const, user };
