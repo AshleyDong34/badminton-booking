@@ -66,7 +66,11 @@ export async function POST(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-  const redirectTo = new URL("/signin", req.url).toString();
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.SITE_URL ||
+    new URL(req.url).origin;
+  const redirectTo = new URL("/signin", baseUrl).toString();
 
   const { error: sendErr } = await authClient.auth.signInWithOtp({
     email,

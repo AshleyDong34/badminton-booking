@@ -190,6 +190,8 @@ export default function SessionBookingPage() {
               : "Email or student ID is not on the whitelist."
           );
         }
+        else if (raw.includes("student_id required") || raw.includes("student id required"))
+          setMessage("Email or student ID is required for this session.");
         else if (raw.includes("duplicate") || raw.includes("unique"))
           setMessage("Duplicate signup detected for this session.");
         else if (raw.includes("session not found")) setMessage("Session no longer exists.");
@@ -291,7 +293,7 @@ export default function SessionBookingPage() {
           "--line": "#e6ddd1",
           "--accent": "#e2b23c",
           "--ok": "#2f9f67",
-          "--wait": "#f4a4c1",
+          "--wait": "#b0f4a4ff",
           "--cool": "#3f8fce",
           "--chip": "#eef5ff",
         } as React.CSSProperties
@@ -360,21 +362,25 @@ export default function SessionBookingPage() {
                 required
               />
             </div>
-            <div>
-              <label className="text-sm">Student ID (optional)</label>
-              <input
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-[var(--line)] p-2"
-                placeholder="s1234567"
-              />
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                {allowNameOnly
-                  ? "Whitelist is skipped for this session."
-                  : "Optional, but helps if your email isn't on the whitelist."}
-              </p>
-            </div>
-            <div>
+            {allowNameOnly ? (
+              <div className="sm:col-span-2 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--muted)]">
+                No membership needed for this session. Only name and email are required.
+              </div>
+            ) : (
+              <div>
+                <label className="text-sm">Student ID (optional)</label>
+                <input
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-[var(--line)] p-2"
+                  placeholder="s1234567"
+                />
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Email or student ID must be on the whitelist.
+                </p>
+              </div>
+            )}
+            <div className={allowNameOnly ? "sm:col-span-2" : ""}>
               <label className="text-sm">Email</label>
               <input
                 value={email}
