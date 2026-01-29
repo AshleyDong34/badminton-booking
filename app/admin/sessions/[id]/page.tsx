@@ -19,9 +19,7 @@ type SignupRow = {
   created_at: string; // you confirmed this exists
 };
 
-export default async function SessionDetail({
-  params,
-}: {
+export default async function SessionDetail({params,}: {
   // In some Next.js setups params can behave like a Promise, so we accept both.
   params: { id: string } | Promise<{ id: string }>;
 }) {
@@ -94,12 +92,20 @@ export default async function SessionDetail({
             Signed up: {signedUp.length}/{s.capacity} | {isFull ? "Full" : "Spaces available"} | Waiting list: {waitingList.length}
           </div>
         </div>
-        <Link
-          className="rounded-full border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-sm font-medium shadow-sm"
-          href="/admin/sessions"
-        >
-          Back
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            className="rounded-full border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-sm font-medium shadow-sm"
+            href={`/admin/sessions/${s.id}/attendance`}
+          >
+            Attendance
+          </Link>
+          <Link
+            className="rounded-full border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-sm font-medium shadow-sm"
+            href="/admin/sessions"
+          >
+            Back
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

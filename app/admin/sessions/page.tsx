@@ -103,6 +103,12 @@ export default async function SessionsPage() {
                     >
                       Manage
                     </Link>
+                    <Link
+                      className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm transition hover:translate-y-[-1px]"
+                      href={`/admin/sessions/${s.id}/attendance`}
+                    >
+                      Attendance
+                    </Link>
                     <DeleteSessionButton id={s.id} />
                   </td>
                 </tr>

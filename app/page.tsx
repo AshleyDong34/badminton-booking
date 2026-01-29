@@ -59,9 +59,9 @@ function SessionCard({ session }: { session: SessionRow }) {
   const signedUp = session.signed_up_count ?? 0;
   const waitlist = session.waitlist_count ?? 0;
   const isFull = signedUp >= session.capacity;
-  const badgeText = isFull ? "Info & Waitlist" : "Info & Booking";
+  const badgeText = isFull ? "Join waitlist" : "Join signup";
   const badgeClass = isFull
-    ? "bg-[var(--accent)] text-[var(--ink)]"
+    ? "bg-[var(--wait)] text-[var(--ink)]"
     : "bg-[var(--ok)] text-white";
 
   const note = session.notes?.trim() ?? "";
@@ -161,6 +161,7 @@ export default function Home() {
           "--line": "#e6ddd1",
           "--accent": "#e2b23c",
           "--ok": "#2f9f67",
+          "--wait": "#d8f4a4ff",
           "--cool": "#3f8fce",
           "--chip": "#eef5ff",
         } as React.CSSProperties

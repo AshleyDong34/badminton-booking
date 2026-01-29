@@ -64,15 +64,14 @@ export async function POST(req: NextRequest) {
   }
 
   const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
   const workbook = new ExcelJS.Workbook();
 
   const name = (file as File).name?.toLowerCase() ?? "";
   if (name.endsWith(".csv")) {
-    const stream = Readable.from([buffer]);
+    const stream = Readable.from([new Uint8Array(arrayBuffer)]);
     await workbook.csv.read(stream);
   } else if (name.endsWith(".xlsx")) {
-    await workbook.xlsx.load(buffer);
+    await workbook.xlsx.load(arrayBuffer);
   } else {
     return NextResponse.json(
       { error: "Unsupported file type. Upload .xlsx or .csv." },

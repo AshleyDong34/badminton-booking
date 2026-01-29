@@ -170,11 +170,6 @@ export default function SessionBookingPage() {
       setMessage("Enter a valid email.");
       return;
     }
-    if (!sid && !allowNameOnly) {
-      setMessage("Enter your student ID.");
-      return;
-    }
-
     try {
       setSubmitting(true);
       const { data, error } = await supabase.rpc("insert_signup_guarded", {
@@ -192,7 +187,7 @@ export default function SessionBookingPage() {
           setMessage(
             allowNameOnly
               ? "Signup blocked by session rules."
-              : "Student ID is not on the whitelist."
+              : "Email or student ID is not on the whitelist."
           );
         }
         else if (raw.includes("duplicate") || raw.includes("unique"))
@@ -241,6 +236,7 @@ export default function SessionBookingPage() {
             "--line": "#e6ddd1",
             "--accent": "#e2b23c",
             "--ok": "#2f9f67",
+            "--wait": "#f4a4c1",
             "--cool": "#3f8fce",
             "--chip": "#eef5ff",
           } as React.CSSProperties
@@ -264,6 +260,7 @@ export default function SessionBookingPage() {
             "--line": "#e6ddd1",
             "--accent": "#e2b23c",
             "--ok": "#2f9f67",
+            "--wait": "#f4a4c1",
             "--cool": "#3f8fce",
             "--chip": "#eef5ff",
           } as React.CSSProperties
@@ -294,6 +291,7 @@ export default function SessionBookingPage() {
           "--line": "#e6ddd1",
           "--accent": "#e2b23c",
           "--ok": "#2f9f67",
+          "--wait": "#f4a4c1",
           "--cool": "#3f8fce",
           "--chip": "#eef5ff",
         } as React.CSSProperties
@@ -363,21 +361,18 @@ export default function SessionBookingPage() {
               />
             </div>
             <div>
-              <label className="text-sm">
-                Student ID {allowNameOnly ? "(optional)" : ""}
-              </label>
+              <label className="text-sm">Student ID (optional)</label>
               <input
                 value={studentId}
                 onChange={(e) => setStudentId(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-[var(--line)] p-2"
                 placeholder="s1234567"
-                required={!allowNameOnly}
               />
-              {allowNameOnly && (
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  Student ID is optional right now.
-                </p>
-              )}
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {allowNameOnly
+                  ? "Whitelist is skipped for this session."
+                  : "Optional, but helps if your email isn't on the whitelist."}
+              </p>
             </div>
             <div>
               <label className="text-sm">Email</label>
@@ -402,9 +397,11 @@ export default function SessionBookingPage() {
 
           <button
             disabled={submitting}
-            className="mt-6 rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white"
+            className={`mt-6 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm ${
+              isFull ? "bg-[var(--wait)] text-[var(--ink)]" : "bg-[var(--ok)] text-white"
+            }`}
           >
-            {submitting ? "Booking..." : "Confirm booking"}
+            {submitting ? "Submitting..." : isFull ? "Join waitlist" : "Join signup"}
           </button>
         </form>
       </div>
