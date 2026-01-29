@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseSSR } from "@/lib/supabase-ssr";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getBaseUrl } from "@/lib/base-url";
 
 async function isAdminFromSession() {
   const supa = await supabaseSSR();
@@ -29,5 +30,5 @@ export async function POST(req: NextRequest) {
   const { error } = await db.from("pending_admin_emails").delete().eq("email", email);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.redirect(new URL("/admin/admins", req.url));
+  return NextResponse.redirect(new URL("/admin/admins", getBaseUrl(req)));
 }

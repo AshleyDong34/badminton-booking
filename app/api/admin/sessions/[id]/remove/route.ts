@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/adminGuard";
+import { getBaseUrl } from "@/lib/base-url";
 
 export async function POST(
   req: NextRequest,
@@ -64,5 +65,7 @@ export async function POST(
     }
   }
 
-  return NextResponse.redirect(new URL(`/admin/sessions/${sessionId}`, req.url));
+  return NextResponse.redirect(
+    new URL(`/admin/sessions/${sessionId}`, getBaseUrl(req))
+  );
 }

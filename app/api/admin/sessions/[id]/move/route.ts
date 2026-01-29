@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/adminGuard";
+import { getBaseUrl } from "@/lib/base-url";
 
 export async function POST(
   req: NextRequest,
@@ -44,7 +45,9 @@ export async function POST(
     if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
 
     if ((signedUpCount ?? 0) >= session.capacity) {
-      return NextResponse.redirect(new URL(`/admin/sessions/${sessionId}?error=full`, req.url));
+      return NextResponse.redirect(
+        new URL(`/admin/sessions/${sessionId}?error=full`, getBaseUrl(req))
+      );
     }
   }
 
@@ -57,5 +60,7 @@ export async function POST(
 
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
-  return NextResponse.redirect(new URL(`/admin/sessions/${sessionId}`, req.url));
+  return NextResponse.redirect(
+    new URL(`/admin/sessions/${sessionId}`, getBaseUrl(req))
+  );
 }

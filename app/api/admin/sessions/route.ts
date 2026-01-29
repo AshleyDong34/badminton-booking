@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/adminGuard";
+import { getBaseUrl } from "@/lib/base-url";
 
 function ordinal(n: number) {
   const s = ["th", "st", "nd", "rd"];
@@ -69,5 +70,5 @@ export async function POST(req: NextRequest) {
 
   if (error) return new NextResponse(error.message, { status: 500 });
 
-  return NextResponse.redirect(new URL("/admin/sessions", req.url));
+  return NextResponse.redirect(new URL("/admin/sessions", getBaseUrl(req)));
 }

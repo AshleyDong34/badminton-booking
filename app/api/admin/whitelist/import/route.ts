@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { Readable } from "stream";
 import { requireAdmin } from "@/lib/adminGuard";
 import { supabaseServer } from "@/lib/supabase-server";
+import { getBaseUrl } from "@/lib/base-url";
 
 export const runtime = "nodejs";
 
@@ -192,6 +193,9 @@ export async function POST(req: NextRequest) {
   }
 
   const inserted = emailRows.size + idOnly.size;
-  const redirectUrl = new URL(`/admin/whitelist?ok=1&inserted=${inserted}`, req.url);
+  const redirectUrl = new URL(
+    `/admin/whitelist?ok=1&inserted=${inserted}`,
+    getBaseUrl(req)
+  );
   return NextResponse.redirect(redirectUrl);
 }

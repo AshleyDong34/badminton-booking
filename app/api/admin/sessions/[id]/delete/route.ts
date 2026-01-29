@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"; // access to coookies headers and url, only on server
 import { supabaseServer } from "@/lib/supabase-server"; // server side supabase client
 import { requireAdmin } from "@/lib/adminGuard";
+import { getBaseUrl } from "@/lib/base-url";
 
 export async function POST(
   req: NextRequest,
@@ -26,5 +27,5 @@ export async function POST(
   const { error } = await supabase.from("sessions").delete().eq("id", sessionId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.redirect(new URL("/admin/sessions", req.url));
+  return NextResponse.redirect(new URL("/admin/sessions", getBaseUrl(req)));
 }

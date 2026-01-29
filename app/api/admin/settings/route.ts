@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/adminGuard";
+import { getBaseUrl } from "@/lib/base-url";
 
 export async function POST(req: NextRequest) {
   const guard = await requireAdmin();
@@ -37,5 +38,5 @@ export async function POST(req: NextRequest) {
 
   if (error) return new NextResponse(error.message, { status: 500 });
 
-  return NextResponse.redirect(new URL("/admin/settings", req.url));
+  return NextResponse.redirect(new URL("/admin/settings", getBaseUrl(req)));
 }
