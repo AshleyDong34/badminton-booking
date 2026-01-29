@@ -54,11 +54,11 @@ export default function DashboardClient({ initial }: { initial: Row[] }) {
         return (
           <div
             key={s.id}
-            className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm"
+            className="flex h-full flex-col rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-lg font-semibold">{s.name}</div>
+                <div className="text-lg font-semibold leading-snug">{s.name}</div>
                 <div className="mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide">
                   <span className={`rounded-full px-2.5 py-1 ${statusClass}`}>
                     {statusLabel}
@@ -73,7 +73,7 @@ export default function DashboardClient({ initial }: { initial: Row[] }) {
               </Link>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-auto grid grid-cols-2 gap-3 pt-4">
               <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
                 <div className="text-xs text-[var(--muted)]">Signed up</div>
                 <div className="text-xl font-semibold">

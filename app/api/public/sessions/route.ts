@@ -10,10 +10,15 @@ type SignupRow = {
 
 export async function GET() {
   const db = supabaseServer();
+  const now = new Date();
+  const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   const { data: sessions, error: sessionsErr } = await db
     .from("sessions")
     .select("id,name,capacity,starts_at,ends_at,notes")
+    .not("starts_at", "is", null)
+    .gte("starts_at", now.toISOString())
+    .lte("starts_at", weekAhead.toISOString())
     .order("starts_at", { ascending: true });
 
   if (sessionsErr) {

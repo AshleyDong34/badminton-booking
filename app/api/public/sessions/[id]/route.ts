@@ -24,6 +24,29 @@ export async function GET(
     return NextResponse.json({ error: "Session not found." }, { status: 404 });
   }
 
+  const startIso = session.starts_at;
+  if (!startIso) {
+    return NextResponse.json({ error: "Session not available." }, { status: 404 });
+  }
+
+  const now = new Date();
+  const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const start = new Date(startIso);
+
+  if (start < now) {
+    return NextResponse.json(
+      { error: "Session is no longer available." },
+      { status: 410 }
+    );
+  }
+
+  if (start > weekAhead) {
+    return NextResponse.json(
+      { error: "Bookings open one week before the session starts." },
+      { status: 403 }
+    );
+  }
+
   const { data: signups, error: signupsErr } = await db
     .from("signups")
     .select("status")

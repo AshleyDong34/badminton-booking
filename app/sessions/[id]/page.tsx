@@ -77,8 +77,9 @@ export default function SessionBookingPage() {
       if (!activeRef.current) return;
 
       if (!res.ok) {
+        const errorJson = await res.json().catch(() => ({}));
         setSession(null);
-        setMessage("Session not found.");
+        setMessage(errorJson.error || "Session not found.");
         setSignedUp(0);
         setWaitlist(0);
         if (mode === "initial") setLoading(false);
