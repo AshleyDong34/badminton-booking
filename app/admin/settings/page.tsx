@@ -7,6 +7,7 @@ type SettingsRow = {
   id: number;
   weekly_quota: number; // <-- rename this if your column is weekly_limit
   allow_same_day_multi: boolean;
+  allow_name_only?: boolean; // <-- add this column in settings to persist
 };
 
 export default async function SettingsPage() {
@@ -14,7 +15,7 @@ export default async function SettingsPage() {
 
   const { data, error } = await supabase
     .from("settings")
-    .select("id,weekly_quota,allow_same_day_multi")
+    .select("*")
     .eq("id", 1)
     .single();
 
@@ -23,36 +24,46 @@ export default async function SettingsPage() {
     id: 1,
     weekly_quota: 2,
     allow_same_day_multi: false,
+    allow_name_only: false,
   };
 
   return (
     <div className="space-y-6 max-w-xl">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold">Settings</h1>
+        <p className="text-sm text-[var(--muted)]">
+          Control booking limits and whitelist rules.
+        </p>
+      </div>
 
       {error && (
-        <p className="text-sm opacity-80">
+        <p className="text-sm text-[var(--muted)]">
           Failed to load settings (using defaults): {error.message}
         </p>
       )}
 
-      <form action="/api/admin/settings" method="post" className="space-y-4">
+      <form
+        action="/api/admin/settings"
+        method="post"
+        className="space-y-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-sm"
+      >
         <div>
-          <label className="block text-sm">Weekly booking limit per player</label>
+          <label className="block text-sm font-medium">Weekly booking limit per player</label>
           <input
             name="weekly_quota" // <-- rename if your DB column is weekly_limit
             type="number"
             min={1}
             required
-            className="w-full border rounded-xl p-2"
+            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
             defaultValue={s.weekly_quota ?? 2}
           />
         </div>
 
         <div>
-          <label className="block text-sm">Allow multiple sessions on the same day</label>
+          <label className="block text-sm font-medium">Allow multiple sessions on the same day</label>
           <select
             name="allow_same_day_multi"
-            className="w-full border rounded-xl p-2"
+            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
             defaultValue={s.allow_same_day_multi ? "true" : "false"}
           >
             <option value="false">No</option>
@@ -60,7 +71,25 @@ export default async function SettingsPage() {
           </select>
         </div>
 
-        <button className="border rounded-xl px-3 py-2">Save</button>
+        <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
+          <input
+            id="allow_name_only"
+            name="allow_name_only"
+            type="checkbox"
+            defaultChecked={Boolean(s.allow_name_only)}
+            className="mt-1 h-4 w-4"
+          />
+          <span className="text-sm">
+            <span className="block font-medium">Default: allow name + email only</span>
+            <span className="block text-xs text-[var(--muted)]">
+              This becomes the preselected option for new sessions. Each session can override it.
+            </span>
+          </span>
+        </label>
+
+        <button className="rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm">
+          Save settings
+        </button>
       </form>
     </div>
   );

@@ -28,8 +28,13 @@ export default async function SessionsPage() {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">Sessions</h1>
-        <p className="text-sm opacity-80">Failed to load sessions: {error.message}</p>
-        <Link href="/admin/sessions/new" className="border rounded-xl px-3 py-2 inline-block">
+        <p className="text-sm text-[var(--muted)]">
+          Failed to load sessions: {error.message}
+        </p>
+        <Link
+          href="/admin/sessions/new"
+          className="inline-block rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm"
+        >
           New session
         </Link>
       </div>
@@ -40,45 +45,64 @@ export default async function SessionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Sessions</h1>
-        <Link href="/admin/sessions/new" className="border rounded-xl px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold">Sessions</h1>
+          <p className="text-sm text-[var(--muted)]">
+            Manage capacity, waitlists, and edits for each session.
+          </p>
+        </div>
+        <Link
+          href="/admin/sessions/new"
+          className="rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm"
+        >
           New session
         </Link>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="py-2 pr-4">Session</th>
-              <th className="py-2 pr-4">Capacity</th>
-              <th className="py-2 pr-4">Signed up</th>
-              <th className="py-2 pr-4">Waiting list</th>
-              <th className="py-2 pr-4">Status</th>
-              <th className="py-2 pr-4">Actions</th>
+      <div className="overflow-x-auto rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-sm">
+        <table className="w-full border-collapse text-sm">
+          <thead className="border-b border-[var(--line)]">
+            <tr className="text-left text-[var(--muted)]">
+              <th className="py-3 px-4">Session</th>
+              <th className="py-3 px-4">Capacity</th>
+              <th className="py-3 px-4">Signed up</th>
+              <th className="py-3 px-4">Waiting list</th>
+              <th className="py-3 px-4">Status</th>
+              <th className="py-3 px-4">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {sessions.map((s) => {
+            {sessions.map((s, idx) => {
               const isFull = s.signed_up_count >= s.capacity;
+              const statusClass = isFull
+                ? "bg-[var(--accent)] text-[var(--ink)]"
+                : "bg-[var(--ok)] text-white";
 
               return (
-                <tr key={s.id} className="border-b">
-                  <td className="py-2 pr-4">{s.name}</td>
-                  <td className="py-2 pr-4">{s.capacity}</td>
-                  <td className="py-2 pr-4">
+                <tr
+                  key={s.id}
+                  className={idx % 2 === 0 ? "bg-white" : "bg-[var(--chip)]"}
+                >
+                  <td className="py-3 px-4 font-medium">{s.name}</td>
+                  <td className="py-3 px-4">{s.capacity}</td>
+                  <td className="py-3 px-4">
                     {s.signed_up_count}/{s.capacity}
                   </td>
-                  <td className="py-2 pr-4">{s.waiting_list_count}</td>
-                  <td className="py-2 pr-4">{isFull ? "FULL" : "OPEN"}</td>
-
-                  <td className="py-2 pr-4 space-x-2">
-                    <Link className="underline" href={`/admin/sessions/${s.id}`}>
+                  <td className="py-3 px-4">{s.waiting_list_count}</td>
+                  <td className="py-3 px-4">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass}`}>
+                      {isFull ? "FULL" : "OPEN"}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 space-x-2">
+                    <Link
+                      className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm transition hover:translate-y-[-1px]"
+                      href={`/admin/sessions/${s.id}`}
+                    >
                       Manage
                     </Link>
-
                     <DeleteSessionButton id={s.id} />
                   </td>
                 </tr>
@@ -88,7 +112,9 @@ export default async function SessionsPage() {
         </table>
 
         {sessions.length === 0 && (
-          <p className="py-4 opacity-70">No sessions yet. Create one using “New session”.</p>
+          <p className="px-4 py-6 text-sm text-[var(--muted)]">
+            No sessions yet. Create one using "New session".
+          </p>
         )}
       </div>
     </div>

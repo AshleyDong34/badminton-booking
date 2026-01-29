@@ -43,31 +43,45 @@ export default function DashboardClient({ initial }: { initial: Row[] }) {
   }, []);
 
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {sessions.map((s) => {
         const isFull = s.signed_up_count >= s.capacity;
+        const statusLabel = isFull ? "Full" : "Open";
+        const statusClass = isFull
+          ? "bg-[var(--accent)] text-[var(--ink)]"
+          : "bg-[var(--ok)] text-white";
 
         return (
-          <div key={s.id} className="rounded-2xl border p-4 space-y-3">
+          <div
+            key={s.id}
+            className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-lg font-semibold">{s.name}</div>
-                <div className="text-sm opacity-70">{isFull ? "FULL" : "Spaces available"}</div>
+                <div className="mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide">
+                  <span className={`rounded-full px-2.5 py-1 ${statusClass}`}>
+                    {statusLabel}
+                  </span>
+                </div>
               </div>
-              <Link className="underline" href={`/admin/sessions/${s.id}`}>
+              <Link
+                className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm transition hover:translate-y-[-1px]"
+                href={`/admin/sessions/${s.id}`}
+              >
                 Manage
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border p-3">
-                <div className="text-sm opacity-70">Signed up</div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
+                <div className="text-xs text-[var(--muted)]">Signed up</div>
                 <div className="text-xl font-semibold">
                   {s.signed_up_count}/{s.capacity}
                 </div>
               </div>
-              <div className="rounded-xl border p-3">
-                <div className="text-sm opacity-70">Waitlist</div>
+              <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
+                <div className="text-xs text-[var(--muted)]">Waitlist</div>
                 <div className="text-xl font-semibold">{s.waiting_list_count}</div>
               </div>
             </div>

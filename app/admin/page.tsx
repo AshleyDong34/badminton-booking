@@ -32,7 +32,12 @@ export default async function AdminHome() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <p className="text-sm text-[var(--muted)]">
+          Live overview of session capacity and waitlist status.
+        </p>
+      </div>
       <DashboardClient initial={initial} />
     </div>
   );

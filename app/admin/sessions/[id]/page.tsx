@@ -41,11 +41,11 @@ export default async function SessionDetail({
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">Session not found</h1>
-        <p className="text-sm opacity-80">
+        <p className="text-sm text-[var(--muted)]">
           id from URL: <code>{String(sessionId)}</code>
         </p>
         {sessionError && (
-          <p className="text-sm opacity-80">DB error: {sessionError.message}</p>
+          <p className="text-sm text-[var(--muted)]">DB error: {sessionError.message}</p>
         )}
         <Link className="underline" href="/admin/sessions">
           Back
@@ -67,7 +67,7 @@ export default async function SessionDetail({
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">Session {s.name}</h1>
-        <p className="text-sm opacity-80">
+        <p className="text-sm text-[var(--muted)]">
           Failed to load signups: {signupsError.message}
         </p>
         <Link className="underline" href="/admin/sessions">
@@ -87,67 +87,69 @@ export default async function SessionDetail({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-2">
           <h1 className="text-2xl font-semibold">{s.name}</h1>
-          <div className="text-sm opacity-70">
-            Signed up: {signedUp.length}/{s.capacity}{" "}
-            {isFull ? "• FULL" : "• Spaces available"} • Waiting list:{" "}
-            {waitingList.length}
+          <div className="text-sm text-[var(--muted)]">
+            Signed up: {signedUp.length}/{s.capacity} | {isFull ? "Full" : "Spaces available"} | Waiting list: {waitingList.length}
           </div>
         </div>
-        <Link className="underline" href="/admin/sessions">
+        <Link
+          className="rounded-full border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-sm font-medium shadow-sm"
+          href="/admin/sessions"
+        >
           Back
         </Link>
       </div>
 
-      {/* Two columns: Signed up + Waiting list */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Signed up list */}
-        <section className="space-y-2">
-          <h2 className="font-medium">Signed up</h2>
+      <div className="grid gap-6 md:grid-cols-2">
+        <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Signed up</h2>
+            <span className="text-xs text-[var(--muted)]">{signedUp.length} people</span>
+          </div>
 
-          <ul className="divide-y border rounded-2xl">
+          <ul className="mt-3 divide-y divide-[var(--line)]">
             {signedUp.length === 0 ? (
-              <li className="p-3 opacity-70">No one signed up yet.</li>
+              <li className="p-3 text-sm text-[var(--muted)]">No one signed up yet.</li>
             ) : (
               signedUp.map((person) => (
-                <li
-                  key={person.id}
-                  className="p-3 flex items-center justify-between gap-4"
-                >
-                  <div>
-                    <div className="font-medium">{person.name}</div>
-                    <div className="text-sm opacity-70">{person.email}</div>
-                    <div className="text-xs opacity-60">
-                      Joined: {new Date(person.created_at).toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {/* Move to waiting list */}
-                    <form action={`/api/admin/sessions/${s.id}/move`} method="post">
-                      <input type="hidden" name="signupId" value={person.id} />
-                      <input type="hidden" name="toStatus" value="waiting_list" />
-                      <button className="underline">Move to waitlist</button>
-                    </form>
-
-                    {/* Remove with confirmation (native, no JS) */}
-                    <details className="inline-block">
-                      <summary className="underline cursor-pointer select-none">
-                        Remove
-                      </summary>
-                      <div className="mt-2 flex items-center gap-2">
-                        <form action={`/api/admin/sessions/${s.id}/remove`} method="post">
-                          <input type="hidden" name="signupId" value={person.id} />
-                          <button className="border rounded-lg px-2 py-1">
-                            Confirm remove
-                          </button>
-                        </form>
-                        <span className="text-sm opacity-70">Click outside to cancel</span>
+                <li key={person.id} className="p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium">{person.name}</div>
+                      <div className="text-sm text-[var(--muted)]">{person.email}</div>
+                      <div className="text-xs text-[var(--muted)]">
+                        Joined: {new Date(person.created_at).toLocaleString("en-GB")}
                       </div>
-                    </details>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <form action={`/api/admin/sessions/${s.id}/move`} method="post">
+                        <input type="hidden" name="signupId" value={person.id} />
+                        <input type="hidden" name="toStatus" value="waiting_list" />
+                        <button className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm">
+                          Move to waitlist
+                        </button>
+                      </form>
+
+                      <details className="relative">
+                        <summary className="cursor-pointer rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm">
+                          Remove
+                        </summary>
+                        <div className="mt-2 flex items-center gap-2">
+                          <form action={`/api/admin/sessions/${s.id}/remove`} method="post">
+                            <input type="hidden" name="signupId" value={person.id} />
+                            <button className="rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-xs">
+                              Confirm remove
+                            </button>
+                          </form>
+                          <span className="text-xs text-[var(--muted)]">
+                            Click outside to cancel
+                          </span>
+                        </div>
+                      </details>
+                    </div>
                   </div>
                 </li>
               ))
@@ -155,50 +157,53 @@ export default async function SessionDetail({
           </ul>
         </section>
 
-        {/* Waiting list */}
-        <section className="space-y-2">
-          <h2 className="font-medium">Waiting list</h2>
+        <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Waiting list</h2>
+            <span className="text-xs text-[var(--muted)]">{waitingList.length} people</span>
+          </div>
 
-          <ul className="divide-y border rounded-2xl">
+          <ul className="mt-3 divide-y divide-[var(--line)]">
             {waitingList.length === 0 ? (
-              <li className="p-3 opacity-70">No one on the waiting list.</li>
+              <li className="p-3 text-sm text-[var(--muted)]">No one on the waiting list.</li>
             ) : (
               waitingList.map((person) => (
-                <li
-                  key={person.id}
-                  className="p-3 flex items-center justify-between gap-4"
-                >
-                  <div>
-                    <div className="font-medium">{person.name}</div>
-                    <div className="text-sm opacity-70">{person.email}</div>
-                    <div className="text-xs opacity-60">
-                      Joined: {new Date(person.created_at).toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {/* Promote to signed up */}
-                    <form action={`/api/admin/sessions/${s.id}/move`} method="post">
-                      <input type="hidden" name="signupId" value={person.id} />
-                      <input type="hidden" name="toStatus" value="signed_up" />
-                      <button className="underline">Promote to signed up</button>
-                    </form>
-
-                    {/* Remove with confirmation */}
-                    <details className="inline-block">
-                      <summary className="underline cursor-pointer select-none">
-                        Remove
-                      </summary>
-                      <div className="mt-2 flex items-center gap-2">
-                        <form action={`/api/admin/sessions/${s.id}/remove`} method="post">
-                          <input type="hidden" name="signupId" value={person.id} />
-                          <button className="border rounded-lg px-2 py-1">
-                            Confirm remove
-                          </button>
-                        </form>
-                        <span className="text-sm opacity-70">Click outside to cancel</span>
+                <li key={person.id} className="p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium">{person.name}</div>
+                      <div className="text-sm text-[var(--muted)]">{person.email}</div>
+                      <div className="text-xs text-[var(--muted)]">
+                        Joined: {new Date(person.created_at).toLocaleString("en-GB")}
                       </div>
-                    </details>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <form action={`/api/admin/sessions/${s.id}/move`} method="post">
+                        <input type="hidden" name="signupId" value={person.id} />
+                        <input type="hidden" name="toStatus" value="signed_up" />
+                        <button className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm">
+                          Promote to signed up
+                        </button>
+                      </form>
+
+                      <details className="relative">
+                        <summary className="cursor-pointer rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm">
+                          Remove
+                        </summary>
+                        <div className="mt-2 flex items-center gap-2">
+                          <form action={`/api/admin/sessions/${s.id}/remove`} method="post">
+                            <input type="hidden" name="signupId" value={person.id} />
+                            <button className="rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-xs">
+                              Confirm remove
+                            </button>
+                          </form>
+                          <span className="text-xs text-[var(--muted)]">
+                            Click outside to cancel
+                          </span>
+                        </div>
+                      </details>
+                    </div>
                   </div>
                 </li>
               ))

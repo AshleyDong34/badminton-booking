@@ -58,11 +58,17 @@ function autoSessionName(startLocal: Date, endLocal: Date) {
   const day = ordinal(startLocal.getDate());
   const startT = formatTime(startLocal);
   const endT = formatTime(endLocal);
-  return `${weekday} ${day} ${startT}–${endT}`;
+  return `${weekday} ${day} ${startT}-${endT}`;
 }
 /* ------------------------------------------------------------ */
 
-export default function NewSessionForm() {
+type NewSessionFormProps = {
+  defaultAllowNameOnly?: boolean;
+};
+
+export default function NewSessionForm({
+  defaultAllowNameOnly = false,
+}: NewSessionFormProps) {
   // Optional override; if blank we auto-generate on server and show preview here
   const [nameOverride, setNameOverride] = useState("");
   const [notes, setNotes] = useState("");
@@ -80,6 +86,7 @@ export default function NewSessionForm() {
 
   // default capacity = 2
   const [capacity, setCapacity] = useState(2);
+  const [allowNameOnly, setAllowNameOnly] = useState(defaultAllowNameOnly);
 
   // Keep end synced unless manually overridden
   useEffect(() => {
@@ -118,7 +125,7 @@ export default function NewSessionForm() {
           <input
             type="date"
             required
-            className="w-full border rounded-xl p-2"
+            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
@@ -129,7 +136,7 @@ export default function NewSessionForm() {
           <input
             type="time"
             required
-            className="w-full border rounded-xl p-2"
+            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
           />
@@ -139,7 +146,7 @@ export default function NewSessionForm() {
       <div>
         <label className="block text-sm">Duration</label>
         <select
-          className="w-full border rounded-xl p-2"
+          className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
           value={durationMin}
           onChange={(e) => {
             setDurationMin(Number(e.target.value));
@@ -160,7 +167,7 @@ export default function NewSessionForm() {
           <input
             type="date"
             required
-            className="w-full border rounded-xl p-2"
+            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
             value={endDate}
             onChange={(e) => {
               setEndDate(e.target.value);
@@ -174,7 +181,7 @@ export default function NewSessionForm() {
           <input
             type="time"
             required
-            className="w-full border rounded-xl p-2"
+            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
             value={endTime}
             onChange={(e) => {
               setEndTime(e.target.value);
@@ -186,7 +193,7 @@ export default function NewSessionForm() {
         <div className="sm:col-span-2">
           <button
             type="button"
-            className="text-sm underline opacity-80"
+            className="text-sm text-[var(--muted)] underline"
             onClick={() => setEndManual(false)}
           >
             Reset end to auto (start + duration)
@@ -201,23 +208,40 @@ export default function NewSessionForm() {
           type="number"
           min={1}
           required
-          className="w-full border rounded-xl p-2"
+          className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
           value={capacity}
           onChange={(e) => setCapacity(Number(e.target.value))}
         />
       </div>
 
+      <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
+        <input
+          name="allow_name_only"
+          type="checkbox"
+          value="true"
+          checked={allowNameOnly}
+          onChange={(e) => setAllowNameOnly(e.target.checked)}
+          className="mt-1 h-4 w-4"
+        />
+        <span className="text-sm">
+          <span className="block font-medium">Allow name + email only</span>
+          <span className="block text-xs text-[var(--muted)]">
+            Skip student ID and whitelist checks for this session.
+          </span>
+        </span>
+      </label>
+
       <div>
         <label className="block text-sm">Name (optional)</label>
         <input
           name="name"
-          className="w-full border rounded-xl p-2"
+          className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
           value={nameOverride}
           onChange={(e) => setNameOverride(e.target.value)}
           placeholder="Leave blank to auto-generate"
         />
         {previewName && (
-          <p className="text-sm opacity-70 mt-2">
+          <p className="mt-2 text-sm text-[var(--muted)]">
             <span className="font-medium">
               {nameOverride.trim() ? "Using custom name:" : "Auto-generated name:"}
             </span>{" "}
@@ -231,16 +255,18 @@ export default function NewSessionForm() {
         <input
           name="notes"
           type="text"
-          className="w-full border rounded-xl p-2"
+          className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
       </div>
 
-      <button className="border rounded-xl px-3 py-2">Create</button>
+      <button className="rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm">
+        Create
+      </button>
 
-      <p className="text-sm opacity-70">
-        Will submit: <span className="font-mono">{start}</span> →{" "}
+      <p className="text-sm text-[var(--muted)]">
+        Will submit: <span className="font-mono">{start}</span> to{" "}
         <span className="font-mono">{end}</span>
       </p>
     </form>

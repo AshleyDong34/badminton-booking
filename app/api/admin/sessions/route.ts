@@ -22,7 +22,7 @@ function autoSessionName(startLocal: Date, endLocal: Date) {
   const day = ordinal(startLocal.getDate());
   const startT = formatTime(startLocal);
   const endT = formatTime(endLocal);
-  return `${weekday} ${day} ${startT}–${endT}`;
+  return `${weekday} ${day} ${startT}-${endT}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
   const end = String(form.get("end") || "").trim();
   const capacity = Number(form.get("capacity") || 0);
   const notes = String(form.get("notes") || "").trim();
+  const allow_name_only = String(form.get("allow_name_only")) === "true";
 
   if (!start) return new NextResponse("Missing start", { status: 400 });
   if (!end) return new NextResponse("Missing end", { status: 400 });
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
     ends_at: endLocal.toISOString(),
     capacity,
     notes: notes || null,
+    allow_name_only,
   });
 
   if (error) return new NextResponse(error.message, { status: 500 });

@@ -13,7 +13,10 @@ export default function DeleteSessionButton({ id }: { id: string }) {
         if (!ok) e.preventDefault();
       }}
     >
-      <button className="underline" type="submit">
+      <button
+        className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium text-[var(--muted)] shadow-sm transition hover:translate-y-[-1px]"
+        type="submit"
+      >
         Delete
       </button>
     </form>

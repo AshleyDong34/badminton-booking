@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Space_Grotesk } from "next/font/google";
 import { supabase } from "@/lib/supabaseClient";
+
+const space = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
 
 export default function SignInPage() {
   const router = useRouter();
@@ -90,29 +96,50 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md space-y-6">
-        <h1 className="text-2xl font-semibold">Admin sign in</h1>
+    <div className={`${space.className} min-h-screen bg-white text-slate-900`}>
+      <div className="flex min-h-screen items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md space-y-6">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+              Badminton Club
+            </p>
+            <h1 className="text-3xl font-semibold">Admin sign in</h1>
+            <p className="text-sm text-slate-600">
+              Enter your committee email to receive a magic link.
+            </p>
+          </div>
 
-        <div className="rounded-2xl p-5 shadow space-y-4">
-          <form onSubmit={requestLink} className="space-y-4">
-            <label className="block text-sm">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border p-2"
-              placeholder="committee@club.org"
-            />
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <form onSubmit={requestLink} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2"
+                  placeholder="committee@club.org"
+                />
+              </div>
 
-            <button disabled={loading} className="w-full rounded-xl p-2 border">
-              {loading ? "Sending..." : "Send magic link"}
-            </button>
-          </form>
+              <button
+                disabled={loading}
+                className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Sending..." : "Send magic link"}
+              </button>
+            </form>
+          </div>
+
+          {msg && (
+            <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+              {msg}
+            </p>
+          )}
         </div>
-
-        {msg && <p className="text-sm opacity-80">{msg}</p>}
       </div>
     </div>
   );

@@ -49,28 +49,34 @@ export default async function AdminsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold">Admins</h1>
-
-      {/* Add pending admin by email */}
-      <form action="/api/admin/admins/pending/add" method="post" className="space-y-2">
-        <label className="block text-sm">Invite admin by email</label>
-        <div className="flex gap-2">
-          <input
-            name="email"
-            type="email"
-            required
-            className="w-full border rounded-xl p-2"
-            placeholder="committee.member@club.org"
-          />
-          <button className="border rounded-xl px-3 py-2 whitespace-nowrap">
-            Add pending
-          </button>
-        </div>
-        <p className="text-sm opacity-70">
-          They become an admin automatically after they log in with that email.
+    <div className="space-y-8 max-w-3xl">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold">Admins</h1>
+        <p className="text-sm text-[var(--muted)]">
+          Invite committee members or remove access for former admins.
         </p>
-      </form>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+        <form action="/api/admin/admins/pending/add" method="post" className="space-y-3">
+          <label className="block text-sm font-medium">Invite admin by email</label>
+          <div className="flex flex-wrap gap-2">
+            <input
+              name="email"
+              type="email"
+              required
+              className="w-full flex-1 rounded-xl border border-[var(--line)] bg-white p-2"
+              placeholder="committee.member@club.org"
+            />
+            <button className="rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm">
+              Add pending
+            </button>
+          </div>
+          <p className="text-sm text-[var(--muted)]">
+            They become an admin automatically after they log in with that email.
+          </p>
+        </form>
+      </div>
 
       {(aErr || pErr) && (
         <p className="text-sm text-red-600">
@@ -78,33 +84,35 @@ export default async function AdminsPage() {
         </p>
       )}
 
-      {/* Pending list */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <h2 className="text-lg font-semibold">Pending invites</h2>
 
         {(!pending || pending.length === 0) ? (
-          <p className="text-sm opacity-70">No pending invites.</p>
+          <p className="text-sm text-[var(--muted)]">No pending invites.</p>
         ) : (
-          <div className="border rounded-2xl overflow-hidden">
-            <table className="w-full border-collapse">
-              <thead className="border-b">
+          <div className="border border-[var(--line)] rounded-2xl overflow-hidden bg-[var(--card)] shadow-sm">
+            <table className="w-full border-collapse text-sm">
+              <thead className="border-b border-[var(--line)] text-[var(--muted)]">
                 <tr className="text-left">
-                  <th className="py-2 px-3">Email</th>
-                  <th className="py-2 px-3">Invited</th>
-                  <th className="py-2 px-3">Actions</th>
+                  <th className="py-3 px-4">Email</th>
+                  <th className="py-3 px-4">Invited</th>
+                  <th className="py-3 px-4">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {pending.map((p: PendingRow) => (
-                  <tr key={p.email} className="border-b last:border-b-0">
-                    <td className="py-2 px-3">{p.email}</td>
-                    <td className="py-2 px-3 text-sm opacity-70">
+                {pending.map((p: PendingRow, idx) => (
+                  <tr key={p.email} className={idx % 2 === 0 ? "bg-white" : "bg-[var(--chip)]"}>
+                    <td className="py-3 px-4">{p.email}</td>
+                    <td className="py-3 px-4 text-[var(--muted)]">
                       {new Date(p.created_at).toLocaleString("en-GB")}
                     </td>
-                    <td className="py-2 px-3">
+                    <td className="py-3 px-4">
                       <form action="/api/admin/admins/pending/delete" method="post">
                         <input type="hidden" name="email" value={p.email} />
-                        <button className="underline" type="submit">
+                        <button
+                          className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium text-[var(--muted)] shadow-sm"
+                          type="submit"
+                        >
                           Remove
                         </button>
                       </form>
@@ -117,39 +125,41 @@ export default async function AdminsPage() {
         )}
       </div>
 
-      {/* Current admins */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <h2 className="text-lg font-semibold">Current admins</h2>
 
         {adminRows.length === 0 ? (
-          <p className="text-sm opacity-70">No admins found (this should not happen).</p>
+          <p className="text-sm text-[var(--muted)]">No admins found (this should not happen).</p>
         ) : (
-          <div className="border rounded-2xl overflow-hidden">
-            <table className="w-full border-collapse">
-              <thead className="border-b">
+          <div className="border border-[var(--line)] rounded-2xl overflow-hidden bg-[var(--card)] shadow-sm">
+            <table className="w-full border-collapse text-sm">
+              <thead className="border-b border-[var(--line)] text-[var(--muted)]">
                 <tr className="text-left">
-                  <th className="py-2 px-3">Email</th>
-                  <th className="py-2 px-3">Since</th>
-                  <th className="py-2 px-3">Actions</th>
+                  <th className="py-3 px-4">Email</th>
+                  <th className="py-3 px-4">Since</th>
+                  <th className="py-3 px-4">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {adminRows.map((a: AdminRow) => {
+                {adminRows.map((a: AdminRow, idx) => {
                   const isSelf = currentUserId ? a.user_id === currentUserId : false;
                   const email = emailById.get(a.user_id) ?? "";
 
                   return (
-                  <tr key={a.user_id} className="border-b last:border-b-0">
-                    <td className="py-2 px-3 text-sm" title={a.user_id}>
-                      {email || "Unknown"}
-                    </td>
-                    <td className="py-2 px-3 text-sm opacity-70">
-                      {new Date(a.created_at).toLocaleString("en-GB")}
-                    </td>
-                    <td className="py-2 px-3">
-                      {!isSelf && <RemoveAdminForm userId={a.user_id} />}
-                    </td>
-                  </tr>
+                    <tr key={a.user_id} className={idx % 2 === 0 ? "bg-white" : "bg-[var(--chip)]"}>
+                      <td className="py-3 px-4 text-sm" title={a.user_id}>
+                        {email || "Unknown"}
+                      </td>
+                      <td className="py-3 px-4 text-[var(--muted)]">
+                        {new Date(a.created_at).toLocaleString("en-GB")}
+                      </td>
+                      <td className="py-3 px-4">
+                        {!isSelf && <RemoveAdminForm userId={a.user_id} />}
+                        {isSelf && (
+                          <span className="text-xs text-[var(--muted)]">This is you</span>
+                        )}
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
