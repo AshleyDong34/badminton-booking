@@ -13,8 +13,9 @@ type SearchParams = {
 export default async function WhitelistPage({
   searchParams,
 }: {
-  searchParams?: SearchParams;
+  searchParams?: SearchParams | Promise<SearchParams>;
 }) {
+  const params = (await searchParams) ?? {};
   const db = supabaseServer();
   const { count, error } = await db
     .from("student_whitelist")
@@ -26,7 +27,7 @@ export default async function WhitelistPage({
     .order("email", { ascending: true, nullsFirst: false })
     .limit(200);
 
-  const inserted = searchParams?.inserted ?? "";
+  const inserted = params.inserted ?? "";
   const rows = whitelist ?? [];
 
   return (
@@ -38,14 +39,14 @@ export default async function WhitelistPage({
         </p>
       </div>
 
-      {searchParams?.ok && (
+      {params.ok && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--ink)]">
           Import complete. Added {inserted || "0"} rows (duplicates ignored).
         </p>
       )}
-      {searchParams?.error && (
+      {params.error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          Import failed: {searchParams.error}
+          Import failed: {params.error}
         </p>
       )}
       {error && (

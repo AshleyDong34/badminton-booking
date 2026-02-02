@@ -56,7 +56,6 @@ export default function SessionBookingPage() {
   const [waitlist, setWaitlist] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [lastCancelUrl, setLastCancelUrl] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const activeRef = useRef(true);
 
@@ -116,7 +115,7 @@ export default function SessionBookingPage() {
 
     const startPolling = () => {
       if (interval) return;
-      interval = setInterval(() => loadSession("refresh"), 10000);
+      interval = setInterval(() => loadSession("refresh"), 20000);
     };
 
     const stopPolling = () => {
@@ -210,8 +209,11 @@ export default function SessionBookingPage() {
       }
 
       if (row?.r_cancel_token) {
-        const url = `${window.location.origin}/cancel?token=${row.r_cancel_token}`;
-        setLastCancelUrl(url);
+        fetch("/api/public/signup-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cancelToken: row.r_cancel_token }),
+        }).catch(() => {});
       }
 
       setName("");
@@ -395,12 +397,6 @@ export default function SessionBookingPage() {
           </div>
 
           {message && <p className="mt-4 text-sm text-[var(--muted)]">{message}</p>}
-
-          {lastCancelUrl && (
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              Save this cancel link: {lastCancelUrl}
-            </p>
-          )}
 
           <button
             disabled={submitting}

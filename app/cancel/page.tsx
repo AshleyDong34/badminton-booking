@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../lib/supabaseClient";
 
 export default function CancelPage() {
   const router = useRouter();
@@ -23,20 +22,21 @@ export default function CancelPage() {
         return;
       }
 
-      // call the server-side function you created (SECURITY DEFINER)
-      const { data, error } = await supabase.rpc("cancel_signup_by_token", {
-        p_token: token,
+      const res = await fetch("/api/public/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
       });
 
-      if (error) {
-        console.error(error);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.error(json);
         setStatus("error");
         setMsg("Something went wrong while cancelling. Please try again later.");
         return;
       }
 
-      // function returns true if a row was deleted, false otherwise
-      if (data === true) {
+      if (json.status === "ok") {
         setStatus("ok");
         setMsg("Your booking has been cancelled.");
       } else {
@@ -55,16 +55,20 @@ export default function CancelPage() {
     const timer = setInterval(() => {
       setRedirectIn((current) => {
         if (current === null) return null;
-        if (current <= 1) {
-          router.push("/");
-          return null;
-        }
         return current - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
   }, [status, router]);
+
+  useEffect(() => {
+    if (redirectIn === null) return;
+    if (redirectIn <= 0) {
+      router.push("/");
+      setRedirectIn(null);
+    }
+  }, [redirectIn, router]);
 
   return (
     <main style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
