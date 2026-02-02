@@ -1,13 +1,16 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function CancelPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<"idle" | "ok" | "invalid" | "error">("idle");
   const [msg, setMsg] = useState<string>("");
+  const [redirectIn, setRedirectIn] = useState<number | null>(null);
 
-  // runs once after mount – reads ?token=... and calls RPC
+  // runs once after mount, reads ?token=... and calls RPC
   useEffect(() => {
     const run = async () => {
       // read the token from the URL
@@ -45,16 +48,39 @@ export default function CancelPage() {
     run();
   }, []); // run once after mount
 
+  useEffect(() => {
+    if (status !== "ok") return;
+    setRedirectIn(6);
+
+    const timer = setInterval(() => {
+      setRedirectIn((current) => {
+        if (current === null) return null;
+        if (current <= 1) {
+          router.push("/");
+          return null;
+        }
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [status, router]);
+
   return (
     <main style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
       <h1>Cancel Booking</h1>
-      <p style={{ marginTop: 12 }}>
-        {msg || "Processing your cancellation…"}
-      </p>
+      <p style={{ marginTop: 12 }}>{msg || "Processing your cancellation..."}</p>
       {status === "ok" && (
-        <p style={{ marginTop: 8, opacity: 0.8 }}>
-          If the session was full, the next person on the waitlist has been promoted automatically.
-        </p>
+        <>
+          <p style={{ marginTop: 8, opacity: 0.8 }}>
+            If the session was full, the next person on the waitlist has been promoted automatically.
+          </p>
+          {redirectIn !== null && (
+            <p style={{ marginTop: 8, opacity: 0.7 }}>
+              Returning to the homepage in {redirectIn}s.
+            </p>
+          )}
+        </>
       )}
     </main>
   );
