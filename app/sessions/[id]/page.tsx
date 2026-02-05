@@ -63,6 +63,7 @@ export default function SessionBookingPage() {
         email: string;
       }
   >(null);
+  const [showRules, setShowRules] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const activeRef = useRef(true);
 
@@ -389,23 +390,36 @@ export default function SessionBookingPage() {
 
         <form
           onSubmit={submitBooking}
-          className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-sm"
+          className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-sm space-y-5"
         >
-          <h2 className="text-lg font-semibold">Book your spot</h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Enter your details below. You will get a confirmation email with a cancel link.
-          </p>
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold">Book your spot</h2>
+            <p className="text-sm text-[var(--muted)]">
+              Enter your details below. You will get a confirmation email with a cancel link.
+            </p>
+          </div>
           {!allowNameOnly && (
-            <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--muted)]">
-              <div className="font-medium text-[var(--ink)]">Membership rules</div>
-              <div className="mt-1">
-                This session requires paid membership. You get one taster session without
-                membership; after that, you&apos;ll need membership to keep booking.
-              </div>
+            <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setShowRules((prev) => !prev)}
+                className="flex w-full items-center justify-between text-sm font-medium text-[var(--ink)]"
+              >
+                <span>Membership rules</span>
+                <span className="text-xs text-[var(--muted)]">
+                  {showRules ? "Hide" : "View"}
+                </span>
+              </button>
+              {showRules && (
+                <div className="mt-2 text-sm text-[var(--muted)]">
+                  This session requires paid membership. You get one taster session without
+                  membership; after that, you&apos;ll need membership to keep booking.
+                </div>
+              )}
             </div>
           )}
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="text-sm">Name</label>
               <input
@@ -451,7 +465,7 @@ export default function SessionBookingPage() {
 
           <button
             disabled={submitting}
-            className={`mt-6 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm ${
+            className={`w-full sm:w-auto rounded-xl px-4 py-2 text-sm font-semibold shadow-sm ${
               isFull ? "bg-[var(--wait)] text-[var(--ink)]" : "bg-[var(--ok)] text-white"
             }`}
           >

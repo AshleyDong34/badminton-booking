@@ -11,7 +11,14 @@ type SignupRow = {
 export async function GET() {
   const db = supabaseServer();
   const now = new Date();
-  const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const { data: settings } = await db
+    .from("settings")
+    .select("booking_window_days")
+    .eq("id", 1)
+    .single();
+  const windowDays = Number(settings?.booking_window_days ?? 7);
+  const safeDays = Number.isFinite(windowDays) && windowDays >= 0 ? windowDays : 7;
+  const weekAhead = new Date(now.getTime() + safeDays * 24 * 60 * 60 * 1000);
   const nowIso = now.toISOString();
   const weekAheadIso = weekAhead.toISOString();
 

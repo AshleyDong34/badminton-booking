@@ -51,7 +51,7 @@ export default async function AttendancePage({
     .select("id,name,email,student_id,status,attended")
     .eq("session_id", sessionId)
     .eq("status", "signed_up")
-    .order("created_at", { ascending: true });
+    .order("name", { ascending: true });
 
   if (signupsError) {
     return (

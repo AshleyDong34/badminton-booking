@@ -8,27 +8,61 @@ type Row = {
   capacity: number;
   signed_up_count: number;
   waiting_list_count: number;
+  starts_at: string | null;
 };
 
 export default async function AdminHome() {
   const supabase = supabaseServer();
 
-  // Initial server fetch (fast first paint)
-  const { data, error } = await supabase
-    .from("admin_session_overview")
-    .select("id,name,capacity,signed_up_count,waiting_list_count")
-    .order("name", { ascending: true });
+  const { data: sessions, error: sessionsErr } = await supabase
+    .from("sessions")
+    .select("id,name,capacity,starts_at")
+    .order("starts_at", { ascending: true });
 
-  if (error) {
+  if (sessionsErr) {
     return (
       <div className="space-y-3">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm opacity-80">Failed to load: {error.message}</p>
+        <p className="text-sm opacity-80">Failed to load: {sessionsErr.message}</p>
       </div>
     );
   }
 
-  const initial = (data ?? []) as Row[];
+  const rows = (sessions ?? []) as Row[];
+  const ids = rows.map((s) => s.id);
+  const counts = new Map<string, { signed: number; waitlist: number }>();
+
+  if (ids.length > 0) {
+    const { data: signups, error: signupsErr } = await supabase
+      .from("signups")
+      .select("session_id,status")
+      .in("session_id", ids);
+
+    if (signupsErr) {
+      return (
+        <div className="space-y-3">
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="text-sm opacity-80">Failed to load: {signupsErr.message}</p>
+        </div>
+      );
+    }
+
+    for (const row of signups ?? []) {
+      const current = counts.get(row.session_id) ?? { signed: 0, waitlist: 0 };
+      if (row.status === "signed_up") current.signed += 1;
+      if (row.status === "waiting_list") current.waitlist += 1;
+      counts.set(row.session_id, current);
+    }
+  }
+
+  const initial = rows.map((s) => {
+    const current = counts.get(s.id) ?? { signed: 0, waitlist: 0 };
+    return {
+      ...s,
+      signed_up_count: current.signed,
+      waiting_list_count: current.waitlist,
+    };
+  });
 
   return (
     <div className="space-y-6">

@@ -8,6 +8,7 @@ type SettingsRow = {
   weekly_quota: number; // <-- rename this if your column is weekly_limit
   allow_same_day_multi: boolean;
   allow_name_only?: boolean; // <-- add this column in settings to persist
+  booking_window_days?: number | null;
   club_rules?: string | null;
   useful_info?: string | null;
 };
@@ -27,6 +28,7 @@ export default async function SettingsPage() {
     weekly_quota: 2,
     allow_same_day_multi: false,
     allow_name_only: false,
+    booking_window_days: 7,
     club_rules: "",
     useful_info: "",
   };
@@ -73,6 +75,22 @@ export default async function SettingsPage() {
             <option value="false">No</option>
             <option value="true">Yes</option>
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">Session visibility window (days)</label>
+          <input
+            name="booking_window_days"
+            type="number"
+            min={0}
+            max={365}
+            required
+            className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
+            defaultValue={s.booking_window_days ?? 7}
+          />
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Users can see sessions up to this many days before the start time.
+          </p>
         </div>
 
         <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">

@@ -30,7 +30,8 @@ export default async function FirstTimePage({
   let query = db
     .from("first_time_signups")
     .select("id,email,student_id,created_at")
-    .order("created_at", { ascending: false });
+    .order("email", { ascending: true, nullsFirst: false })
+    .order("student_id", { ascending: true, nullsFirst: false });
 
   if (q) {
     query = query.or(`email.ilike.%${q}%,student_id.ilike.%${q}%`);

@@ -59,7 +59,7 @@ export default async function SessionDetail({params,}: {
     .from("signups")
     .select("id,name,email,status,created_at")
     .eq("session_id", sessionId)
-    .order("created_at", { ascending: true });
+    .order("name", { ascending: true });
 
   if (signupsError) {
     return (

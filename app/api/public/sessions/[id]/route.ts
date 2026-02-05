@@ -29,8 +29,16 @@ export async function GET(
     return NextResponse.json({ error: "Session not available." }, { status: 404 });
   }
 
+  const { data: settings } = await db
+    .from("settings")
+    .select("allow_name_only,booking_window_days")
+    .eq("id", 1)
+    .single();
+
   const now = new Date();
-  const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const windowDays = Number(settings?.booking_window_days ?? 7);
+  const safeDays = Number.isFinite(windowDays) && windowDays >= 0 ? windowDays : 7;
+  const weekAhead = new Date(now.getTime() + safeDays * 24 * 60 * 60 * 1000);
   const start = new Date(startIso);
   const end = new Date(session.ends_at ?? startIso);
 
@@ -66,11 +74,6 @@ export async function GET(
 
   let allowNameOnly = session.allow_name_only;
   if (allowNameOnly == null) {
-    const { data: settings } = await db
-      .from("settings")
-      .select("allow_name_only")
-      .eq("id", 1)
-      .single();
     allowNameOnly = settings?.allow_name_only ?? false;
   }
 
