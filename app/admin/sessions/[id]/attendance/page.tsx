@@ -15,7 +15,9 @@ type SignupRow = {
   id: string;
   name: string;
   email: string;
+  student_id: string | null;
   status: "signed_up" | "waiting_list";
+  attended: boolean | null;
 };
 
 export default async function AttendancePage({
@@ -46,7 +48,7 @@ export default async function AttendancePage({
 
   const { data: signups, error: signupsError } = await supabase
     .from("signups")
-    .select("id,name,email,status")
+    .select("id,name,email,student_id,status,attended")
     .eq("session_id", sessionId)
     .eq("status", "signed_up")
     .order("created_at", { ascending: true });
@@ -70,6 +72,8 @@ export default async function AttendancePage({
     id: row.id,
     name: row.name,
     email: row.email,
+    student_id: row.student_id ?? null,
+    attended: Boolean(row.attended),
   }));
 
   const s = session as SessionRow;

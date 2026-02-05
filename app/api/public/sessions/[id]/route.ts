@@ -32,8 +32,9 @@ export async function GET(
   const now = new Date();
   const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const start = new Date(startIso);
+  const end = new Date(session.ends_at ?? startIso);
 
-  if (start < now) {
+  if (end < now) {
     return NextResponse.json(
       { error: "Session is no longer available." },
       { status: 410 }

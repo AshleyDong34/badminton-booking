@@ -12,7 +12,8 @@ const navItems = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/sessions", label: "Sessions" },
   { href: "/admin/settings", label: "Settings" },
-  { href: "/admin/whitelist", label: "Whitelist" },
+  { href: "/admin/whitelist", label: "Membership list" },
+  { href: "/admin/first-time", label: "First-time bookings" },
   { href: "/admin/admins", label: "Admins" },
 ];
 
@@ -47,7 +48,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-1">
               <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
-                Badminton Club
+                EUBC Badminton
               </p>
               <div className="text-2xl font-semibold">Admin Console</div>
             </div>

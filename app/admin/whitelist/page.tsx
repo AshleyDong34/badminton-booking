@@ -33,9 +33,9 @@ export default async function WhitelistPage({
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Whitelist</h1>
+        <h1 className="text-2xl font-semibold">Membership List</h1>
         <p className="text-sm text-[var(--muted)]">
-          Upload a CSV/XLSX list of allowed emails and student IDs.
+          Upload a CSV/XLSX list of paid member emails and student IDs.
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export default async function WhitelistPage({
       </div>
 
       <div className="text-sm text-[var(--muted)]">
-        Total whitelist rows: {count ?? 0} (showing {rows.length})
+        Total member rows: {count ?? 0} (showing {rows.length})
       </div>
 
       {rows.length > 0 ? (
@@ -91,7 +91,7 @@ export default async function WhitelistPage({
           </table>
         </div>
       ) : (
-        <p className="text-sm text-[var(--muted)]">Whitelist is empty.</p>
+        <p className="text-sm text-[var(--muted)]">Membership list is empty.</p>
       )}
     </div>
   );

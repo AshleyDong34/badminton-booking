@@ -63,10 +63,10 @@ export default function WhitelistUploadForm() {
         disabled={submitting}
         className="rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {submitting ? "Uploading..." : "Step 2: Upload whitelist"}
+        {submitting ? "Uploading..." : "Step 2: Upload membership list"}
       </button>
       <p className="text-sm text-[var(--muted)]">
-        Upload replaces the existing whitelist. Headers must include email and/or
+        Upload replaces the existing membership list. Headers must include email and/or
         student_id.
       </p>
       {message && (

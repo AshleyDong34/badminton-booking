@@ -265,7 +265,7 @@ export default function SessionBookingPage() {
             "--line": "#e6ddd1",
             "--accent": "#e2b23c",
             "--ok": "#2f9f67",
-            "--wait": "#f4a4c1",
+            "--wait": "#f4b1a8",
             "--cool": "#3f8fce",
             "--chip": "#eef5ff",
           } as React.CSSProperties
@@ -289,7 +289,7 @@ export default function SessionBookingPage() {
             "--line": "#e6ddd1",
             "--accent": "#e2b23c",
             "--ok": "#2f9f67",
-            "--wait": "#f4a4c1",
+            "--wait": "#f4b1a8",
             "--cool": "#3f8fce",
             "--chip": "#eef5ff",
           } as React.CSSProperties
@@ -318,9 +318,9 @@ export default function SessionBookingPage() {
           "--paper": "#f6f1e9",
           "--card": "#ffffff",
           "--line": "#e6ddd1",
-          "--accent": "#e2b23c",
+          "--accent": "#ba8500ff",
           "--ok": "#2f9f67",
-          "--wait": "#b0f4a4ff",
+          "--wait": "#f4b1a8",
           "--cool": "#3f8fce",
           "--chip": "#eef5ff",
         } as React.CSSProperties
@@ -349,10 +349,10 @@ export default function SessionBookingPage() {
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-semibold">{session.name}</h1>
               <span
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                className={`rounded-full border px-3 py-1 text-xs ${
                   allowNameOnly
-                    ? "border-[var(--ok)] bg-[var(--chip)] text-[var(--ok)]"
-                    : "border-[var(--accent)] bg-[var(--chip)] text-[var(--accent)]"
+                    ? "border-[var(--ok)] bg-[var(--chip)] text-[var(--ok)] font-medium"
+                    : "border-[#f2d3c7] bg-[#fff1ea] text-[#c9826c] font-semibold"
                 }`}
               >
                 {allowNameOnly ? "Membership not required" : "Membership required"}
@@ -368,12 +368,19 @@ export default function SessionBookingPage() {
             ) : null}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-[var(--muted)]">
-            <span>
-              {statsLoading
-                ? "Loading availability..."
-                : `${signedUp}/${session.capacity} booked, ${waitlist} waitlist`}
-            </span>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[var(--muted)]">
+            {statsLoading ? (
+              <span>Loading availability...</span>
+            ) : (
+              <>
+                <span className="rounded-full border border-[var(--line)] bg-[var(--chip)] px-3 py-1 text-sm font-semibold text-[var(--ink)]">
+                  {signedUp}/{session.capacity} booked
+                </span>
+                <span className="rounded-full border border-[var(--line)] bg-[var(--chip)] px-3 py-1 text-sm font-semibold text-[var(--ink)]">
+                  {waitlist} waitlist
+                </span>
+              </>
+            )}
             <span className={isFull ? "text-[var(--accent)]" : "text-[var(--ok)]"}>
               {hint}
             </span>

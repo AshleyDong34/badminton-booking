@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 export type AttendanceSignup = {
   id: string;
   name: string;
   email: string;
+  student_id: string | null;
+  attended: boolean;
 };
 
 type AttendanceClientProps = {
@@ -13,50 +15,67 @@ type AttendanceClientProps = {
   initialSignups: AttendanceSignup[];
 };
 
-const storageKey = (sessionId: string) => `attendance:${sessionId}`;
-
 export default function AttendanceClient({
   sessionId,
   initialSignups,
 }: AttendanceClientProps) {
-  const [presentIds, setPresentIds] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  const allIds = useMemo(() => new Set(initialSignups.map((s) => s.id)), [initialSignups]);
-
-  useEffect(() => {
-    const raw = window.localStorage.getItem(storageKey(sessionId));
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as string[];
-        if (Array.isArray(parsed)) {
-          setPresentIds(parsed.filter((id) => allIds.has(id)));
-        }
-      } catch {
-        setPresentIds([]);
-      }
-    }
-    setLoaded(true);
-  }, [sessionId, allIds]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    window.localStorage.setItem(storageKey(sessionId), JSON.stringify(presentIds));
-  }, [presentIds, loaded, sessionId]);
+  const [presentIds, setPresentIds] = useState<string[]>(
+    initialSignups.filter((s) => s.attended).map((s) => s.id)
+  );
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
   const presentSet = useMemo(() => new Set(presentIds), [presentIds]);
 
   const pending = initialSignups.filter((s) => !presentSet.has(s.id));
   const present = initialSignups.filter((s) => presentSet.has(s.id));
 
+  const updateAttendance = async (id: string, attended: boolean) => {
+    setError(null);
+    setSavingIds((prev) => new Set(prev).add(id));
+    try {
+      const res = await fetch(`/api/admin/sessions/${sessionId}/attendance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signupId: id, attended }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || "Failed to update attendance.");
+        return;
+      }
+
+      setPresentIds((prev) => {
+        if (attended) {
+          return prev.includes(id) ? prev : [...prev, id];
+        }
+        return prev.filter((entry) => entry !== id);
+      });
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
   const markPresent = (id: string) => {
     if (presentSet.has(id)) return;
-    setPresentIds((prev) => [...prev, id]);
+    updateAttendance(id, true);
   };
 
   const markAbsent = (id: string) => {
     if (!presentSet.has(id)) return;
-    setPresentIds((prev) => prev.filter((entry) => entry !== id));
+    updateAttendance(id, false);
+  };
+
+  const markAllPresent = async () => {
+    const toMark = pending.map((p) => p.id);
+    for (const id of toMark) {
+      await updateAttendance(id, true);
+    }
   };
 
   return (
@@ -67,10 +86,11 @@ export default function AttendanceClient({
           <p className="text-sm text-[var(--muted)]">
             Checked in: {present.length} | Waiting: {pending.length}
           </p>
+          {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
         </div>
         <button
           type="button"
-          onClick={() => setPresentIds(initialSignups.map((s) => s.id))}
+          onClick={markAllPresent}
           className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium text-[var(--muted)] shadow-sm"
         >
           Mark all present
@@ -93,13 +113,19 @@ export default function AttendanceClient({
                     <div>
                       <div className="font-medium">{person.name}</div>
                       <div className="text-sm text-[var(--muted)]">{person.email}</div>
+                      {person.student_id ? (
+                        <div className="text-xs text-[var(--muted)]">
+                          Student ID: {person.student_id}
+                        </div>
+                      ) : null}
                     </div>
                     <button
                       type="button"
                       onClick={() => markPresent(person.id)}
+                      disabled={savingIds.has(person.id)}
                       className="rounded-full bg-[var(--ok)] px-3 py-1 text-xs font-semibold text-white shadow-sm"
                     >
-                      Check in
+                      {savingIds.has(person.id) ? "Saving..." : "Check in"}
                     </button>
                   </div>
                 </li>
@@ -123,13 +149,19 @@ export default function AttendanceClient({
                     <div>
                       <div className="font-medium">{person.name}</div>
                       <div className="text-sm text-[var(--muted)]">{person.email}</div>
+                      {person.student_id ? (
+                        <div className="text-xs text-[var(--muted)]">
+                          Student ID: {person.student_id}
+                        </div>
+                      ) : null}
                     </div>
                     <button
                       type="button"
                       onClick={() => markAbsent(person.id)}
+                      disabled={savingIds.has(person.id)}
                       className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium text-[var(--muted)] shadow-sm"
                     >
-                      Undo
+                      {savingIds.has(person.id) ? "Saving..." : "Undo"}
                     </button>
                   </div>
                 </li>

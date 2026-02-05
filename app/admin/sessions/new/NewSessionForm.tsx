@@ -226,7 +226,7 @@ export default function NewSessionForm({
         <span className="text-sm">
           <span className="block font-medium">Allow name + email only</span>
           <span className="block text-xs text-[var(--muted)]">
-            Skip student ID and whitelist checks for this session.
+            Skip membership checks for this session (normal signup).
           </span>
         </span>
       </label>

@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
   const weekly_quota = Number(form.get("weekly_quota")); // <-- rename if needed
   const allow_same_day_multi = String(form.get("allow_same_day_multi")) === "true";
   const allow_name_only = form.get("allow_name_only") === "on";
+  const club_rules = String(form.get("club_rules") ?? "");
+  const useful_info = String(form.get("useful_info") ?? "");
 
   if (!Number.isFinite(weekly_quota) || weekly_quota < 1) {
     return new NextResponse("Bad weekly quota", { status: 400 });
@@ -24,7 +26,14 @@ export async function POST(req: NextRequest) {
   const supabase = supabaseServer();
 
   // single-row settings table (id=1)
-  const payload = { id: 1, weekly_quota, allow_same_day_multi, allow_name_only };
+  const payload = {
+    id: 1,
+    weekly_quota,
+    allow_same_day_multi,
+    allow_name_only,
+    club_rules,
+    useful_info,
+  };
   let { error } = await supabase
     .from("settings")
     .upsert(payload, { onConflict: "id" });
