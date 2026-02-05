@@ -56,6 +56,13 @@ export default function SessionBookingPage() {
   const [waitlist, setWaitlist] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<
+    | null
+    | {
+        status: "signed_up" | "waiting_list";
+        email: string;
+      }
+  >(null);
   const [refreshing, setRefreshing] = useState(false);
   const activeRef = useRef(true);
 
@@ -157,9 +164,11 @@ export default function SessionBookingPage() {
     if (!sessionId) return;
 
     setMessage(null);
+    setResult(null);
 
     const trimmed = name.trim();
-    const sid = studentId.trim();
+    const sidRaw = studentId.trim();
+    const sid = sidRaw ? sidRaw.toLowerCase().replace(/[^a-z0-9]/g, "") : "";
     const mail = email.trim();
 
     if (!trimmed) {
@@ -168,6 +177,10 @@ export default function SessionBookingPage() {
     }
     if (!mail || !mail.includes("@")) {
       setMessage("Enter a valid email.");
+      return;
+    }
+    if (sid && !/^s\d{7}$/.test(sid)) {
+      setMessage("Student ID must be in the format s1234567.");
       return;
     }
     try {
@@ -183,11 +196,20 @@ export default function SessionBookingPage() {
         const raw =
           (error.message || error.details || error.hint || error.code || "").toLowerCase();
         if (raw.includes("weekly limit")) setMessage("Weekly limit reached.");
+        else if (raw.includes("first_time_requires_student_id")) {
+          setMessage("First-time signup requires a student ID.");
+        }
+        else if (raw.includes("invalid student_id") || raw.includes("invalid student id")) {
+          setMessage("Student ID must be in the format s1234567.");
+        }
+        else if (raw.includes("membership required")) {
+          setMessage("Paid membership is required to book this session.");
+        }
         else if (raw.includes("whitelisted")) {
           setMessage(
             allowNameOnly
               ? "Signup blocked by session rules."
-              : "Email or student ID is not on the whitelist."
+              : "Paid membership is required to book this session."
           );
         }
         else if (raw.includes("student_id required") || raw.includes("student id required"))
@@ -202,8 +224,10 @@ export default function SessionBookingPage() {
       const row = Array.isArray(data) ? data[0] : data;
       if (row?.r_status === "signed_up") {
         setMessage("You are booked. See you on court.");
+        setResult({ status: "signed_up", email: mail });
       } else if (row?.r_status === "waiting_list") {
         setMessage("Session is full. You are on the waitlist.");
+        setResult({ status: "waiting_list", email: mail });
       } else {
         setMessage("Signup received.");
       }
@@ -322,7 +346,18 @@ export default function SessionBookingPage() {
 
         <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-sm">
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold">{session.name}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold">{session.name}</h1>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  allowNameOnly
+                    ? "border-[var(--ok)] bg-[var(--chip)] text-[var(--ok)]"
+                    : "border-[var(--accent)] bg-[var(--chip)] text-[var(--accent)]"
+                }`}
+              >
+                {allowNameOnly ? "Membership not required" : "Membership required"}
+              </span>
+            </div>
             <p className="text-sm text-[var(--muted)]">
               {formatDateTime(session.starts_at, session.ends_at)}
             </p>
@@ -353,6 +388,15 @@ export default function SessionBookingPage() {
           <p className="mt-1 text-sm text-[var(--muted)]">
             Enter your details below. You will get a confirmation email with a cancel link.
           </p>
+          {!allowNameOnly && (
+            <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--muted)]">
+              <div className="font-medium text-[var(--ink)]">Membership rules</div>
+              <div className="mt-1">
+                This session requires paid membership. You get one taster session without
+                membership; after that, you&apos;ll need membership to keep booking.
+              </div>
+            </div>
+          )}
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
@@ -371,20 +415,20 @@ export default function SessionBookingPage() {
               </div>
             ) : (
               <div>
-                <label className="text-sm">Student ID (optional)</label>
+                <label className="text-sm">Student ID (required)</label>
                 <input
                   value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
+                  onChange={(e) => setStudentId(e.target.value.toLowerCase())}
                   className="mt-1 w-full rounded-xl border border-[var(--line)] p-2"
                   placeholder="s1234567"
                 />
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Email or student ID must be on the whitelist.
+                  Leave blank only if you don&apos;t have one.
                 </p>
               </div>
             )}
             <div className={allowNameOnly ? "sm:col-span-2" : ""}>
-              <label className="text-sm">Email</label>
+              <label className="text-sm">Email (required)</label>
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -407,6 +451,39 @@ export default function SessionBookingPage() {
             {submitting ? "Submitting..." : isFull ? "Join waitlist" : "Join signup"}
           </button>
         </form>
+
+        {result && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-lg">
+              <h3 className="text-lg font-semibold">
+                {result.status === "signed_up" ? "You’re booked!" : "You’re on the waitlist"}
+              </h3>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                {result.status === "signed_up"
+                  ? "Your booking is confirmed."
+                  : "We’ll let you know if a spot opens up."}
+              </p>
+              <p className="mt-3 text-sm text-[var(--muted)]">
+                A confirmation email has been sent to{" "}
+                <span className="font-medium text-[var(--ink)]">{result.email}</span> with your
+                cancellation link. If you can’t make it, please cancel using that link so someone
+                else can take the spot.
+              </p>
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm"
+                  onClick={() => setResult(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
