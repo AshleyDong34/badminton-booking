@@ -94,7 +94,7 @@ export default async function AttendancePage({
           <h1 className="text-2xl font-semibold">Attendance</h1>
           <p className="text-sm text-[var(--muted)]">
             {s.name}
-            {timeLabel ? ` · ${timeLabel}` : ""}
+            {timeLabel ? ` | ${timeLabel}` : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">

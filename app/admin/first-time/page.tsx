@@ -117,8 +117,8 @@ export default async function FirstTimePage({
         <p className="text-sm text-red-600">Failed to load entries: {error.message}</p>
       )}
 
-      <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-sm overflow-hidden">
-        <table className="w-full border-collapse text-sm">
+      <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-sm overflow-x-auto">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead className="border-b border-[var(--line)] text-[var(--muted)]">
             <tr className="text-left">
               <th className="py-3 px-4">Email</th>

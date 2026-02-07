@@ -90,8 +90,8 @@ export default async function AdminsPage() {
         {(!pending || pending.length === 0) ? (
           <p className="text-sm text-[var(--muted)]">No pending invites.</p>
         ) : (
-          <div className="border border-[var(--line)] rounded-2xl overflow-hidden bg-[var(--card)] shadow-sm">
-            <table className="w-full border-collapse text-sm">
+          <div className="border border-[var(--line)] rounded-2xl overflow-x-auto bg-[var(--card)] shadow-sm">
+            <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead className="border-b border-[var(--line)] text-[var(--muted)]">
                 <tr className="text-left">
                   <th className="py-3 px-4">Email</th>
@@ -131,8 +131,8 @@ export default async function AdminsPage() {
         {adminRows.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">No admins found (this should not happen).</p>
         ) : (
-          <div className="border border-[var(--line)] rounded-2xl overflow-hidden bg-[var(--card)] shadow-sm">
-            <table className="w-full border-collapse text-sm">
+          <div className="border border-[var(--line)] rounded-2xl overflow-x-auto bg-[var(--card)] shadow-sm">
+            <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead className="border-b border-[var(--line)] text-[var(--muted)]">
                 <tr className="text-left">
                   <th className="py-3 px-4">Email</th>

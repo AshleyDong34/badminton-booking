@@ -150,26 +150,27 @@ function SessionCard({ session }: { session: SessionRow }) {
   const noteLabel = note.length > 44 ? `${note.slice(0, 44)}...` : note;
 
   return (
-    <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="space-y-2">
         <div className="text-lg font-semibold text-[var(--ink)]">
           {session.name}
         </div>
-        <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
-          <span className="h-2 w-2 rounded-full bg-[var(--cool)]" />
-          <span>{formatTimeRange(session.starts_at, session.ends_at)}</span>
+        <div className="text-xs text-[var(--muted)] sm:text-sm">
+          {formatTimeRange(session.starts_at, session.ends_at)}
         </div>
         {noteLabel ? (
-          <span className="inline-flex rounded-full border border-[var(--line)] bg-[var(--chip)] px-2.5 py-1 text-xs text-[var(--ink)]">
+          <span className="inline-flex rounded-full border border-[#dbe8ff] bg-[#eef5ff] px-2.5 py-1 text-xs text-[var(--ink)]">
             {noteLabel}
           </span>
         ) : null}
       </div>
 
       <div className="flex flex-col items-start gap-2 sm:items-end">
-        <div className="text-xs text-[var(--muted)]">
-          {`${signedUp}/${session.capacity} booked, ${waitlist} waitlist`}
-        </div>
+          <div className="text-xs text-[var(--muted)]">
+            {`${signedUp}/${session.capacity} booked${
+              waitlist > 0 ? ` • ${waitlist} waitlist` : ""
+            }`}
+          </div>
         <Link
           href={`/sessions/${session.id}`}
           className={`w-full text-center sm:w-auto rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:translate-y-[-1px] ${badgeClass}`}
@@ -283,18 +284,18 @@ export default function Home() {
                 full, you can still join the waitlist.
               </p>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end sm:gap-3">
               <button
                 type="button"
                 onClick={() => loadSessions("refresh")}
                 disabled={loading || refreshing}
-                className="rounded-full border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-sm font-medium shadow-sm transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium shadow-sm transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:py-2 sm:text-sm"
               >
                 {refreshing ? "Refreshing..." : "Refresh"}
               </button>
               <Link
                 href="/signin"
-                className="rounded-full border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-sm font-medium shadow-sm"
+                className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium shadow-sm sm:px-4 sm:py-2 sm:text-sm"
               >
                 Admin sign in
               </Link>
@@ -391,7 +392,7 @@ export default function Home() {
                 Close
               </button>
             </div>
-            <div className="mt-4 space-y-3 text-sm text-[var(--ink)]">
+            <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[#fbfaf7] p-4 text-sm text-[var(--ink)]">
               {openBulletin === "rules"
                 ? renderBulletin(bulletin.club_rules)
                 : renderBulletin(bulletin.useful_info)}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -359,7 +359,7 @@ export default function SessionBookingPage() {
                 {allowNameOnly ? "Membership not required" : "Membership required"}
               </span>
             </div>
-            <p className="text-sm text-[var(--muted)]">
+            <p className="text-xs text-[var(--muted)] sm:text-sm">
               {formatDateTime(session.starts_at, session.ends_at)}
             </p>
             {session.notes ? (
@@ -369,18 +369,13 @@ export default function SessionBookingPage() {
             ) : null}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[var(--muted)]">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)] sm:text-sm">
             {statsLoading ? (
               <span>Loading availability...</span>
             ) : (
-              <>
-                <span className="text-sm font-semibold text-[var(--ink)]">
-                  {signedUp}/{session.capacity} booked
-                </span>
-                <span className="text-sm font-semibold text-[var(--ink)]">
-                  {waitlist} waitlist
-                </span>
-              </>
+              <span className="font-semibold text-[var(--ink)]">
+                {signedUp}/{session.capacity} booked | {waitlist} waitlist
+              </span>
             )}
             <span className={isFull ? "text-[var(--accent)]" : "text-[var(--ok)]"}>
               {hint}
@@ -399,19 +394,17 @@ export default function SessionBookingPage() {
             </p>
           </div>
           {!allowNameOnly && (
-            <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3">
+            <div className="space-y-2">
               <button
                 type="button"
                 onClick={() => setShowRules((prev) => !prev)}
-                className="flex w-full items-center justify-between text-sm font-medium text-[var(--ink)]"
+                className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--cool)] underline sm:text-sm"
               >
-                <span>Membership rules</span>
-                <span className="text-xs text-[var(--muted)]">
-                  {showRules ? "Hide" : "View"}
-                </span>
+                Membership rules
+                <span className="text-[var(--muted)]">{showRules ? "Hide" : "View"}</span>
               </button>
               {showRules && (
-                <div className="mt-2 text-xs text-[var(--muted)] sm:text-sm">
+                <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-xs text-[var(--muted)] sm:text-sm">
                   This session requires paid membership. You get one taster session without
                   membership; after that, you&apos;ll need membership to keep booking.
                 </div>
@@ -481,17 +474,17 @@ export default function SessionBookingPage() {
           >
             <div className="w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-lg">
               <h3 className="text-lg font-semibold">
-                {result.status === "signed_up" ? "You’re booked!" : "You’re on the waitlist"}
+                {result.status === "signed_up" ? "You're booked!" : "You're on the waitlist"}
               </h3>
               <p className="mt-2 text-sm text-[var(--muted)]">
                 {result.status === "signed_up"
                   ? "Your booking is confirmed."
-                  : "We’ll let you know if a spot opens up."}
+                  : "We'll let you know if a spot opens up."}
               </p>
               <p className="mt-3 text-sm text-[var(--muted)]">
                 A confirmation email has been sent to{" "}
                 <span className="font-medium text-[var(--ink)]">{result.email}</span> with your
-                cancellation link. If you can’t make it, please cancel using that link so someone
+                cancellation link. If you can't make it, please cancel using that link so someone
                 else can take the spot.
               </p>
               <div className="mt-5 flex justify-end gap-3">
@@ -509,3 +502,4 @@ export default function SessionBookingPage() {
     </div>
   );
 }
+
