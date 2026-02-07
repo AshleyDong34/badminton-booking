@@ -9,6 +9,7 @@ type Row = {
   signed_up_count: number;
   waiting_list_count: number;
   starts_at: string | null;
+  ends_at: string | null;
 };
 
 export default async function AdminHome() {
@@ -16,7 +17,7 @@ export default async function AdminHome() {
 
   const { data: sessions, error: sessionsErr } = await supabase
     .from("sessions")
-    .select("id,name,capacity,starts_at")
+    .select("id,name,capacity,starts_at,ends_at")
     .order("starts_at", { ascending: true });
 
   if (sessionsErr) {

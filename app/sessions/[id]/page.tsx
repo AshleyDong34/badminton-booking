@@ -266,7 +266,7 @@ export default function SessionBookingPage() {
             "--line": "#e6ddd1",
             "--accent": "#e2b23c",
             "--ok": "#2f9f67",
-            "--wait": "#f4b1a8",
+            "--wait": "#f0b49b",
             "--cool": "#3f8fce",
             "--chip": "#eef5ff",
           } as React.CSSProperties
@@ -290,7 +290,7 @@ export default function SessionBookingPage() {
             "--line": "#e6ddd1",
             "--accent": "#e2b23c",
             "--ok": "#2f9f67",
-            "--wait": "#f4b1a8",
+            "--wait": "#f0b49b",
             "--cool": "#3f8fce",
             "--chip": "#eef5ff",
           } as React.CSSProperties
@@ -321,7 +321,7 @@ export default function SessionBookingPage() {
           "--line": "#e6ddd1",
           "--accent": "#ba8500ff",
           "--ok": "#2f9f67",
-          "--wait": "#f4b1a8",
+          "--wait": "#f0b49b",
           "--cool": "#3f8fce",
           "--chip": "#eef5ff",
         } as React.CSSProperties
@@ -374,10 +374,10 @@ export default function SessionBookingPage() {
               <span>Loading availability...</span>
             ) : (
               <>
-                <span className="rounded-full border border-[var(--line)] bg-[var(--chip)] px-3 py-1 text-sm font-semibold text-[var(--ink)]">
+                <span className="text-sm font-semibold text-[var(--ink)]">
                   {signedUp}/{session.capacity} booked
                 </span>
-                <span className="rounded-full border border-[var(--line)] bg-[var(--chip)] px-3 py-1 text-sm font-semibold text-[var(--ink)]">
+                <span className="text-sm font-semibold text-[var(--ink)]">
                   {waitlist} waitlist
                 </span>
               </>
@@ -390,11 +390,11 @@ export default function SessionBookingPage() {
 
         <form
           onSubmit={submitBooking}
-          className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-sm space-y-5"
+          className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5"
         >
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold">Book your spot</h2>
-            <p className="text-sm text-[var(--muted)]">
+            <h2 className="text-base font-semibold sm:text-lg">Book your spot</h2>
+            <p className="text-xs text-[var(--muted)] sm:text-sm">
               Enter your details below. You will get a confirmation email with a cancel link.
             </p>
           </div>
@@ -411,7 +411,7 @@ export default function SessionBookingPage() {
                 </span>
               </button>
               {showRules && (
-                <div className="mt-2 text-sm text-[var(--muted)]">
+                <div className="mt-2 text-xs text-[var(--muted)] sm:text-sm">
                   This session requires paid membership. You get one taster session without
                   membership; after that, you&apos;ll need membership to keep booking.
                 </div>
@@ -419,28 +419,28 @@ export default function SessionBookingPage() {
             </div>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="text-sm">Name</label>
+              <label className="text-xs sm:text-sm">Name</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-[var(--line)] p-2"
+                className="mt-1 w-full rounded-xl border border-[var(--line)] p-2.5 text-sm"
                 placeholder="Full name"
                 required
               />
             </div>
             {allowNameOnly ? (
-              <div className="sm:col-span-2 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--muted)]">
+              <div className="sm:col-span-2 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-xs text-[var(--muted)] sm:text-sm">
                 No membership needed for this session. Only name and email are required.
               </div>
             ) : (
               <div>
-                <label className="text-sm">Student ID (required)</label>
+                <label className="text-xs sm:text-sm">Student ID (required)</label>
                 <input
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value.toLowerCase())}
-                  className="mt-1 w-full rounded-xl border border-[var(--line)] p-2"
+                  className="mt-1 w-full rounded-xl border border-[var(--line)] p-2.5 text-sm"
                   placeholder="s1234567"
                 />
                 <p className="mt-1 text-xs text-[var(--muted)]">
@@ -449,11 +449,11 @@ export default function SessionBookingPage() {
               </div>
             )}
             <div className={allowNameOnly ? "sm:col-span-2" : ""}>
-              <label className="text-sm">Email (required)</label>
+              <label className="text-xs sm:text-sm">Email (required)</label>
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-[var(--line)] p-2"
+                className="mt-1 w-full rounded-xl border border-[var(--line)] p-2.5 text-sm"
                 placeholder="you@example.com"
                 type="email"
                 required
@@ -461,7 +461,7 @@ export default function SessionBookingPage() {
             </div>
           </div>
 
-          {message && <p className="mt-4 text-sm text-[var(--muted)]">{message}</p>}
+          {message && <p className="mt-2 text-xs text-[var(--muted)] sm:text-sm">{message}</p>}
 
           <button
             disabled={submitting}

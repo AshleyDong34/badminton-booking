@@ -97,22 +97,22 @@ export default function SignInPage() {
 
   return (
     <div className={`${space.className} min-h-screen bg-white text-slate-900`}>
-      <div className="flex min-h-screen items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md space-y-6">
+      <div className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6 sm:py-12">
+        <div className="w-full max-w-md space-y-4 sm:space-y-6">
           <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">
               Badminton Club
             </p>
-            <h1 className="text-3xl font-semibold">Admin sign in</h1>
-            <p className="text-sm text-slate-600">
+            <h1 className="text-2xl font-semibold sm:text-3xl">Admin sign in</h1>
+            <p className="text-xs text-slate-600 sm:text-sm">
               Enter your committee email to receive a magic link.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <form onSubmit={requestLink} className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+            <form onSubmit={requestLink} className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-xs font-medium text-slate-700 sm:text-sm">
                   Email
                 </label>
                 <input
@@ -120,7 +120,7 @@ export default function SignInPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm"
                   placeholder="committee@club.org"
                 />
               </div>
@@ -135,7 +135,7 @@ export default function SignInPage() {
           </div>
 
           {msg && (
-            <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+            <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600 shadow-sm sm:text-sm">
               {msg}
             </p>
           )}

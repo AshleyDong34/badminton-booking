@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EUBC Badminton",
+  title: "eubc badminton",
   description: "Weekly badminton signups",
 };
 

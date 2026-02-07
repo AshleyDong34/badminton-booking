@@ -172,7 +172,7 @@ function SessionCard({ session }: { session: SessionRow }) {
         </div>
         <Link
           href={`/sessions/${session.id}`}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:translate-y-[-1px] ${badgeClass}`}
+          className={`w-full text-center sm:w-auto rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition hover:translate-y-[-1px] ${badgeClass}`}
         >
           {badgeText}
         </Link>
@@ -259,7 +259,7 @@ export default function Home() {
           "--line": "#e1ddd6",
           "--accent": "#d9734a",
           "--ok": "#2f9f67",
-          "--wait": "#f4b1a8",
+          "--wait": "#f0b49b",
           "--cool": "#2e7d6d",
           "--chip": "#f1efe9",
         } as React.CSSProperties
