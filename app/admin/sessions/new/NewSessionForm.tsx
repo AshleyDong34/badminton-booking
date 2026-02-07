@@ -38,12 +38,6 @@ function addMinutes(date: string, time: string, minsToAdd: number) {
 }
 
 /* ---------- Name generation helpers (mirror server) ---------- */
-function ordinal(n: number) {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
 function formatTime(d: Date) {
   let h = d.getHours();
   const m = d.getMinutes();
@@ -53,12 +47,10 @@ function formatTime(d: Date) {
   return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, "0")}${ampm}`;
 }
 
-function autoSessionName(startLocal: Date, endLocal: Date) {
-  const weekday = startLocal.toLocaleDateString("en-GB", { weekday: "long" });
-  const day = ordinal(startLocal.getDate());
+function autoSessionName(location: string, startLocal: Date, endLocal: Date) {
   const startT = formatTime(startLocal);
   const endT = formatTime(endLocal);
-  return `${weekday} ${day} ${startT}-${endT}`;
+  return `${location} at ${startT}-${endT}`;
 }
 /* ------------------------------------------------------------ */
 
@@ -69,8 +61,7 @@ type NewSessionFormProps = {
 export default function NewSessionForm({
   defaultAllowNameOnly = false,
 }: NewSessionFormProps) {
-  // Optional override; if blank we auto-generate on server and show preview here
-  const [nameOverride, setNameOverride] = useState("");
+  const [location, setLocation] = useState("Pleasance");
   const [notes, setNotes] = useState("");
 
   const [date, setDate] = useState(todayStr());
@@ -101,23 +92,33 @@ export default function NewSessionForm({
 
   // Live preview of what the auto-generated name will look like
   const previewName = useMemo(() => {
-    const trimmed = nameOverride.trim();
-    if (trimmed) return trimmed;
-
     const startLocal = new Date(start);
     const endLocal = new Date(end);
 
     if (isNaN(startLocal.getTime()) || isNaN(endLocal.getTime())) return "";
     if (!(endLocal > startLocal)) return "";
 
-    return autoSessionName(startLocal, endLocal);
-  }, [nameOverride, start, end]);
+    return autoSessionName(location, startLocal, endLocal);
+  }, [location, start, end]);
 
   return (
     <form action="/api/admin/sessions" method="post" className="space-y-4">
       {/* what API reads */}
       <input type="hidden" name="start" value={start} />
       <input type="hidden" name="end" value={end} />
+
+      <div>
+        <label className="block text-sm">Location</label>
+        <select
+          name="location"
+          className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+        >
+          <option value="Pleasance">Pleasance</option>
+          <option value="St Leonards">St Leonards</option>
+        </select>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -232,19 +233,9 @@ export default function NewSessionForm({
       </label>
 
       <div>
-        <label className="block text-sm">Name (optional)</label>
-        <input
-          name="name"
-          className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
-          value={nameOverride}
-          onChange={(e) => setNameOverride(e.target.value)}
-          placeholder="Leave blank to auto-generate"
-        />
         {previewName && (
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            <span className="font-medium">
-              {nameOverride.trim() ? "Using custom name:" : "Auto-generated name:"}
-            </span>{" "}
+          <p className="text-sm text-[var(--muted)]">
+            <span className="font-medium">Auto-generated name:</span>{" "}
             <span className="italic">{previewName}</span>
           </p>
         )}

@@ -40,6 +40,7 @@ export function buildSignupEmail(args: {
   status: SignupStatus;
   session: SessionDetails;
   cancelUrl: string;
+  isFirstTimeTaster?: boolean;
 }) {
   const statusLine =
     args.status === "signed_up"
@@ -51,6 +52,9 @@ export function buildSignupEmail(args: {
       : `Waitlist confirmed: ${args.session.name}`;
   const when = formatSessionTime(args.session);
   const notes = args.session.notes ? `Notes: ${args.session.notes}` : "";
+  const firstTimeLine = args.isFirstTimeTaster
+    ? "This was your first booking without membership (taster). Next time you will need paid membership to book regular member sessions."
+    : "";
 
   const text = [
     `Hi ${args.name || "there"},`,
@@ -60,6 +64,7 @@ export function buildSignupEmail(args: {
     notes,
     "",
     statusLine,
+    firstTimeLine,
     "",
     "If you need to cancel, use this link:",
     args.cancelUrl,
@@ -76,6 +81,7 @@ export function buildSignupEmail(args: {
       <strong>When:</strong> ${when}</p>
       ${args.session.notes ? `<p><strong>Notes:</strong> ${args.session.notes}</p>` : ""}
       <p>${statusLine}</p>
+      ${args.isFirstTimeTaster ? `<p><strong>First-time booking:</strong> This was your taster booking without membership. Next time you will need paid membership to book regular member sessions.</p>` : ""}
       <p>If you need to cancel, use this link:<br/>
       <a href="${args.cancelUrl}">${args.cancelUrl}</a></p>
       <p>See you soon!</p>

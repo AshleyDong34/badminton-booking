@@ -3,12 +3,6 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/adminGuard";
 import { getBaseUrl } from "@/lib/base-url";
 
-function ordinal(n: number) {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
 function formatTime(d: Date) {
   let h = d.getHours();
   const m = d.getMinutes();
@@ -18,12 +12,10 @@ function formatTime(d: Date) {
   return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, "0")}${ampm}`;
 }
 
-function autoSessionName(startLocal: Date, endLocal: Date) {
-  const weekday = startLocal.toLocaleDateString("en-GB", { weekday: "long" });
-  const day = ordinal(startLocal.getDate());
+function autoSessionName(location: string, startLocal: Date, endLocal: Date) {
   const startT = formatTime(startLocal);
   const endT = formatTime(endLocal);
-  return `${weekday} ${day} ${startT}-${endT}`;
+  return `${location} at ${startT}-${endT}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -36,13 +28,14 @@ export async function POST(req: NextRequest) {
 
   const form = await req.formData();
 
-  const nameInput = String(form.get("name") || "").trim();
+  const location = String(form.get("location") || "").trim();
   const start = String(form.get("start") || "").trim();
   const end = String(form.get("end") || "").trim();
   const capacity = Number(form.get("capacity") || 0);
   const notes = String(form.get("notes") || "").trim();
   const allow_name_only = String(form.get("allow_name_only")) === "true";
 
+  if (!location) return new NextResponse("Missing location", { status: 400 });
   if (!start) return new NextResponse("Missing start", { status: 400 });
   if (!end) return new NextResponse("Missing end", { status: 400 });
   if (!Number.isFinite(capacity) || capacity < 1) {
@@ -56,7 +49,7 @@ export async function POST(req: NextRequest) {
     return new NextResponse("End must be after start", { status: 400 });
   }
 
-  const name = nameInput || autoSessionName(startLocal, endLocal);
+  const name = autoSessionName(location, startLocal, endLocal);
 
   const supabase = supabaseServer();
   const { error } = await supabase.from("sessions").insert({

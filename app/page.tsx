@@ -46,20 +46,6 @@ function formatDate(iso: string) {
   });
 }
 
-function formatTimeRange(startIso: string | null, endIso?: string | null) {
-  if (!startIso) return "TBC";
-  const start = new Date(startIso).toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  if (!endIso) return start;
-  const end = new Date(endIso).toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return `${start} to ${end}`;
-}
-
 function linkify(text: string) {
   const nodes: React.ReactNode[] = [];
   const regex =
@@ -155,9 +141,6 @@ function SessionCard({ session }: { session: SessionRow }) {
         <div className="text-lg font-semibold text-[var(--ink)]">
           {session.name}
         </div>
-        <div className="text-xs text-[var(--muted)] sm:text-sm">
-          {formatTimeRange(session.starts_at, session.ends_at)}
-        </div>
         {noteLabel ? (
           <span className="inline-flex rounded-full border border-[#dbe8ff] bg-[#eef5ff] px-2.5 py-1 text-xs text-[var(--ink)]">
             {noteLabel}
@@ -168,7 +151,7 @@ function SessionCard({ session }: { session: SessionRow }) {
       <div className="flex flex-col items-start gap-2 sm:items-end">
           <div className="text-xs text-[var(--muted)]">
             {`${signedUp}/${session.capacity} booked${
-              waitlist > 0 ? ` • ${waitlist} waitlist` : ""
+              waitlist > 0 ? ` | ${waitlist} waitlist` : ""
             }`}
           </div>
         <Link
@@ -403,3 +386,4 @@ export default function Home() {
     </div>
   );
 }
+
