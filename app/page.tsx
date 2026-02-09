@@ -142,7 +142,7 @@ function SessionCard({ session }: { session: SessionRow }) {
           {session.name}
         </div>
         {noteLabel ? (
-          <span className="inline-flex rounded-full border border-[#dbe8ff] bg-[#eef5ff] px-2.5 py-1 text-xs text-[var(--ink)]">
+          <span className="inline-flex rounded-full border border-[var(--line)] bg-[var(--chip)] px-2.5 py-1 text-xs text-[var(--ink)]">
             {noteLabel}
           </span>
         ) : null}
@@ -236,22 +236,22 @@ export default function Home() {
       className={`${space.className} min-h-screen bg-[var(--paper)] text-[var(--ink)]`}
       style={
         {
-          "--ink": "#14202b",
-          "--muted": "#5f6c7b",
-          "--paper": "#f4f3ef",
+          "--ink": "#0f1a12",
+          "--muted": "#5f6d60",
+          "--paper": "#f1f2ec",
           "--card": "#ffffff",
-          "--line": "#e1ddd6",
-          "--accent": "#d9734a",
-          "--ok": "#2f9f67",
-          "--wait": "#f0b49b",
-          "--cool": "#2e7d6d",
-          "--chip": "#f1efe9",
+          "--line": "#d7e0d6",
+          "--accent": "#c4473a",
+          "--ok": "#2f8a5b",
+          "--wait": "#e8a6ad",
+          "--cool": "#1d3b5a",
+          "--chip": "#eaf0ea",
         } as React.CSSProperties
       }
     >
       <div className="relative mx-auto max-w-5xl px-5 pb-16 pt-10 sm:px-8">
-        <div className="pointer-events-none absolute -left-24 top-0 h-64 w-64 rounded-full bg-[#f2c9a8] opacity-45 blur-3xl -z-10" />
-        <div className="pointer-events-none absolute right-0 top-16 h-52 w-52 rounded-full bg-[#c7dfd8] opacity-55 blur-3xl -z-10" />
+        <div className="pointer-events-none absolute -left-24 top-0 h-64 w-64 rounded-full bg-[#c6dcc7] opacity-45 blur-3xl -z-10" />
+        <div className="pointer-events-none absolute right-0 top-16 h-52 w-52 rounded-full bg-[#d8c9a9] opacity-55 blur-3xl -z-10" />
 
         <header className="relative mb-8 flex flex-col gap-4">
           <div className="flex items-start justify-between gap-4">
@@ -375,7 +375,7 @@ export default function Home() {
                 Close
               </button>
             </div>
-            <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[#fbfaf7] p-4 text-sm text-[var(--ink)]">
+            <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--chip)] p-4 text-sm text-[var(--ink)]">
               {openBulletin === "rules"
                 ? renderBulletin(bulletin.club_rules)
                 : renderBulletin(bulletin.useful_info)}

@@ -328,8 +328,8 @@ export default function SessionBookingPage() {
       }
     >
       <div className="relative mx-auto max-w-3xl px-5 pb-16 pt-10">
-        <div className="pointer-events-none absolute -left-24 top-0 h-48 w-48 rounded-full bg-[#fde9b0] opacity-60 blur-3xl" />
-        <div className="pointer-events-none absolute right-0 top-10 h-40 w-40 rounded-full bg-[#d9ecff] opacity-70 blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 top-0 h-48 w-48 rounded-full bg-[#fde9b0] opacity-60 blur-3xl -z-10" />
+        <div className="pointer-events-none absolute right-0 top-10 h-40 w-40 rounded-full bg-[#d9ecff] opacity-70 blur-3xl -z-10" />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/" className="text-sm text-[var(--muted)] underline">

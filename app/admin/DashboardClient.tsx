@@ -71,33 +71,51 @@ export default function DashboardClient({ initial }: { initial: Row[] }) {
         <p className="text-sm text-[var(--muted)]">No upcoming sessions.</p>
       )}
 
-      <div>
-        <h2 className="text-lg font-semibold">Past sessions</h2>
-        <p className="text-sm text-[var(--muted)]">
-          Past sessions remain visible for attendance history.
-        </p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {pastSessions.map((s) => (
-          <SessionCard key={s.id} session={s} />
-        ))}
-      </div>
-      {pastSessions.length === 0 && (
-        <p className="text-sm text-[var(--muted)]">No past sessions yet.</p>
-      )}
+      <details className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4">
+        <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Past sessions</h2>
+              <p className="text-sm text-[var(--muted)]">
+                Past sessions remain visible for attendance history.
+              </p>
+            </div>
+            <span className="rounded-full border border-[var(--line)] bg-[var(--chip)] px-3 py-1 text-xs font-medium text-[var(--muted)]">
+              {pastSessions.length} session{pastSessions.length === 1 ? "" : "s"}
+            </span>
+          </div>
+        </summary>
+
+        <div className="mt-4 space-y-2">
+          {pastSessions.map((s) => (
+            <PastSessionRow key={s.id} session={s} />
+          ))}
+        </div>
+        {pastSessions.length === 0 && (
+          <p className="mt-3 text-sm text-[var(--muted)]">No past sessions yet.</p>
+        )}
+      </details>
     </div>
   );
 }
 
-function SessionCard({ session: s }: { session: Row }) {
+function SessionCard({ session: s, isPast = false }: { session: Row; isPast?: boolean }) {
   const isFull = s.signed_up_count >= s.capacity;
-  const statusLabel = isFull ? "Full" : "Open";
-  const statusClass = isFull
-    ? "bg-[var(--accent)] text-[var(--ink)]"
-    : "bg-[var(--ok)] text-white";
+  const statusLabel = isPast ? "Ended" : isFull ? "Full" : "Open";
+  const statusClass = isPast
+    ? "bg-[#9ca3af] text-white"
+    : isFull
+      ? "bg-[var(--accent)] text-[var(--ink)]"
+      : "bg-[var(--ok)] text-white";
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm">
+    <div
+      className={`flex h-full flex-col rounded-2xl border p-4 shadow-sm ${
+        isPast
+          ? "border-[#e5e7eb] bg-[#f3f4f6] text-[#374151]"
+          : "border-[var(--line)] bg-[var(--card)]"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-lg font-semibold leading-snug">{s.name}</div>
@@ -126,6 +144,30 @@ function SessionCard({ session: s }: { session: Row }) {
           <div className="text-xs text-[var(--muted)]">Waitlist</div>
           <div className="text-xl font-semibold">{s.waiting_list_count}</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PastSessionRow({ session: s }: { session: Row }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e5e7eb] bg-[#f3f4f6] px-3 py-2 text-sm text-[#374151]">
+      <div className="min-w-0">
+        <div className="font-medium leading-snug truncate">{s.name}</div>
+        <div className="mt-0.5 text-xs text-[#6b7280]">
+          {s.signed_up_count}/{s.capacity} booked | {s.waiting_list_count} waitlist
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="rounded-full bg-[#9ca3af] px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
+          Ended
+        </span>
+        <Link
+          className="rounded-full border border-[#d1d5db] bg-white px-3 py-1 text-xs font-medium text-[#374151] shadow-sm transition hover:translate-y-[-1px]"
+          href={`/admin/sessions/${s.id}`}
+        >
+          Manage
+        </Link>
       </div>
     </div>
   );
