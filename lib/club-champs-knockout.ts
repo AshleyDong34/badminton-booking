@@ -68,12 +68,34 @@ export function pairLabel(pair: PairRow) {
   )})`;
 }
 
+function pairStrengthNumberOrNull(pair: PairRow | undefined) {
+  if (!pair) return null;
+  if (typeof pair.pair_strength === "number") return pair.pair_strength;
+  const p1 = typeof pair.player_one_level === "number" ? pair.player_one_level : Number(pair.player_one_level);
+  const p2 = typeof pair.player_two_level === "number" ? pair.player_two_level : Number(pair.player_two_level);
+  if (!Number.isFinite(p1) || !Number.isFinite(p2)) return null;
+  return p1 + p2;
+}
+
 function pairStrength(pair: PairRow) {
   if (typeof pair.pair_strength === "number") return pair.pair_strength;
   const p1 = typeof pair.player_one_level === "number" ? pair.player_one_level : Number(pair.player_one_level);
   const p2 = typeof pair.player_two_level === "number" ? pair.player_two_level : Number(pair.player_two_level);
   if (!Number.isFinite(p1) || !Number.isFinite(p2)) return Number.MAX_SAFE_INTEGER;
   return p1 + p2;
+}
+
+export function computeHandicapStarts(pairA: PairRow | undefined, pairB: PairRow | undefined) {
+  const aStrength = pairStrengthNumberOrNull(pairA);
+  const bStrength = pairStrengthNumberOrNull(pairB);
+  if (aStrength == null || bStrength == null) return null;
+  if (aStrength === bStrength) return { pairAStart: 0, pairBStart: 0 };
+
+  const diff = Math.abs(aStrength - bStrength);
+  const handicap = Math.min(10, 2 * (diff + 1));
+
+  if (aStrength < bStrength) return { pairAStart: -handicap, pairBStart: 0 };
+  return { pairAStart: 0, pairBStart: -handicap };
 }
 
 function h2hKey(aId: string, bId: string) {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { formatAdminSessionDateRange } from "@/lib/format-session-datetime";
 
 type Row = {
   id: string;
@@ -119,6 +120,9 @@ function SessionCard({ session: s, isPast = false }: { session: Row; isPast?: bo
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-lg font-semibold leading-snug">{s.name}</div>
+          <div className="mt-1 text-xs text-[var(--muted)]">
+            {formatAdminSessionDateRange(s.starts_at, s.ends_at)}
+          </div>
           <div className="mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide">
             <span className={`rounded-full px-2.5 py-1 ${statusClass}`}>
               {statusLabel}
@@ -154,6 +158,9 @@ function PastSessionRow({ session: s }: { session: Row }) {
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e5e7eb] bg-[#f3f4f6] px-3 py-2 text-sm text-[#374151]">
       <div className="min-w-0">
         <div className="font-medium leading-snug truncate">{s.name}</div>
+        <div className="mt-0.5 text-xs text-[#6b7280]">
+          {formatAdminSessionDateRange(s.starts_at, s.ends_at)}
+        </div>
         <div className="mt-0.5 text-xs text-[#6b7280]">
           {s.signed_up_count}/{s.capacity} booked | {s.waiting_list_count} waitlist
         </div>

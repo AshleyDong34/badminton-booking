@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import DeleteSessionButton from "./DeleteSessionButton";
+import { formatAdminSessionDateRange } from "@/lib/format-session-datetime";
 
 type Row = {
   id: string;
@@ -135,7 +136,12 @@ export default function PastSessionsTable({ sessions }: { sessions: Row[] }) {
                       onChange={() => toggle(s.id)}
                     />
                   </td>
-                  <td className="py-3 px-4 font-medium">{s.name}</td>
+                  <td className="py-3 px-4">
+                    <div className="font-medium">{s.name}</div>
+                    <div className="mt-0.5 text-xs text-[var(--muted)]">
+                      {formatAdminSessionDateRange(s.starts_at, s.ends_at)}
+                    </div>
+                  </td>
                   <td className="py-3 px-4">{s.capacity}</td>
                   <td className="py-3 px-4">
                     {s.signed_up_count}/{s.capacity}

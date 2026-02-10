@@ -263,7 +263,7 @@ export default async function ClubChampsPoolsPage({
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Step 3: Pools</h1>
         <p className="text-sm text-[var(--muted)]">
-          Lock pools from saved seeding, then enter match scores for each pool fixture.
+          Lock pools from saved seeding, review the generated groups, then enter scores for each fixture.
         </p>
       </div>
 
@@ -304,7 +304,19 @@ export default async function ClubChampsPoolsPage({
       )}
 
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Pool match results</h2>
+        <h2 className="text-xl font-semibold">Generated pools review</h2>
+        <p className="text-sm text-[var(--muted)]">
+          Read-only preview of generated pools for each event. This section is separate from results entry.
+        </p>
+        <EventPoolsPreview event="level_doubles" rows={levelRows} targetSize={levelPoolTarget} />
+        <EventPoolsPreview event="mixed_doubles" rows={mixedRows} targetSize={mixedPoolTarget} />
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Pool match results entry</h2>
+        <p className="text-sm text-[var(--muted)]">
+          Enter and save scores below. This section is separate from the generated pools review above.
+        </p>
         <p className="text-sm text-[var(--muted)]">
           Numbers shown next to each pair name are that pair&apos;s starting points for the match.
         </p>
@@ -332,9 +344,6 @@ export default async function ClubChampsPoolsPage({
           </>
         )}
       </div>
-
-      <EventPoolsPreview event="level_doubles" rows={levelRows} targetSize={levelPoolTarget} />
-      <EventPoolsPreview event="mixed_doubles" rows={mixedRows} targetSize={mixedPoolTarget} />
     </div>
   );
 }

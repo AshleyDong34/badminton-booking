@@ -118,7 +118,7 @@ function EventKnockoutResultsCard(args: {
       </div>
 
       {stages.length === 0 ? (
-        <p className="rounded-xl border border-[var(--line)] bg-white px-4 py-3 text-sm text-[var(--muted)]">
+        <p className="rounded-xl border border-[#b8c9d8] bg-[#f6faff] px-4 py-3 text-sm text-[#4f6277]">
           No knockout bracket yet for this event. Generate/reset knockout matches first.
         </p>
       ) : (
@@ -134,8 +134,8 @@ function EventKnockoutResultsCard(args: {
                 id={stageAnchor}
                 className={`space-y-3 rounded-xl border p-4 ${
                   stageUnlocked
-                    ? "border-[var(--line)] bg-white"
-                    : "border-slate-200 bg-slate-50/60"
+                    ? "border-[#86a8bf] bg-[#f3f9ff]"
+                    : "border-slate-300 bg-slate-100/80"
                 }`}
               >
                 <div className="flex flex-wrap items-end justify-between gap-2">
@@ -165,13 +165,13 @@ function EventKnockoutResultsCard(args: {
                       <select
                         name="best_of"
                         defaultValue={bestOf}
-                        className="mt-1 block rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-sm"
+                        className="mt-1 block rounded-lg border border-[#9db4c8] bg-white px-2 py-1 text-sm"
                       >
                         <option value="1">1 game to win</option>
                         <option value="3">Best of 3</option>
                       </select>
                     </label>
-                    <button className="rounded-lg border border-[var(--line)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium shadow-sm">
+                    <button className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-xs font-medium text-[var(--cool)] shadow-sm">
                       Save format
                     </button>
                   </form>
@@ -201,10 +201,12 @@ function EventKnockoutResultsCard(args: {
                         id={matchAnchor}
                         action="/api/admin/champs/knockout/matches/update"
                         method="post"
-                        className={`space-y-2 rounded-xl border p-3 ${
+                        className={`space-y-2 rounded-xl border-2 p-3 ${
                           fullyScored
-                            ? "border-emerald-300 bg-emerald-50/40"
-                            : "border-[var(--line)] bg-white"
+                            ? "border-emerald-400 bg-emerald-50/70"
+                            : canScore
+                            ? "border-[#8fb1c8] bg-[#f8fcff]"
+                            : "border-[#bcc9d5] bg-[#f2f6fa]"
                         }`}
                       >
                         <input type="hidden" name="id" value={match.id} />
@@ -213,31 +215,31 @@ function EventKnockoutResultsCard(args: {
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-xs text-[var(--muted)]">Match {match.match_order}</div>
                           {winner ? (
-                            <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                            <span className="rounded-full border border-emerald-400 bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
                               Winner set
                             </span>
                           ) : null}
                         </div>
 
                         <div className="grid gap-2 sm:grid-cols-2">
-                          <div className="rounded-lg border border-[var(--line)] bg-[var(--chip)]/50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                          <div className="rounded-lg border border-[#b8cad9] bg-[#e8f1fa] px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#4a5f74]">
                               Pair A
                             </p>
                             <p className="text-sm font-medium">{pairA ? pairLabel(pairA) : "TBD"}</p>
                             {pairA && starts ? (
-                              <span className="mt-1 inline-block rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                              <span className="mt-1 inline-block rounded-full border border-[#ccdae8] bg-white px-2 py-0.5 text-xs text-[#586f86]">
                                 start {starts.pairAStart}
                               </span>
                             ) : null}
                           </div>
-                          <div className="rounded-lg border border-[var(--line)] bg-[var(--chip)]/50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                          <div className="rounded-lg border border-[#b8cad9] bg-[#e8f1fa] px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#4a5f74]">
                               Pair B
                             </p>
                             <p className="text-sm font-medium">{pairB ? pairLabel(pairB) : "BYE"}</p>
                             {pairB && starts ? (
-                              <span className="mt-1 inline-block rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                              <span className="mt-1 inline-block rounded-full border border-[#ccdae8] bg-white px-2 py-0.5 text-xs text-[#586f86]">
                                 start {starts.pairBStart}
                               </span>
                             ) : null}
@@ -245,13 +247,13 @@ function EventKnockoutResultsCard(args: {
                         </div>
 
                         {isBye ? (
-                          <p className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs text-[var(--muted)]">
+                          <p className="rounded-lg border border-[#bdccd9] bg-white px-3 py-2 text-xs text-[#566b80]">
                             No score entry needed for a bye match.
                           </p>
                         ) : (
-                          <div className="overflow-x-auto rounded-lg border border-[var(--line)] bg-white">
+                          <div className="overflow-x-auto rounded-lg border border-[#b7c9d8] bg-[#f8fbff]">
                             <table className="min-w-[360px] w-full border-collapse text-sm">
-                              <thead className="bg-[var(--chip)]/60 text-xs text-[var(--muted)]">
+                              <thead className="bg-[#dce8f3] text-xs font-semibold text-[#465d74]">
                                 <tr>
                                   <th className="px-3 py-2 text-left">Game</th>
                                   <th className="px-3 py-2 text-center">Pair A</th>
@@ -260,8 +262,8 @@ function EventKnockoutResultsCard(args: {
                               </thead>
                               <tbody>
                                 {games.map((game, index) => (
-                                  <tr key={`${match.id}-g-${index + 1}`} className="border-t border-[var(--line)]">
-                                    <td className="px-3 py-2 text-xs text-[var(--muted)]">
+                                  <tr key={`${match.id}-g-${index + 1}`} className="border-t border-[#c4d4e2]">
+                                    <td className="px-3 py-2 text-xs text-[#556b81]">
                                       {match.best_of === 1 ? "Match" : `Game ${index + 1}`}
                                     </td>
                                     <td className="px-3 py-2 text-center">
@@ -271,7 +273,7 @@ function EventKnockoutResultsCard(args: {
                                         min={0}
                                         defaultValue={game.a ?? ""}
                                         disabled={!canScore}
-                                        className="h-9 w-16 rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-center text-sm disabled:bg-slate-100"
+                                        className="h-9 w-16 rounded-lg border border-[#9eb4c7] bg-white px-2 py-1 text-center text-sm disabled:bg-slate-100"
                                       />
                                     </td>
                                     <td className="px-3 py-2 text-center">
@@ -281,7 +283,7 @@ function EventKnockoutResultsCard(args: {
                                         min={0}
                                         defaultValue={game.b ?? ""}
                                         disabled={!canScore}
-                                        className="h-9 w-16 rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-center text-sm disabled:bg-slate-100"
+                                        className="h-9 w-16 rounded-lg border border-[#9eb4c7] bg-white px-2 py-1 text-center text-sm disabled:bg-slate-100"
                                       />
                                     </td>
                                   </tr>
@@ -292,7 +294,7 @@ function EventKnockoutResultsCard(args: {
                         )}
 
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-xs text-[var(--muted)]">
+                          <div className="text-xs text-[#556b80]">
                             {isBye
                               ? "Bye match: winner is auto-advanced."
                               : winner
@@ -302,7 +304,7 @@ function EventKnockoutResultsCard(args: {
                               : "Awaiting result"}
                           </div>
                           <button
-                            className="rounded-lg border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm disabled:opacity-50"
+                            className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1 text-xs font-medium text-[var(--cool)] shadow-sm disabled:opacity-50"
                             disabled={!match.is_unlocked}
                           >
                             Save result

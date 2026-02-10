@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import {
+  computeHandicapStarts,
   EVENT_LABEL,
   computeEventFromPools,
   toLevel,
@@ -7,6 +8,7 @@ import {
   type PairRow,
   type PoolMatchRow,
 } from "@/lib/club-champs-knockout";
+import LiveAutoRefresh from "../LiveAutoRefresh";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -27,6 +29,11 @@ function pairShortLabel(pair: PairRow | undefined) {
 function scoreLabel(match: PoolMatchRow) {
   if (match.pair_a_score == null || match.pair_b_score == null) return "Pending";
   return `${match.pair_a_score} - ${match.pair_b_score}`;
+}
+
+function startLabel(value: number | undefined) {
+  if (value == null) return "start ?";
+  return `start ${value}`;
 }
 
 function PoolResultsSection({
@@ -128,15 +135,46 @@ function PoolResultsSection({
                   Match results
                 </p>
                 {poolMatches.map((match) => (
-                  <div
-                    key={match.id}
-                    className="flex flex-wrap items-center justify-between gap-2 text-sm"
-                  >
-                    <span>
-                      {pairShortLabel(pairById.get(match.pair_a_id))} vs{" "}
-                      {pairShortLabel(pairById.get(match.pair_b_id))}
-                    </span>
-                    <span className="font-semibold">{scoreLabel(match)}</span>
+                  <div key={match.id} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm">
+                    <div className="mb-2 flex items-center justify-between gap-2 text-xs text-[var(--muted)]">
+                      <span>Match {match.match_order}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 font-semibold ${
+                          match.pair_a_score != null && match.pair_b_score != null
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {scoreLabel(match)}
+                      </span>
+                    </div>
+                    {(() => {
+                      const pairA = pairById.get(match.pair_a_id);
+                      const pairB = pairById.get(match.pair_b_id);
+                      const starts = computeHandicapStarts(pairA, pairB);
+                      return (
+                        <div className="space-y-1">
+                          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                            <span className="truncate">{pairShortLabel(pairA)}</span>
+                            <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                              {startLabel(starts?.pairAStart)}
+                            </span>
+                            <span className="w-6 text-right font-semibold">
+                              {match.pair_a_score ?? "-"}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                            <span className="truncate">{pairShortLabel(pairB)}</span>
+                            <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                              {startLabel(starts?.pairBStart)}
+                            </span>
+                            <span className="w-6 text-right font-semibold">
+                              {match.pair_b_score ?? "-"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -171,6 +209,10 @@ export default async function PublicClubChampsPoolsPage() {
         <p className="mt-2 text-sm text-[var(--muted)]">
           Current pool standings and submitted match scores.
         </p>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Starting points shown next to each pair are handicap starts for that match.
+        </p>
+        <LiveAutoRefresh intervalMs={15000} />
       </section>
 
       <div className="space-y-4">

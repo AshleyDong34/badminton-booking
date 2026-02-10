@@ -1,5 +1,11 @@
 import { supabaseServer } from "@/lib/supabase-server";
-import { EVENT_LABEL, type EventType, type PairRow } from "@/lib/club-champs-knockout";
+import {
+  computeHandicapStarts,
+  EVENT_LABEL,
+  type EventType,
+  type PairRow,
+} from "@/lib/club-champs-knockout";
+import LiveAutoRefresh from "../LiveAutoRefresh";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -79,6 +85,11 @@ function sideLabel(args: {
   if (pairId) return pairNames(pairById.get(pairId));
   if (isFirstStage && otherPairId) return "BYE";
   return "TBD";
+}
+
+function startLabel(value: number | null | undefined) {
+  if (value == null) return null;
+  return `start ${value}`;
 }
 
 function ConnectorColumn({
@@ -240,6 +251,9 @@ function EventBracket({
                       isFirstStage,
                       pairById,
                     });
+                    const pairA = match.pair_a_id ? pairById.get(match.pair_a_id) : undefined;
+                    const pairB = match.pair_b_id ? pairById.get(match.pair_b_id) : undefined;
+                    const starts = computeHandicapStarts(pairA, pairB);
                     const gameText = gameSummary(match);
                     const winnerId = match.winner_pair_id;
 
@@ -261,23 +275,37 @@ function EventBracket({
                         <div className="mb-1 text-xs text-[var(--muted)]">
                           Match {match.match_order}
                         </div>
-                        <div
-                          className={
-                            winnerId === match.pair_a_id
-                              ? "font-semibold text-emerald-700"
-                              : ""
-                          }
-                        >
-                          {pairALabel}
+                        <div className="flex items-center justify-between gap-2">
+                          <div
+                            className={
+                              winnerId === match.pair_a_id
+                                ? "font-semibold text-emerald-700"
+                                : ""
+                            }
+                          >
+                            {pairALabel}
+                          </div>
+                          {pairA && starts && (
+                            <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)]">
+                              {startLabel(starts.pairAStart)}
+                            </span>
+                          )}
                         </div>
-                        <div
-                          className={
-                            winnerId === match.pair_b_id
-                              ? "font-semibold text-emerald-700"
-                              : ""
-                          }
-                        >
-                          {pairBLabel}
+                        <div className="flex items-center justify-between gap-2">
+                          <div
+                            className={
+                              winnerId === match.pair_b_id
+                                ? "font-semibold text-emerald-700"
+                                : ""
+                            }
+                          >
+                            {pairBLabel}
+                          </div>
+                          {pairB && starts && (
+                            <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)]">
+                              {startLabel(starts.pairBStart)}
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1 text-xs font-semibold text-[var(--muted)]">
                           {scoreSummary(match)}
@@ -333,6 +361,10 @@ export default async function PublicClubChampsKnockoutPage() {
         <p className="mt-2 text-sm text-[var(--muted)]">
           Sideways tournament bracket with connected rounds and live results.
         </p>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Starting points shown next to each pair are handicap starts for that match.
+        </p>
+        <LiveAutoRefresh intervalMs={15000} />
       </section>
 
       <div className="space-y-4">

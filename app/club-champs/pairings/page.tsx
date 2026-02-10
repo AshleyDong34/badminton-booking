@@ -13,27 +13,17 @@ type PairRow = {
   player_two_name: string;
   player_two_level: number | string;
   pair_strength: number | null;
-  seed_order: number | null;
   created_at: string | null;
 };
 
 const events: EventType[] = ["level_doubles", "mixed_doubles"];
 
-const levelTypeLabel: Record<string, string> = {
-  mens_doubles: "Men's doubles",
-  womens_doubles: "Women's doubles",
-};
-
 function sortPairs(a: PairRow, b: PairRow) {
-  const aSeed = a.seed_order ?? Number.MAX_SAFE_INTEGER;
-  const bSeed = b.seed_order ?? Number.MAX_SAFE_INTEGER;
-  if (aSeed !== bSeed) return aSeed - bSeed;
-
-  const aStrength = a.pair_strength ?? Number.MAX_SAFE_INTEGER;
-  const bStrength = b.pair_strength ?? Number.MAX_SAFE_INTEGER;
-  if (aStrength !== bStrength) return aStrength - bStrength;
-
-  return (a.created_at ?? "").localeCompare(b.created_at ?? "");
+  const createdOrder = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+  if (createdOrder !== 0) return createdOrder;
+  return `${a.player_one_name} ${a.player_two_name}`.localeCompare(
+    `${b.player_one_name} ${b.player_two_name}`
+  );
 }
 
 function PairingsSection({ event, rows }: { event: EventType; rows: PairRow[] }) {
@@ -61,16 +51,6 @@ function PairingsSection({ event, rows }: { event: EventType; rows: PairRow[] })
               key={row.id}
               className="rounded-xl border border-[var(--line)] bg-white px-4 py-3"
             >
-              <div className="mb-1 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs font-semibold">
-                  {row.seed_order ? `Seed ${row.seed_order}` : "Unseeded"}
-                </span>
-                {event === "level_doubles" && row.level_doubles_type && (
-                  <span className="rounded-full border border-[var(--line)] bg-[var(--card)] px-2 py-0.5 text-xs text-[var(--muted)]">
-                    {levelTypeLabel[row.level_doubles_type] ?? row.level_doubles_type}
-                  </span>
-                )}
-              </div>
               <div className="text-sm font-medium">
                 <span className="text-[var(--cool)]">{row.player_one_name}</span>
                 <span className="text-[var(--muted)]">
@@ -100,7 +80,7 @@ export default async function PublicClubChampsPairingsPage() {
   const { data } = await db
     .from("club_champs_pairs")
     .select(
-      "id,event,level_doubles_type,player_one_name,player_one_level,player_two_name,player_two_level,pair_strength,seed_order,created_at"
+      "id,event,level_doubles_type,player_one_name,player_one_level,player_two_name,player_two_level,pair_strength,created_at"
     );
 
   const rows = (data ?? []) as PairRow[];

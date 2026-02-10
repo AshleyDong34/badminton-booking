@@ -616,6 +616,14 @@ function EventKnockoutCard(args: {
         Scored matches: {data.scoredMatches}/{data.expectedMatches}
       </div>
 
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold">Preview bracket</h3>
+        <p className="text-xs text-[var(--muted)]">
+          Compact tournament tree preview for the selected advance count.
+        </p>
+        <KnockoutPreviewTree qualifiers={data.qualifiers} />
+      </div>
+
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2">
           <h3 className="text-sm font-semibold">Qualified ({data.qualifiers.length})</h3>
@@ -660,14 +668,6 @@ function EventKnockoutCard(args: {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Preview bracket</h3>
-        <p className="text-xs text-[var(--muted)]">
-          Compact tournament tree preview for the selected advance count.
-        </p>
-        <KnockoutPreviewTree qualifiers={data.qualifiers} />
       </div>
     </section>
   );

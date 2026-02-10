@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
 import DeleteSessionButton from "./DeleteSessionButton";
 import PastSessionsTable from "./PastSessionsTable";
+import { formatAdminSessionDateRange } from "@/lib/format-session-datetime";
 
 
 // Always fetch fresh data for admin pages (no caching).
@@ -174,7 +175,12 @@ function SessionTable({
                 key={s.id}
                 className={idx % 2 === 0 ? "bg-white" : "bg-[var(--chip)]"}
               >
-                <td className="py-3 px-4 font-medium">{s.name}</td>
+                <td className="py-3 px-4">
+                  <div className="font-medium">{s.name}</div>
+                  <div className="mt-0.5 text-xs text-[var(--muted)]">
+                    {formatAdminSessionDateRange(s.starts_at, s.ends_at)}
+                  </div>
+                </td>
                 <td className="py-3 px-4">{s.capacity}</td>
                 <td className="py-3 px-4">
                   {s.signed_up_count}/{s.capacity}
