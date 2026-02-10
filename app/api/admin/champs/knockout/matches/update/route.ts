@@ -20,6 +20,22 @@ type MatchRow = {
   is_unlocked: boolean;
 };
 
+type GameScore = { a: number | null; b: number | null };
+
+type ParseGamesResult =
+  | { ok: true; games: GameScore[] }
+  | { ok: false; error: string };
+
+type DetermineWinnerResult =
+  | {
+      ok: true;
+      pairAScore: number | null;
+      pairBScore: number | null;
+      gameScores: { games: GameScore[] } | null;
+      winnerPairId: string | null;
+    }
+  | { ok: false; error: string };
+
 function parseScore(value: FormDataEntryValue | null) {
   const raw = String(value ?? "").trim();
   if (!raw) return null;
@@ -28,31 +44,32 @@ function parseScore(value: FormDataEntryValue | null) {
   return n;
 }
 
-function parseGames(form: FormData, bestOf: 1 | 3) {
+function parseGames(form: FormData, bestOf: 1 | 3): ParseGamesResult {
   const gameCount = bestOf === 1 ? 1 : 3;
-  const games: Array<{ a: number | null; b: number | null }> = [];
+  const games: GameScore[] = [];
 
   for (let i = 1; i <= gameCount; i++) {
     const a = parseScore(form.get(`game_${i}_a`));
     const b = parseScore(form.get(`game_${i}_b`));
     if (Number.isNaN(a) || Number.isNaN(b)) {
-      return { error: "Scores must be whole numbers." as const };
+      return { ok: false, error: "Scores must be whole numbers." };
     }
     if ((a == null) !== (b == null)) {
-      return { error: "Enter both scores for each game you fill." as const };
+      return { ok: false, error: "Enter both scores for each game you fill." };
     }
     if (a != null && b != null && a === b) {
-      return { error: "A game score cannot be tied." as const };
+      return { ok: false, error: "A game score cannot be tied." };
     }
     games.push({ a, b });
   }
 
-  return { games } as const;
+  return { ok: true, games };
 }
 
-function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: number | null }>) {
+function determineWinner(match: MatchRow, games: GameScore[]): DetermineWinnerResult {
   if (match.pair_a_id && !match.pair_b_id) {
     return {
+      ok: true,
       pairAScore: null,
       pairBScore: null,
       gameScores: null,
@@ -61,6 +78,7 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
   }
   if (match.pair_b_id && !match.pair_a_id) {
     return {
+      ok: true,
       pairAScore: null,
       pairBScore: null,
       gameScores: null,
@@ -68,7 +86,7 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
     };
   }
   if (!match.pair_a_id || !match.pair_b_id) {
-    return { error: "Both pairs are not set for this match yet." };
+    return { ok: false, error: "Both pairs are not set for this match yet." };
   }
 
   // Prevent gaps like game1 filled, game2 blank, game3 filled.
@@ -77,13 +95,14 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
     const filled = game.a != null && game.b != null;
     if (!filled) seenBlank = true;
     if (seenBlank && filled) {
-      return { error: "Fill game scores in order without skipping games." };
+      return { ok: false, error: "Fill game scores in order without skipping games." };
     }
   }
 
   const completedGames = games.filter((g) => g.a != null && g.b != null);
   if (completedGames.length === 0) {
     return {
+      ok: true,
       pairAScore: null,
       pairBScore: null,
       gameScores: { games },
@@ -100,10 +119,11 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
 
   if (match.best_of === 1) {
     if (completedGames.length > 1) {
-      return { error: "Best-of-1 allows only one game score." };
+      return { ok: false, error: "Best-of-1 allows only one game score." };
     }
     if (completedGames.length === 0) {
       return {
+        ok: true,
         pairAScore: null,
         pairBScore: null,
         gameScores: { games },
@@ -111,6 +131,7 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
       };
     }
     return {
+      ok: true,
       pairAScore: completedGames[0].a,
       pairBScore: completedGames[0].b,
       gameScores: { games },
@@ -124,6 +145,7 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
   // - three games always final
   if (completedGames.length === 1) {
     return {
+      ok: true,
       pairAScore: gamesWonA,
       pairBScore: gamesWonB,
       gameScores: { games },
@@ -133,6 +155,7 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
 
   if (completedGames.length === 2 && gamesWonA === 1 && gamesWonB === 1) {
     return {
+      ok: true,
       pairAScore: gamesWonA,
       pairBScore: gamesWonB,
       gameScores: { games },
@@ -142,6 +165,7 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
 
   if (completedGames.length >= 2 && (gamesWonA >= 2 || gamesWonB >= 2)) {
     return {
+      ok: true,
       pairAScore: gamesWonA,
       pairBScore: gamesWonB,
       gameScores: { games },
@@ -151,6 +175,7 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
 
   if (completedGames.length !== 3) {
     return {
+      ok: true,
       pairAScore: gamesWonA,
       pairBScore: gamesWonB,
       gameScores: { games },
@@ -161,6 +186,7 @@ function determineWinner(match: MatchRow, games: Array<{ a: number | null; b: nu
   const winnerPairId = gamesWonA > gamesWonB ? match.pair_a_id : match.pair_b_id;
 
   return {
+    ok: true,
     pairAScore: gamesWonA,
     pairBScore: gamesWonB,
     gameScores: { games },
@@ -214,12 +240,12 @@ export async function POST(req: NextRequest) {
   }
 
   const parsed = parseGames(form, row.best_of);
-  if ("error" in parsed) {
+  if (!parsed.ok) {
     return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(parsed.error)}`);
   }
 
   const decided = determineWinner(row, parsed.games);
-  if ("error" in decided) {
+  if (!decided.ok) {
     return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(decided.error)}`);
   }
 

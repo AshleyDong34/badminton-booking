@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Some pairs are missing for this event." }, { status: 400 });
   }
 
-  const updates = ids.map((id, index) =>
+  const updates = ids.map((id: string, index: number) =>
     db
       .from("club_champs_pairs")
       .update({ seed_order: index + 1 })
