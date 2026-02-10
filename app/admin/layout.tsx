@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
 import { requireAdmin } from "@/lib/adminGuard";
+import AdminShell from "./AdminShell";
 
 const space = Space_Grotesk({
   subsets: ["latin"],
@@ -11,6 +12,7 @@ const space = Space_Grotesk({
 const navItems = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/sessions", label: "Sessions" },
+  { href: "/admin/club-champs", label: "Club champs" },
   { href: "/admin/settings", label: "Settings" },
   { href: "/admin/whitelist", label: "Membership list" },
   { href: "/admin/first-time", label: "First-time bookings" },
@@ -60,26 +62,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-[240px_1fr]">
-            <aside className="h-fit rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm md:sticky md:top-6">
-              <div className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-[var(--muted)]">
-                Navigate
-              </div>
-              <nav className="flex flex-wrap gap-2 md:flex-col">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="rounded-xl px-3 py-2 text-sm font-medium text-[var(--ink)] transition hover:bg-[var(--chip)]"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-            </aside>
-
-            <main className="min-w-0">{children}</main>
-          </div>
+          <AdminShell navItems={navItems}>{children}</AdminShell>
         </div>
       </div>
     </div>

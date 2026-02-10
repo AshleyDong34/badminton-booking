@@ -25,6 +25,10 @@ type BulletinContent = {
   useful_info: string;
 };
 
+type PublicSettings = {
+  club_champs_public_enabled: boolean;
+};
+
 function dateKey(iso: string) {
   const d = new Date(iso);
   const y = d.getFullYear();
@@ -175,6 +179,9 @@ export default function Home() {
     useful_info: "",
   });
   const [openBulletin, setOpenBulletin] = useState<null | "rules" | "info">(null);
+  const [publicSettings, setPublicSettings] = useState<PublicSettings>({
+    club_champs_public_enabled: false,
+  });
 
   const loadSessions = useCallback(
     async (mode: "initial" | "refresh" = "initial") => {
@@ -207,15 +214,28 @@ export default function Home() {
     });
   }, []);
 
+  const loadPublicSettings = useCallback(async () => {
+    const res = await fetch("/api/public/settings", { cache: "no-store" });
+    if (!res.ok) return;
+    const json = await res.json().catch(() => ({}));
+    setPublicSettings({
+      club_champs_public_enabled: Boolean(json.club_champs_public_enabled),
+    });
+  }, []);
+
   useEffect(() => {
     activeRef.current = true;
-    loadSessions("initial");
-    loadBulletin();
+    const run = async () => {
+      await loadSessions("initial");
+      await loadBulletin();
+      await loadPublicSettings();
+    };
+    void run();
 
     return () => {
       activeRef.current = false;
     };
-  }, [loadSessions, loadBulletin]);
+  }, [loadSessions, loadBulletin, loadPublicSettings]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, SessionRow[]>();
@@ -308,6 +328,25 @@ export default function Home() {
             Useful info
           </button>
         </div>
+
+        {publicSettings.club_champs_public_enabled && (
+          <section className="mb-8 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Club champs</h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  Follow tournament progress, results, and updates from the committee.
+                </p>
+              </div>
+              <Link
+                href="/club-champs"
+                className="rounded-xl bg-[var(--cool)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:translate-y-[-1px]"
+              >
+                Open Club champs
+              </Link>
+            </div>
+          </section>
+        )}
 
         {loading ? (
           <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
