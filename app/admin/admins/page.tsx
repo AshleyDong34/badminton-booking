@@ -49,7 +49,7 @@ export default async function AdminsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="max-w-6xl space-y-8">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold">Admins</h1>
         <p className="text-sm text-[var(--muted)]">

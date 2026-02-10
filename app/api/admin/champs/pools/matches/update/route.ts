@@ -22,37 +22,48 @@ export async function POST(req: NextRequest) {
   const form = await req.formData();
   const id = String(form.get("id") ?? "").trim();
   const redirect = String(form.get("redirect") ?? "/admin/club-champs/pools");
+  const anchor = String(form.get("anchor") ?? "").trim();
   const pairAScore = parseScore(form.get("pair_a_score"));
   const pairBScore = parseScore(form.get("pair_b_score"));
+  const toRedirect = (path: string) => {
+    const url = new URL(path, getBaseUrl(req));
+    if (anchor) url.hash = anchor;
+    return NextResponse.redirect(url, 303);
+  };
 
   if (!id) {
-    return NextResponse.redirect(
-      new URL("/admin/club-champs/pools?error=Missing+match+id", getBaseUrl(req))
-    );
+    return toRedirect("/admin/club-champs/pools?error=Missing+match+id");
   }
 
   if (Number.isNaN(pairAScore) || Number.isNaN(pairBScore)) {
-    return NextResponse.redirect(
-      new URL("/admin/club-champs/pools?error=Scores+must+be+whole+numbers+or+blank", getBaseUrl(req))
-    );
+    return toRedirect("/admin/club-champs/pools?error=Scores+must+be+whole+numbers+or+blank");
   }
 
   const db = supabaseServer();
-  const { error } = await db
+  const { data: updatedRow, error } = await db
     .from("club_champs_pool_matches")
     .update({
       pair_a_score: pairAScore,
       pair_b_score: pairBScore,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("event")
+    .single();
 
   if (error) {
-    return NextResponse.redirect(
-      new URL(`/admin/club-champs/pools?error=${encodeURIComponent(error.message)}`, getBaseUrl(req))
-    );
+    return toRedirect(`/admin/club-champs/pools?error=${encodeURIComponent(error.message)}`);
   }
 
-  return NextResponse.redirect(
-    new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}updated=1`, getBaseUrl(req))
-  );
+  const event = String(updatedRow?.event ?? "").trim();
+  if (event) {
+    const { error: clearKnockoutError } = await db
+      .from("club_champs_knockout_matches")
+      .delete()
+      .eq("event", event);
+    if (clearKnockoutError) {
+      return toRedirect(`/admin/club-champs/pools?error=${encodeURIComponent(clearKnockoutError.message)}`);
+    }
+  }
+
+  return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}updated=1&knockout_reset=1`);
 }

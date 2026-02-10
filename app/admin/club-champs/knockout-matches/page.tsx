@@ -127,9 +127,11 @@ function EventKnockoutResultsCard(args: {
             const stageUnlocked = matches.some((m) => m.is_unlocked);
             const stageComplete = matches.every((m) => m.winner_pair_id != null);
             const bestOf = matches[0]?.best_of ?? 1;
+            const stageAnchor = `knockout-${event}-stage-${stage}`;
             return (
               <div
                 key={`${event}-stage-${stage}`}
+                id={stageAnchor}
                 className={`space-y-3 rounded-xl border p-4 ${
                   stageUnlocked
                     ? "border-[var(--line)] bg-white"
@@ -157,6 +159,7 @@ function EventKnockoutResultsCard(args: {
                     <input type="hidden" name="event" value={event} />
                     <input type="hidden" name="stage" value={stage} />
                     <input type="hidden" name="redirect" value={redirect} />
+                    <input type="hidden" name="anchor" value={stageAnchor} />
                     <label className="text-xs font-medium text-[var(--muted)]">
                       Match format
                       <select
@@ -190,10 +193,12 @@ function EventKnockoutResultsCard(args: {
                     const games = matchGames(match);
                     const fullyScored = isMatchFullyScored(match);
                     const starts = handicapStarts(pairA ?? undefined, pairB ?? undefined);
+                    const matchAnchor = `knockout-${event}-stage-${stage}-match-${match.match_order}`;
 
                     return (
                       <form
                         key={match.id}
+                        id={matchAnchor}
                         action="/api/admin/champs/knockout/matches/update"
                         method="post"
                         className={`space-y-2 rounded-xl border p-3 ${
@@ -204,50 +209,87 @@ function EventKnockoutResultsCard(args: {
                       >
                         <input type="hidden" name="id" value={match.id} />
                         <input type="hidden" name="redirect" value={redirect} />
-                        <div className="text-xs text-[var(--muted)]">Match {match.match_order}</div>
-
-                        <div className="text-sm">
-                          {pairA ? pairLabel(pairA) : "TBD"}
-                          {pairA && starts ? (
-                            <span className="ml-2 rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
-                              start {starts.pairAStart}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="text-sm">
-                          {pairB ? pairLabel(pairB) : "TBD"}
-                          {pairB && starts ? (
-                            <span className="ml-2 rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
-                              start {starts.pairBStart}
+                        <input type="hidden" name="anchor" value={matchAnchor} />
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-xs text-[var(--muted)]">Match {match.match_order}</div>
+                          {winner ? (
+                            <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                              Winner set
                             </span>
                           ) : null}
                         </div>
 
-                        <div className="space-y-2">
-                          {games.map((game, index) => (
-                            <div key={`${match.id}-g-${index + 1}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-                              <div className="text-xs text-[var(--muted)]">
-                                {match.best_of === 1 ? "Match" : `Game ${index + 1}`}
-                              </div>
-                              <input
-                                name={`game_${index + 1}_a`}
-                                type="number"
-                                min={0}
-                                defaultValue={game.a ?? ""}
-                                disabled={!canScore}
-                                className="w-full rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-sm disabled:bg-slate-100"
-                              />
-                              <input
-                                name={`game_${index + 1}_b`}
-                                type="number"
-                                min={0}
-                                defaultValue={game.b ?? ""}
-                                disabled={!canScore}
-                                className="w-full rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-sm disabled:bg-slate-100"
-                              />
-                            </div>
-                          ))}
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="rounded-lg border border-[var(--line)] bg-[var(--chip)]/50 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                              Pair A
+                            </p>
+                            <p className="text-sm font-medium">{pairA ? pairLabel(pairA) : "TBD"}</p>
+                            {pairA && starts ? (
+                              <span className="mt-1 inline-block rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                                start {starts.pairAStart}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="rounded-lg border border-[var(--line)] bg-[var(--chip)]/50 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                              Pair B
+                            </p>
+                            <p className="text-sm font-medium">{pairB ? pairLabel(pairB) : "BYE"}</p>
+                            {pairB && starts ? (
+                              <span className="mt-1 inline-block rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                                start {starts.pairBStart}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
+
+                        {isBye ? (
+                          <p className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs text-[var(--muted)]">
+                            No score entry needed for a bye match.
+                          </p>
+                        ) : (
+                          <div className="overflow-x-auto rounded-lg border border-[var(--line)] bg-white">
+                            <table className="min-w-[360px] w-full border-collapse text-sm">
+                              <thead className="bg-[var(--chip)]/60 text-xs text-[var(--muted)]">
+                                <tr>
+                                  <th className="px-3 py-2 text-left">Game</th>
+                                  <th className="px-3 py-2 text-center">Pair A</th>
+                                  <th className="px-3 py-2 text-center">Pair B</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {games.map((game, index) => (
+                                  <tr key={`${match.id}-g-${index + 1}`} className="border-t border-[var(--line)]">
+                                    <td className="px-3 py-2 text-xs text-[var(--muted)]">
+                                      {match.best_of === 1 ? "Match" : `Game ${index + 1}`}
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                      <input
+                                        name={`game_${index + 1}_a`}
+                                        type="number"
+                                        min={0}
+                                        defaultValue={game.a ?? ""}
+                                        disabled={!canScore}
+                                        className="h-9 w-16 rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-center text-sm disabled:bg-slate-100"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                      <input
+                                        name={`game_${index + 1}_b`}
+                                        type="number"
+                                        min={0}
+                                        defaultValue={game.b ?? ""}
+                                        disabled={!canScore}
+                                        className="h-9 w-16 rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-center text-sm disabled:bg-slate-100"
+                                      />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
 
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-xs text-[var(--muted)]">

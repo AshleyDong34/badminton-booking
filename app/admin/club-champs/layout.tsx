@@ -6,6 +6,7 @@ const sectionItems = [
   { href: "/admin/club-champs/pools", label: "3. Pools" },
   { href: "/admin/club-champs/knockout", label: "4. Knockout setup" },
   { href: "/admin/club-champs/knockout-matches", label: "5. Knockout matches" },
+  { href: "/admin/club-champs/finalize", label: "6. Export and finalize" },
 ];
 
 export default function ClubChampsLayout({
@@ -14,7 +15,7 @@ export default function ClubChampsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-5">
+    <div className="mx-auto w-full max-w-6xl space-y-5">
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm">
         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
           Club champs sections

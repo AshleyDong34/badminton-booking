@@ -37,7 +37,7 @@ export default async function ClubChampsSeedingPage() {
   };
 
   return (
-    <div className="max-w-5xl space-y-4">
+    <div className="max-w-6xl space-y-4">
       {error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           Failed to load pairs for seeding: {error.message}

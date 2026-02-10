@@ -31,7 +31,7 @@ export default async function WhitelistPage({
   const rows = whitelist ?? [];
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="max-w-6xl space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold">Membership List</h1>
         <p className="text-sm text-[var(--muted)]">

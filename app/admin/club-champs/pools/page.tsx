@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { LockPoolsForm } from "./LockPoolsForm";
+import HashAnchorRestore from "@/app/admin/HashAnchorRestore";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -89,10 +90,10 @@ function seedSort(a: Row, b: Row) {
   return (a.created_at ?? "").localeCompare(b.created_at ?? "");
 }
 
-function buildPoolSizes(total: number, event: EventType) {
+function buildPoolSizes(total: number, targetSize: 3 | 4) {
   if (total <= 0) return [] as number[];
 
-  const preferred = event === "mixed_doubles" ? 4 : 3;
+  const preferred = targetSize;
   const minSize = 3;
   const maxSize = 4;
 
@@ -114,7 +115,7 @@ function buildPoolSizes(total: number, event: EventType) {
   return Array.from({ length: poolCount }, (_, i) => (i < extra ? base + 1 : base));
 }
 
-function buildPools(rows: Row[], event: EventType) {
+function buildPools(rows: Row[], targetSize: 3 | 4) {
   if (rows.length === 0) return [] as SeededPair[][];
 
   const ordered = [...rows].sort(seedSort).map((row, index) => ({
@@ -122,7 +123,7 @@ function buildPools(rows: Row[], event: EventType) {
     seed: index + 1,
   }));
 
-  const sizes = buildPoolSizes(ordered.length, event);
+  const sizes = buildPoolSizes(ordered.length, targetSize);
   const pools: SeededPair[][] = sizes.map(() => []);
 
   let cursor = 0;
@@ -147,18 +148,20 @@ function buildPools(rows: Row[], event: EventType) {
 function EventPoolsPreview({
   event,
   rows,
+  targetSize,
 }: {
   event: EventType;
   rows: Row[];
+  targetSize: 3 | 4;
 }) {
-  const pools = buildPools(rows, event);
+  const pools = buildPools(rows, targetSize);
 
   return (
     <section className="space-y-3">
       <div>
         <h2 className="text-lg font-semibold">{EVENT_LABEL[event]} pools</h2>
         <p className="text-sm text-[var(--muted)]">
-          Auto-generated from seeding order with snake distribution. Level doubles use pools of about 3, mixed doubles use pools of about 4.
+          Auto-generated from seeding order with snake distribution. Target size is {targetSize} with balanced pools of 3-4 where possible.
         </p>
       </div>
 
@@ -213,7 +216,16 @@ type SearchParams = {
   locked?: string;
   updated?: string;
   error?: string;
+  level_pool_target?: string;
+  mixed_pool_target?: string;
+  knockout_reset?: string;
 };
+
+function parsePoolTarget(raw: string | undefined, fallback: 3 | 4): 3 | 4 {
+  if (raw === "3") return 3;
+  if (raw === "4") return 4;
+  return fallback;
+}
 
 export default async function ClubChampsPoolsPage({
   searchParams,
@@ -222,6 +234,9 @@ export default async function ClubChampsPoolsPage({
 }) {
   const db = supabaseServer();
   const params = (await searchParams) ?? {};
+  const levelPoolTarget = parsePoolTarget(params.level_pool_target, 3);
+  const mixedPoolTarget = parsePoolTarget(params.mixed_pool_target, 4);
+  const poolRedirectBase = `/admin/club-champs/pools?level_pool_target=${levelPoolTarget}&mixed_pool_target=${mixedPoolTarget}`;
 
   const { data, error } = await db
     .from("club_champs_pairs")
@@ -244,6 +259,7 @@ export default async function ClubChampsPoolsPage({
 
   return (
     <div className="max-w-6xl space-y-6">
+      <HashAnchorRestore />
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Step 3: Pools</h1>
         <p className="text-sm text-[var(--muted)]">
@@ -252,7 +268,7 @@ export default async function ClubChampsPoolsPage({
       </div>
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm">
-        <LockPoolsForm />
+        <LockPoolsForm levelPoolTarget={levelPoolTarget} mixedPoolTarget={mixedPoolTarget} />
       </div>
 
       {params.locked && (
@@ -263,6 +279,11 @@ export default async function ClubChampsPoolsPage({
       {params.updated && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--ink)]">
           Match score updated.
+        </p>
+      )}
+      {params.knockout_reset && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Knockout data was reset to prevent stale results after pool changes.
         </p>
       )}
       {params.error && (
@@ -296,14 +317,24 @@ export default async function ClubChampsPoolsPage({
           </p>
         ) : (
           <>
-            <EventMatchResults event="level_doubles" matches={matches} pairById={pairById} />
-            <EventMatchResults event="mixed_doubles" matches={matches} pairById={pairById} />
+            <EventMatchResults
+              event="level_doubles"
+              matches={matches}
+              pairById={pairById}
+              redirect={poolRedirectBase}
+            />
+            <EventMatchResults
+              event="mixed_doubles"
+              matches={matches}
+              pairById={pairById}
+              redirect={poolRedirectBase}
+            />
           </>
         )}
       </div>
 
-      <EventPoolsPreview event="level_doubles" rows={levelRows} />
-      <EventPoolsPreview event="mixed_doubles" rows={mixedRows} />
+      <EventPoolsPreview event="level_doubles" rows={levelRows} targetSize={levelPoolTarget} />
+      <EventPoolsPreview event="mixed_doubles" rows={mixedRows} targetSize={mixedPoolTarget} />
     </div>
   );
 }
@@ -312,10 +343,12 @@ function EventMatchResults({
   event,
   matches,
   pairById,
+  redirect,
 }: {
   event: EventType;
   matches: MatchRow[];
   pairById: Map<string, Row>;
+  redirect: string;
 }) {
   const eventMatches = matches.filter((m) => m.event === event);
   const pools = new Map<number, MatchRow[]>();
@@ -346,19 +379,22 @@ function EventMatchResults({
                     const pairB = pairById.get(match.pair_b_id);
                     const starts = handicapStarts(pairA, pairB);
                     const isSaved = match.pair_a_score !== null && match.pair_b_score !== null;
+                    const anchor = `pool-${event}-${poolNumber}-match-${match.match_order}`;
                     return (
                       <form
                         key={match.id}
+                        id={anchor}
                         action="/api/admin/champs/pools/matches/update"
                         method="post"
-                        className={`space-y-2 rounded-xl border p-3 ${
+                        className={`scroll-mt-24 space-y-2 rounded-xl border p-3 ${
                           isSaved
                             ? "border-emerald-300 bg-emerald-50/40"
                             : "border-[var(--line)] bg-white"
                         }`}
                       >
                         <input type="hidden" name="id" value={match.id} />
-                        <input type="hidden" name="redirect" value="/admin/club-champs/pools" />
+                        <input type="hidden" name="redirect" value={redirect} />
+                        <input type="hidden" name="anchor" value={anchor} />
                         <div className="flex items-start justify-between gap-3">
                           <div className="text-xs text-[var(--muted)]">
                             Match {match.match_order}

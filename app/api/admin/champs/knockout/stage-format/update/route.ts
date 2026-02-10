@@ -19,21 +19,21 @@ export async function POST(req: NextRequest) {
   const stage = Number(form.get("stage"));
   const bestOf = Number(form.get("best_of"));
   const redirect = String(form.get("redirect") ?? "/admin/club-champs/knockout-matches");
+  const anchor = String(form.get("anchor") ?? "").trim();
+  const toRedirect = (path: string) => {
+    const url = new URL(path, getBaseUrl(req));
+    if (anchor) url.hash = anchor;
+    return NextResponse.redirect(url, 303);
+  };
 
   if (!EVENTS.has(event)) {
-    return NextResponse.redirect(
-      new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Invalid+event`, getBaseUrl(req))
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Invalid+event`);
   }
   if (!Number.isInteger(stage) || stage < 1) {
-    return NextResponse.redirect(
-      new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Invalid+stage`, getBaseUrl(req))
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Invalid+stage`);
   }
   if (bestOf !== 1 && bestOf !== 3) {
-    return NextResponse.redirect(
-      new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Format+must+be+best+of+1+or+3`, getBaseUrl(req))
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Format+must+be+best+of+1+or+3`);
   }
 
   const db = supabaseServer();
@@ -44,12 +44,7 @@ export async function POST(req: NextRequest) {
     .eq("stage", stage);
 
   if (stageReadError) {
-    return NextResponse.redirect(
-      new URL(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(stageReadError.message)}`,
-        getBaseUrl(req)
-      )
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(stageReadError.message)}`);
   }
 
   const hasScoredNonByeMatch = (stageRows ?? []).some((row) => {
@@ -59,11 +54,8 @@ export async function POST(req: NextRequest) {
   });
 
   if (hasScoredNonByeMatch) {
-    return NextResponse.redirect(
-      new URL(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=Cannot+change+format+after+stage+has+started`,
-        getBaseUrl(req)
-      )
+    return toRedirect(
+      `${redirect}${redirect.includes("?") ? "&" : "?"}error=Cannot+change+format+after+stage+has+started`
     );
   }
 
@@ -74,15 +66,8 @@ export async function POST(req: NextRequest) {
     .eq("stage", stage);
 
   if (updateError) {
-    return NextResponse.redirect(
-      new URL(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(updateError.message)}`,
-        getBaseUrl(req)
-      )
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(updateError.message)}`);
   }
 
-  return NextResponse.redirect(
-    new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}format_saved=1`, getBaseUrl(req))
-  );
+  return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}format_saved=1`);
 }

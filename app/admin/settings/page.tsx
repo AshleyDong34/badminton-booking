@@ -9,6 +9,7 @@ type SettingsRow = {
   allow_same_day_multi: boolean;
   allow_name_only?: boolean; // <-- add this column in settings to persist
   booking_window_days?: number | null;
+  sessions_public_enabled?: boolean | null;
   club_rules?: string | null;
   useful_info?: string | null;
 };
@@ -29,12 +30,13 @@ export default async function SettingsPage() {
     allow_same_day_multi: false,
     allow_name_only: false,
     booking_window_days: 7,
+    sessions_public_enabled: true,
     club_rules: "",
     useful_info: "",
   };
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="max-w-6xl space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold">Settings</h1>
         <p className="text-sm text-[var(--muted)]">
@@ -92,6 +94,22 @@ export default async function SettingsPage() {
             Users can see sessions up to this many days before the start time.
           </p>
         </div>
+
+        <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
+          <input
+            id="sessions_public_enabled"
+            name="sessions_public_enabled"
+            type="checkbox"
+            defaultChecked={s.sessions_public_enabled ?? true}
+            className="mt-1 h-4 w-4"
+          />
+          <span className="text-sm">
+            <span className="block font-medium">Show sessions on public site</span>
+            <span className="block text-xs text-[var(--muted)]">
+              Turn this off to hide all session cards and prevent direct booking-page access.
+            </span>
+          </span>
+        </label>
 
         <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
           <input

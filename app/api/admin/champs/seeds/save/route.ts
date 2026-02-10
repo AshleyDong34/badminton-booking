@@ -59,5 +59,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: failed.error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  const { error: resetPoolsError } = await db
+    .from("club_champs_pool_matches")
+    .delete()
+    .eq("event", event);
+  if (resetPoolsError) {
+    return NextResponse.json({ error: resetPoolsError.message }, { status: 500 });
+  }
+
+  const { error: resetKnockoutError } = await db
+    .from("club_champs_knockout_matches")
+    .delete()
+    .eq("event", event);
+  if (resetKnockoutError) {
+    return NextResponse.json({ error: resetKnockoutError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, downstreamReset: true });
 }

@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
   const allow_same_day_multi = String(form.get("allow_same_day_multi")) === "true";
   const allow_name_only = form.get("allow_name_only") === "on";
   const booking_window_days = Number(form.get("booking_window_days"));
+  const sessions_public_enabled = form.get("sessions_public_enabled") === "on";
   const club_rules = String(form.get("club_rules") ?? "");
   const useful_info = String(form.get("useful_info") ?? "");
 
@@ -40,18 +41,30 @@ export async function POST(req: NextRequest) {
     allow_same_day_multi,
     allow_name_only,
     booking_window_days,
+    sessions_public_enabled,
     club_rules,
     useful_info,
   };
-  let { error } = await supabase
-    .from("settings")
-    .upsert(payload, { onConflict: "id" });
+  let { error } = await supabase.from("settings").upsert(payload, { onConflict: "id" });
 
-  if (error && error.message.includes("allow_name_only")) {
-    const fallback = await supabase
+  // Graceful fallback if optional columns have not been added yet.
+  const optionalColumns = [
+    "sessions_public_enabled",
+    "allow_name_only",
+    "booking_window_days",
+    "club_rules",
+    "useful_info",
+  ] as const;
+
+  const retryPayload: Record<string, unknown> = { ...payload };
+  while (error) {
+    const missingColumn = optionalColumns.find((col) => error?.message?.includes(col));
+    if (!missingColumn) break;
+    delete retryPayload[missingColumn];
+    const retry = await supabase
       .from("settings")
-      .upsert({ id: 1, weekly_quota, allow_same_day_multi }, { onConflict: "id" });
-    error = fallback.error;
+      .upsert(retryPayload, { onConflict: "id" });
+    error = retry.error;
   }
 
   if (error) return new NextResponse(error.message, { status: 500 });

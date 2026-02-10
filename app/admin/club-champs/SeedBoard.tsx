@@ -56,6 +56,7 @@ function SeedList({
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [savedMessage, setSavedMessage] = useState<string>("Seeding saved.");
 
   async function saveOrder(nextItems: SeedRow[]) {
     setSaveState("saving");
@@ -76,6 +77,12 @@ function SeedList({
       return;
     }
 
+    const json = await res.json().catch(() => ({}));
+    setSavedMessage(
+      json?.downstreamReset
+        ? "Seeding saved. Pools and knockout for this event were reset."
+        : "Seeding saved."
+    );
     setSaveState("saved");
     setTimeout(() => setSaveState("idle"), 1400);
   }
@@ -106,7 +113,7 @@ function SeedList({
 
       {saveState === "saved" && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-xs text-[var(--ink)]">
-          Seeding saved.
+          {savedMessage}
         </p>
       )}
       {saveState === "error" && (

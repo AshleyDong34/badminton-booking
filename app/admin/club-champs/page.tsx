@@ -59,7 +59,7 @@ export default async function ClubChampsPage({
   const clubChampsPublicEnabled = Boolean(settingsData?.club_champs_public_enabled);
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="max-w-6xl space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold">Club champs</h1>
         <p className="text-sm text-[var(--muted)]">

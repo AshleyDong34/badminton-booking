@@ -11,7 +11,7 @@ export default async function NewSessionPage() {
   const defaultAllowNameOnly = Boolean(data?.allow_name_only);
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="max-w-5xl space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold">Create session</h1>
         <p className="text-sm text-[var(--muted)]">

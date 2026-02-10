@@ -13,9 +13,13 @@ export async function GET() {
   const now = new Date();
   const { data: settings } = await db
     .from("settings")
-    .select("booking_window_days")
+    .select("*")
     .eq("id", 1)
     .single();
+  const sessionsPublicEnabled = settings?.sessions_public_enabled ?? true;
+  if (!sessionsPublicEnabled) {
+    return NextResponse.json({ sessions: [], hidden: true });
+  }
   const windowDays = Number(settings?.booking_window_days ?? 7);
   const safeDays = Number.isFinite(windowDays) && windowDays >= 0 ? windowDays : 7;
   const weekAhead = new Date(now.getTime() + safeDays * 24 * 60 * 60 * 1000);

@@ -179,11 +179,15 @@ export async function POST(req: NextRequest) {
   const form = await req.formData();
   const id = String(form.get("id") ?? "").trim();
   const redirect = String(form.get("redirect") ?? "/admin/club-champs/knockout-matches");
+  const anchor = String(form.get("anchor") ?? "").trim();
+  const toRedirect = (path: string) => {
+    const url = new URL(path, getBaseUrl(req));
+    if (anchor) url.hash = anchor;
+    return NextResponse.redirect(url, 303);
+  };
 
   if (!id) {
-    return NextResponse.redirect(
-      new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Missing+match+id`, getBaseUrl(req))
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Missing+match+id`);
   }
   const db = supabaseServer();
   const { data: match, error: matchError } = await db
@@ -195,38 +199,28 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (matchError || !match) {
-    return NextResponse.redirect(
-      new URL(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(
-          matchError?.message ?? "Match not found"
-        )}`,
-        getBaseUrl(req)
-      )
+    return toRedirect(
+      `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(
+        matchError?.message ?? "Match not found"
+      )}`
     );
   }
 
   const row = match as MatchRow;
   if (!row.is_unlocked) {
-    return NextResponse.redirect(
-      new URL(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=This+stage+is+locked+until+previous+stage+is+complete`,
-        getBaseUrl(req)
-      )
+    return toRedirect(
+      `${redirect}${redirect.includes("?") ? "&" : "?"}error=This+stage+is+locked+until+previous+stage+is+complete`
     );
   }
 
   const parsed = parseGames(form, row.best_of);
   if ("error" in parsed) {
-    return NextResponse.redirect(
-      new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(parsed.error)}`, getBaseUrl(req))
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(parsed.error)}`);
   }
 
   const decided = determineWinner(row, parsed.games);
   if ("error" in decided) {
-    return NextResponse.redirect(
-      new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(decided.error)}`, getBaseUrl(req))
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(decided.error)}`);
   }
 
   const { error: updateError } = await db
@@ -239,35 +233,18 @@ export async function POST(req: NextRequest) {
     })
     .eq("id", id);
   if (updateError) {
-    return NextResponse.redirect(
-      new URL(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(updateError.message)}`,
-        getBaseUrl(req)
-      )
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(updateError.message)}`);
   }
 
   const downstreamError = await clearDownstreamStages(db, row.event, row.stage);
   if (downstreamError) {
-    return NextResponse.redirect(
-      new URL(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(downstreamError.message)}`,
-        getBaseUrl(req)
-      )
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(downstreamError.message)}`);
   }
 
   const propagateError = await propagateKnockoutEvent(db, row.event);
   if (propagateError) {
-    return NextResponse.redirect(
-      new URL(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(propagateError.message)}`,
-        getBaseUrl(req)
-      )
-    );
+    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(propagateError.message)}`);
   }
 
-  return NextResponse.redirect(
-    new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}updated=1`, getBaseUrl(req))
-  );
+  return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}updated=1`);
 }

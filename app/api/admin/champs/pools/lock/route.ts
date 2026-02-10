@@ -35,13 +35,17 @@ function sortSeededRows(a: PairRow, b: PairRow) {
   return (a.created_at ?? "").localeCompare(b.created_at ?? "");
 }
 
-function buildPoolSizes(total: number, event: EventType) {
+function parsePoolTarget(raw: string | null | undefined, fallback: 3 | 4): 3 | 4 {
+  if (raw === "3") return 3;
+  if (raw === "4") return 4;
+  return fallback;
+}
+
+function buildPoolSizes(total: number, targetSize: 3 | 4) {
   if (total <= 0) return [] as number[];
 
-  // Level doubles: prefer 3 per pool, but allow 4 to absorb leftovers.
-  // Mixed doubles: prefer 4 per pool, allow 3 when needed.
-  const preferred = event === "mixed_doubles" ? 4 : 3;
-  const minSize = event === "mixed_doubles" ? 3 : 3;
+  const preferred = targetSize;
+  const minSize = 3;
   const maxSize = 4;
 
   let poolCount = Math.max(1, Math.ceil(total / preferred));
@@ -62,11 +66,11 @@ function buildPoolSizes(total: number, event: EventType) {
   return Array.from({ length: poolCount }, (_, i) => (i < extra ? base + 1 : base));
 }
 
-function buildPools(rows: PairRow[], event: EventType) {
+function buildPools(rows: PairRow[], targetSize: 3 | 4) {
   if (rows.length === 0) return [] as PairRow[][];
 
   const ordered = [...rows].sort(sortSeededRows);
-  const sizes = buildPoolSizes(ordered.length, event);
+  const sizes = buildPoolSizes(ordered.length, targetSize);
   const pools: PairRow[][] = sizes.map(() => []);
 
   let cursor = 0;
@@ -120,6 +124,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error }, { status });
   }
 
+  const form = await req.formData();
+  const levelPoolTarget = parsePoolTarget(String(form.get("level_pool_target") ?? ""), 3);
+  const mixedPoolTarget = parsePoolTarget(String(form.get("mixed_pool_target") ?? ""), 4);
+  const queryTail = `level_pool_target=${levelPoolTarget}&mixed_pool_target=${mixedPoolTarget}`;
+  const poolsPage = `/admin/club-champs/pools?${queryTail}`;
+  const poolsPageWithError = (message: string) =>
+    `/admin/club-champs/pools?${queryTail}&error=${encodeURIComponent(message)}`;
+
   const db = supabaseServer();
   const { data, error } = await db
     .from("club_champs_pairs")
@@ -127,14 +139,14 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     return NextResponse.redirect(
-      new URL(`/admin/club-champs/pools?error=${encodeURIComponent(error.message)}`, getBaseUrl(req))
+      new URL(poolsPageWithError(error.message), getBaseUrl(req))
     );
   }
 
   const rows = (data ?? []) as PairRow[];
   if (rows.length === 0) {
     return NextResponse.redirect(
-      new URL("/admin/club-champs/pools?error=No+pairs+available+to+lock", getBaseUrl(req))
+      new URL(poolsPageWithError("No pairs available to lock"), getBaseUrl(req))
     );
   }
 
@@ -145,19 +157,29 @@ export async function POST(req: NextRequest) {
   const hasUnseeded = eventsToCheck.some((list) => list.some((row) => row.seed_order == null));
   if (hasUnseeded) {
     return NextResponse.redirect(
-      new URL("/admin/club-champs/pools?error=Save+seeding+first+for+all+pairs", getBaseUrl(req))
+      new URL(poolsPageWithError("Save seeding first for all pairs"), getBaseUrl(req))
     );
   }
 
   const matchRows = [
-    ...buildMatchRows("level_doubles", buildPools(levelRows, "level_doubles")),
-    ...buildMatchRows("mixed_doubles", buildPools(mixedRows, "mixed_doubles")),
+    ...buildMatchRows("level_doubles", buildPools(levelRows, levelPoolTarget)),
+    ...buildMatchRows("mixed_doubles", buildPools(mixedRows, mixedPoolTarget)),
   ];
 
   const { error: clearError } = await db.from("club_champs_pool_matches").delete().gte("pool_number", 1);
   if (clearError) {
     return NextResponse.redirect(
-      new URL(`/admin/club-champs/pools?error=${encodeURIComponent(clearError.message)}`, getBaseUrl(req))
+      new URL(poolsPageWithError(clearError.message), getBaseUrl(req))
+    );
+  }
+
+  const { error: clearKnockoutError } = await db
+    .from("club_champs_knockout_matches")
+    .delete()
+    .gte("stage", 1);
+  if (clearKnockoutError) {
+    return NextResponse.redirect(
+      new URL(poolsPageWithError(clearKnockoutError.message), getBaseUrl(req))
     );
   }
 
@@ -165,10 +187,10 @@ export async function POST(req: NextRequest) {
     const { error: insertError } = await db.from("club_champs_pool_matches").insert(matchRows);
     if (insertError) {
       return NextResponse.redirect(
-        new URL(`/admin/club-champs/pools?error=${encodeURIComponent(insertError.message)}`, getBaseUrl(req))
+        new URL(poolsPageWithError(insertError.message), getBaseUrl(req))
       );
     }
   }
 
-  return NextResponse.redirect(new URL("/admin/club-champs/pools?locked=1", getBaseUrl(req)));
+  return NextResponse.redirect(new URL(`${poolsPage}&locked=1&knockout_reset=1`, getBaseUrl(req)));
 }

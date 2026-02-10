@@ -27,6 +27,7 @@ type BulletinContent = {
 
 type PublicSettings = {
   club_champs_public_enabled: boolean;
+  sessions_public_enabled: boolean;
 };
 
 function dateKey(iso: string) {
@@ -181,6 +182,7 @@ export default function Home() {
   const [openBulletin, setOpenBulletin] = useState<null | "rules" | "info">(null);
   const [publicSettings, setPublicSettings] = useState<PublicSettings>({
     club_champs_public_enabled: false,
+    sessions_public_enabled: true,
   });
 
   const loadSessions = useCallback(
@@ -195,8 +197,15 @@ export default function Home() {
         if (activeRef.current && mode === "initial") setSessions([]);
       } else {
         const json = await res.json().catch(() => ({}));
-        if (activeRef.current)
+        if (activeRef.current) {
           setSessions((json.sessions ?? []) as SessionRow[]);
+          if (typeof json.hidden === "boolean") {
+            setPublicSettings((prev) => ({
+              ...prev,
+              sessions_public_enabled: !json.hidden,
+            }));
+          }
+        }
       }
       if (mode === "initial" && activeRef.current) setLoading(false);
       if (mode === "refresh" && activeRef.current) setRefreshing(false);
@@ -220,6 +229,7 @@ export default function Home() {
     const json = await res.json().catch(() => ({}));
     setPublicSettings({
       club_champs_public_enabled: Boolean(json.club_champs_public_enabled),
+      sessions_public_enabled: json.sessions_public_enabled ?? true,
     });
   }, []);
 
@@ -351,6 +361,10 @@ export default function Home() {
         {loading ? (
           <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
             Loading sessions...
+          </div>
+        ) : !publicSettings.sessions_public_enabled ? (
+          <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">
+            Session booking is currently hidden by the committee.
           </div>
         ) : sessions.length === 0 ? (
           <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6">

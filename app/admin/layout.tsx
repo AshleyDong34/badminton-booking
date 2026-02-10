@@ -46,7 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="pointer-events-none absolute -left-24 top-0 h-64 w-64 rounded-full bg-[#fde9b0] opacity-60 blur-3xl" />
         <div className="pointer-events-none absolute right-0 top-16 h-52 w-52 rounded-full bg-[#d9ecff] opacity-70 blur-3xl" />
 
-        <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-10 sm:px-8">
+        <div className="relative mx-auto w-full max-w-[1600px] px-5 pb-16 pt-10 sm:px-8">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-1">
               <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">

@@ -31,9 +31,17 @@ export async function GET(
 
   const { data: settings } = await db
     .from("settings")
-    .select("allow_name_only,booking_window_days")
+    .select("*")
     .eq("id", 1)
     .single();
+
+  const sessionsPublicEnabled = settings?.sessions_public_enabled ?? true;
+  if (!sessionsPublicEnabled) {
+    return NextResponse.json(
+      { error: "Session booking is currently hidden by the committee." },
+      { status: 403 }
+    );
+  }
 
   const now = new Date();
   const windowDays = Number(settings?.booking_window_days ?? 7);
