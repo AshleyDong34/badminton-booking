@@ -94,20 +94,20 @@ function PoolResultsSection({
               <h3 className="font-semibold">{poolName(pool.poolNumber - 1)}</h3>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px] text-sm">
+                <table className="w-full table-fixed text-sm">
                   <thead className="text-left text-xs text-[var(--muted)]">
                     <tr>
-                      <th className="py-1 pr-2">Rank</th>
+                      <th className="w-10 py-1 pr-2">Rank</th>
                       <th className="py-1 pr-2">Pair</th>
-                      <th className="py-1 pr-2">W-L</th>
-                      <th className="py-1 pr-2">+/-</th>
+                      <th className="w-12 py-1 pr-2 text-right">W-L</th>
+                      <th className="w-12 py-1 pr-2 text-right">+/-</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pool.standings.map((row) => (
                       <tr key={row.pair.id} className="border-t border-[var(--line)]">
                         <td className="py-1 pr-2 font-semibold">{row.poolRank}</td>
-                        <td className="py-1 pr-2">
+                        <td className="min-w-0 py-1 pr-2 text-[13px] leading-5 sm:text-sm">
                           <span className="text-[var(--cool)]">{row.pair.player_one_name}</span>
                           <span className="text-[var(--muted)]">
                             {" "}
@@ -120,10 +120,10 @@ function PoolResultsSection({
                             ({toLevel(row.pair.player_two_level)})
                           </span>
                         </td>
-                        <td className="py-1 pr-2">
+                        <td className="py-1 pr-2 text-right">
                           {row.wins}-{row.losses}
                         </td>
-                        <td className="py-1 pr-2">{row.pointDiff}</td>
+                        <td className="py-1 pr-2 text-right">{row.pointDiff}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -155,7 +155,7 @@ function PoolResultsSection({
                       return (
                         <div className="space-y-1">
                           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
-                            <span className="truncate">{pairShortLabel(pairA)}</span>
+                            <span className="min-w-0 truncate text-[13px] sm:text-sm">{pairShortLabel(pairA)}</span>
                             <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
                               {startLabel(starts?.pairAStart)}
                             </span>
@@ -164,7 +164,7 @@ function PoolResultsSection({
                             </span>
                           </div>
                           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
-                            <span className="truncate">{pairShortLabel(pairB)}</span>
+                            <span className="min-w-0 truncate text-[13px] sm:text-sm">{pairShortLabel(pairB)}</span>
                             <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
                               {startLabel(starts?.pairBStart)}
                             </span>
