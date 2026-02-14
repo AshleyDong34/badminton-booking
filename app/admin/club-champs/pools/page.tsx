@@ -278,7 +278,7 @@ export default async function ClubChampsPoolsPage({
       )}
       {params.updated && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--ink)]">
-          Match score updated.
+          Pool scores saved.
         </p>
       )}
       {params.knockout_reset && (
@@ -321,7 +321,7 @@ export default async function ClubChampsPoolsPage({
           Numbers shown next to each pair name are that pair&apos;s starting points for the match.
         </p>
         <p className="text-sm text-[var(--muted)]">
-          Use the checkmark at the top-right of each match card to save. A green match card means scores are saved.
+          Use the global save button to save all entered scores at once. Green match cards mean those scores are saved.
         </p>
         {matches.length === 0 ? (
           <p className="rounded-xl border border-[var(--line)] bg-[var(--card)] px-4 py-3 text-sm text-[var(--muted)] shadow-sm">
@@ -361,6 +361,7 @@ function EventMatchResults({
 }) {
   const eventMatches = matches.filter((m) => m.event === event);
   const pools = new Map<number, MatchRow[]>();
+  const eventAnchor = `pool-results-${event}`;
   for (const match of eventMatches) {
     const list = pools.get(match.pool_number) ?? [];
     list.push(match);
@@ -368,116 +369,119 @@ function EventMatchResults({
   }
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" id={eventAnchor}>
       <h3 className="text-lg font-semibold">{EVENT_LABEL[event]} results entry</h3>
       {pools.size === 0 ? (
         <p className="text-sm text-[var(--muted)]">No fixtures for this event.</p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {Array.from(pools.entries())
-            .sort((a, b) => a[0] - b[0])
-            .map(([poolNumber, poolMatches]) => (
-              <div
-                key={`${event}-${poolNumber}`}
-                className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm"
-              >
-                <h4 className="font-semibold">{poolName(poolNumber - 1)}</h4>
-                <div className="space-y-2">
-                  {poolMatches.map((match) => {
-                    const pairA = pairById.get(match.pair_a_id);
-                    const pairB = pairById.get(match.pair_b_id);
-                    const starts = handicapStarts(pairA, pairB);
-                    const isSaved = match.pair_a_score !== null && match.pair_b_score !== null;
-                    const anchor = `pool-${event}-${poolNumber}-match-${match.match_order}`;
-                    return (
-                      <form
-                        key={match.id}
-                        id={anchor}
-                        action="/api/admin/champs/pools/matches/update"
-                        method="post"
-                        className={`scroll-mt-24 space-y-2 rounded-xl border p-3 ${
-                          isSaved
-                            ? "border-emerald-300 bg-emerald-50/40"
-                            : "border-[var(--line)] bg-white"
-                        }`}
-                      >
-                        <input type="hidden" name="id" value={match.id} />
-                        <input type="hidden" name="redirect" value={redirect} />
-                        <input type="hidden" name="anchor" value={anchor} />
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="text-xs text-[var(--muted)]">
-                            Match {match.match_order}
-                          </div>
-                          <button
-                            type="submit"
-                            aria-label={`Save match ${match.match_order} score`}
-                            className={`inline-flex h-8 w-8 items-center justify-center rounded-full border shadow-sm ${
-                              isSaved
-                                ? "border-emerald-300 bg-emerald-100 text-emerald-700"
-                                : "border-[var(--line)] bg-[var(--card)] text-[var(--muted)] hover:text-[var(--ink)]"
-                            }`}
-                          >
-                            <svg
-                              viewBox="0 0 20 20"
-                              fill="none"
-                              aria-hidden="true"
-                              className="h-4 w-4"
-                            >
-                              <path
-                                d="M4.5 10.5l3.5 3.5 7-7"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-                          <div className="text-sm">
-                            <span className="text-[var(--cool)]">{pairA?.player_one_name ?? "Pair A"}</span>
-                            <span className="text-[var(--muted)]"> + </span>
-                            <span className="text-[var(--ok)]">{pairA?.player_two_name ?? ""}</span>
-                            {starts ? (
-                              <span className="ml-2 rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
-                                start {starts.pairAStart}
+        <form action="/api/admin/champs/pools/matches/bulk-update" method="post" className="space-y-4">
+          <input type="hidden" name="event" value={event} />
+          <input type="hidden" name="redirect" value={redirect} />
+          <input type="hidden" name="anchor" value={eventAnchor} />
+
+          <div className="sticky top-20 z-20 flex items-center justify-between gap-3 rounded-xl border border-[#9db4c8] bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
+            <p className="text-sm text-[#46607a]">
+              Save all entered scores for <span className="font-semibold">{EVENT_LABEL[event]}</span>.
+            </p>
+            <button
+              type="submit"
+              className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--cool)] shadow-sm"
+            >
+              Save all scores
+            </button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from(pools.entries())
+              .sort((a, b) => a[0] - b[0])
+              .map(([poolNumber, poolMatches]) => (
+                <div
+                  key={`${event}-${poolNumber}`}
+                  className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm"
+                >
+                  <h4 className="font-semibold">{poolName(poolNumber - 1)}</h4>
+                  <div className="space-y-2">
+                    {poolMatches.map((match) => {
+                      const pairA = pairById.get(match.pair_a_id);
+                      const pairB = pairById.get(match.pair_b_id);
+                      const starts = handicapStarts(pairA, pairB);
+                      const isSaved = match.pair_a_score !== null && match.pair_b_score !== null;
+                      const rowId = `pool-${event}-${poolNumber}-match-${match.match_order}`;
+                      return (
+                        <div
+                          key={match.id}
+                          id={rowId}
+                          className={`scroll-mt-24 space-y-2 rounded-xl border-2 p-3 ${
+                            isSaved
+                              ? "border-emerald-400 bg-emerald-50/60"
+                              : "border-[#a2b8cb] bg-white"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="text-xs font-semibold text-[#4e6279]">
+                              Match {match.match_order}
+                            </div>
+                            {isSaved ? (
+                              <span className="rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                Saved
                               </span>
                             ) : null}
                           </div>
-                          <input
-                            name="pair_a_score"
-                            type="number"
-                            min={0}
-                            defaultValue={match.pair_a_score ?? ""}
-                            className="w-20 rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-sm"
-                          />
-                        </div>
-                        <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-                          <div className="text-sm">
-                            <span className="text-[var(--cool)]">{pairB?.player_one_name ?? "Pair B"}</span>
-                            <span className="text-[var(--muted)]"> + </span>
-                            <span className="text-[var(--ok)]">{pairB?.player_two_name ?? ""}</span>
-                            {starts ? (
-                              <span className="ml-2 rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
-                                start {starts.pairBStart}
-                              </span>
-                            ) : null}
+                          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+                            <div className="text-sm">
+                              <span className="font-semibold text-[var(--cool)]">{pairA?.player_one_name ?? "Pair A"}</span>
+                              <span className="text-[var(--muted)]"> + </span>
+                              <span className="font-semibold text-[var(--ok)]">{pairA?.player_two_name ?? ""}</span>
+                              {starts ? (
+                                <span className="ml-2 rounded-full border border-[#ccdae8] bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                                  start {starts.pairAStart}
+                                </span>
+                              ) : null}
+                            </div>
+                            <input
+                              name={`pair_a_score__${match.id}`}
+                              type="number"
+                              min={0}
+                              defaultValue={match.pair_a_score ?? ""}
+                              className="w-24 rounded-lg border-2 border-[#9eb4c7] bg-white px-2 py-1 text-base font-semibold"
+                            />
                           </div>
-                          <input
-                            name="pair_b_score"
-                            type="number"
-                            min={0}
-                            defaultValue={match.pair_b_score ?? ""}
-                            className="w-20 rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-sm"
-                          />
+                          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+                            <div className="text-sm">
+                              <span className="font-semibold text-[var(--cool)]">{pairB?.player_one_name ?? "Pair B"}</span>
+                              <span className="text-[var(--muted)]"> + </span>
+                              <span className="font-semibold text-[var(--ok)]">{pairB?.player_two_name ?? ""}</span>
+                              {starts ? (
+                                <span className="ml-2 rounded-full border border-[#ccdae8] bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                                  start {starts.pairBStart}
+                                </span>
+                              ) : null}
+                            </div>
+                            <input
+                              name={`pair_b_score__${match.id}`}
+                              type="number"
+                              min={0}
+                              defaultValue={match.pair_b_score ?? ""}
+                              className="w-24 rounded-lg border-2 border-[#9eb4c7] bg-white px-2 py-1 text-base font-semibold"
+                            />
+                          </div>
                         </div>
-                      </form>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-        </div>
+              ))}
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--cool)] shadow-sm"
+            >
+              Save all scores
+            </button>
+          </div>
+        </form>
       )}
     </section>
   );
