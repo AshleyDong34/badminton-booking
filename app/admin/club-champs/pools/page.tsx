@@ -1,6 +1,7 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { LockPoolsForm } from "./LockPoolsForm";
 import HashAnchorRestore from "@/app/admin/HashAnchorRestore";
+import FloatingFormSave from "../FloatingFormSave";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -29,6 +30,7 @@ type MatchRow = {
   pair_b_id: string;
   pair_a_score: number | null;
   pair_b_score: number | null;
+  is_playing: boolean;
 };
 
 type SeededPair = Row & {
@@ -76,6 +78,154 @@ function poolName(index: number) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   if (index < alphabet.length) return `Pool ${alphabet[index]}`;
   return `Pool ${index + 1}`;
+}
+
+function normalizeName(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function pairPlayers(pair: Row | undefined) {
+  if (!pair) return [];
+  return [normalizeName(pair.player_one_name), normalizeName(pair.player_two_name)].filter(Boolean);
+}
+
+function computeRecommendedMatches(matches: MatchRow[], pairById: Map<string, Row>) {
+  const remainingByPair = new Map<string, number>();
+  const playedByPair = new Map<string, number>();
+  const playedByPlayer = new Map<string, number>();
+  const pendingByPlayer = new Map<string, number>();
+
+  const addPlayed = (pairId: string) => {
+    playedByPair.set(pairId, (playedByPair.get(pairId) ?? 0) + 1);
+    for (const player of pairPlayers(pairById.get(pairId))) {
+      playedByPlayer.set(player, (playedByPlayer.get(player) ?? 0) + 1);
+    }
+  };
+
+  for (const match of matches) {
+    const scored = match.pair_a_score != null && match.pair_b_score != null;
+    if (scored) {
+      addPlayed(match.pair_a_id);
+      addPlayed(match.pair_b_id);
+      continue;
+    }
+
+    remainingByPair.set(match.pair_a_id, (remainingByPair.get(match.pair_a_id) ?? 0) + 1);
+    remainingByPair.set(match.pair_b_id, (remainingByPair.get(match.pair_b_id) ?? 0) + 1);
+    for (const player of pairPlayers(pairById.get(match.pair_a_id))) {
+      pendingByPlayer.set(player, (pendingByPlayer.get(player) ?? 0) + 1);
+    }
+    for (const player of pairPlayers(pairById.get(match.pair_b_id))) {
+      pendingByPlayer.set(player, (pendingByPlayer.get(player) ?? 0) + 1);
+    }
+  }
+
+  const busyPlayers = new Set<string>();
+  for (const match of matches) {
+    if (!match.is_playing) continue;
+    for (const key of pairPlayers(pairById.get(match.pair_a_id))) busyPlayers.add(key);
+    for (const key of pairPlayers(pairById.get(match.pair_b_id))) busyPlayers.add(key);
+  }
+
+  const recommendedByEvent = new Map<EventType, MatchRow>();
+  const inPlayMatchesByEvent = new Map<EventType, number>();
+  const events: EventType[] = ["level_doubles", "mixed_doubles"];
+  const maxPlayedByPlayer = Math.max(0, ...playedByPlayer.values());
+  for (const event of events) {
+    const count = matches.filter((match) => match.event === event && match.is_playing).length;
+    inPlayMatchesByEvent.set(event, count);
+  }
+  for (const event of events) {
+    const eventPairIds = new Set(
+      matches
+        .filter((match) => match.event === event)
+        .flatMap((match) => [match.pair_a_id, match.pair_b_id])
+    );
+    const maxPlayedInEvent = Math.max(
+      0,
+      ...Array.from(eventPairIds).map((pairId) => playedByPair.get(pairId) ?? 0)
+    );
+
+    const candidates = matches
+      .filter((match) => match.event === event)
+      .filter((match) => !match.is_playing)
+      .filter((match) => match.pair_a_score == null || match.pair_b_score == null)
+      .filter((match) => {
+        const keys = [
+          ...pairPlayers(pairById.get(match.pair_a_id)),
+          ...pairPlayers(pairById.get(match.pair_b_id)),
+        ];
+        return keys.every((key) => !busyPlayers.has(key));
+      });
+
+    const candidateScore = (match: MatchRow) => {
+      const pairAPlayed = playedByPair.get(match.pair_a_id) ?? 0;
+      const pairBPlayed = playedByPair.get(match.pair_b_id) ?? 0;
+      const pairWaitDebt =
+        (maxPlayedInEvent - pairAPlayed) + (maxPlayedInEvent - pairBPlayed);
+
+      const players = [
+        ...pairPlayers(pairById.get(match.pair_a_id)),
+        ...pairPlayers(pairById.get(match.pair_b_id)),
+      ];
+
+      const playerWaitDebt = players.reduce(
+        (sum, key) => sum + (maxPlayedByPlayer - (playedByPlayer.get(key) ?? 0)),
+        0
+      );
+      const playerBacklog = players.reduce(
+        (sum, key) => sum + (pendingByPlayer.get(key) ?? 0),
+        0
+      );
+      const pairBalanceGap = Math.abs(pairAPlayed - pairBPlayed);
+      const remainingWork =
+        (remainingByPair.get(match.pair_a_id) ?? 0) +
+        (remainingByPair.get(match.pair_b_id) ?? 0);
+
+      return {
+        pairWaitDebt,
+        playerWaitDebt,
+        playerBacklog,
+        pairBalanceGap,
+        remainingWork,
+      };
+    };
+
+    candidates.sort((a, b) => {
+      const aScore = candidateScore(a);
+      const bScore = candidateScore(b);
+
+      if (aScore.pairWaitDebt !== bScore.pairWaitDebt) {
+        return bScore.pairWaitDebt - aScore.pairWaitDebt;
+      }
+      if (aScore.playerWaitDebt !== bScore.playerWaitDebt) {
+        return bScore.playerWaitDebt - aScore.playerWaitDebt;
+      }
+      if (aScore.playerBacklog !== bScore.playerBacklog) {
+        return bScore.playerBacklog - aScore.playerBacklog;
+      }
+      if (aScore.pairBalanceGap !== bScore.pairBalanceGap) {
+        return aScore.pairBalanceGap - bScore.pairBalanceGap;
+      }
+      if (aScore.remainingWork !== bScore.remainingWork) {
+        return bScore.remainingWork - aScore.remainingWork;
+      }
+
+      if (a.pool_number !== b.pool_number) return a.pool_number - b.pool_number;
+      return a.match_order - b.match_order;
+    });
+
+    if (candidates[0]) {
+      recommendedByEvent.set(event, candidates[0]);
+    }
+  }
+
+  return {
+    recommendedByEvent,
+    inPlayMatchesByEvent,
+    inPlayTotal: matches.filter((match) => match.is_playing).length,
+    busyPlayersCount: busyPlayers.size,
+  };
 }
 
 function seedSort(a: Row, b: Row) {
@@ -216,6 +366,7 @@ type SearchParams = {
   locked?: string;
   locked_event?: string;
   updated?: string;
+  playing?: string;
   error?: string;
   level_pool_target?: string;
   mixed_pool_target?: string;
@@ -247,7 +398,7 @@ export default async function ClubChampsPoolsPage({
 
   const { data: matchData, error: matchError } = await db
     .from("club_champs_pool_matches")
-    .select("id,event,pool_number,match_order,pair_a_id,pair_b_id,pair_a_score,pair_b_score")
+    .select("id,event,pool_number,match_order,pair_a_id,pair_b_id,pair_a_score,pair_b_score,is_playing")
     .order("event", { ascending: true })
     .order("pool_number", { ascending: true })
     .order("match_order", { ascending: true });
@@ -257,6 +408,8 @@ export default async function ClubChampsPoolsPage({
   const levelRows = rows.filter((r) => r.event === "level_doubles");
   const mixedRows = rows.filter((r) => r.event === "mixed_doubles");
   const pairById = new Map(rows.map((row) => [row.id, row]));
+  const { recommendedByEvent, inPlayMatchesByEvent, inPlayTotal, busyPlayersCount } =
+    computeRecommendedMatches(matches, pairById);
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -284,6 +437,11 @@ export default async function ClubChampsPoolsPage({
       {params.updated && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--ink)]">
           Pool scores saved.
+        </p>
+      )}
+      {params.playing && (
+        <p className="rounded-xl border border-[#f1b56e] bg-[#fff3e4] px-4 py-3 text-sm text-[#8a5a20]">
+          Playing status updated.
         </p>
       )}
       {params.knockout_reset && (
@@ -328,6 +486,12 @@ export default async function ClubChampsPoolsPage({
         <p className="text-sm text-[var(--muted)]">
           Use the global save button to save all entered scores at once. Green match cards mean those scores are saved.
         </p>
+        <p className="text-sm text-[var(--muted)]">
+          Orange cards are currently in play. Recommended next avoids in-play player clashes and prioritizes fairness:
+          underplayed players/pairs first, then those with more matches still to complete.
+          {busyPlayersCount > 0 ? ` (${busyPlayersCount} players currently in play)` : ""}
+          {inPlayTotal > 0 ? ` (${inPlayTotal} matches currently in play)` : ""}
+        </p>
         {matches.length === 0 ? (
           <p className="rounded-xl border border-[var(--line)] bg-[var(--card)] px-4 py-3 text-sm text-[var(--muted)] shadow-sm">
             No generated fixtures yet. Lock the tournament first.
@@ -339,12 +503,16 @@ export default async function ClubChampsPoolsPage({
               matches={matches}
               pairById={pairById}
               redirect={poolRedirectBase}
+              recommendedMatchId={recommendedByEvent.get("level_doubles")?.id ?? null}
+              inPlayCount={inPlayMatchesByEvent.get("level_doubles") ?? 0}
             />
             <EventMatchResults
               event="mixed_doubles"
               matches={matches}
               pairById={pairById}
               redirect={poolRedirectBase}
+              recommendedMatchId={recommendedByEvent.get("mixed_doubles")?.id ?? null}
+              inPlayCount={inPlayMatchesByEvent.get("mixed_doubles") ?? 0}
             />
           </>
         )}
@@ -358,15 +526,20 @@ function EventMatchResults({
   matches,
   pairById,
   redirect,
+  recommendedMatchId,
+  inPlayCount,
 }: {
   event: EventType;
   matches: MatchRow[];
   pairById: Map<string, Row>;
   redirect: string;
+  recommendedMatchId: string | null;
+  inPlayCount: number;
 }) {
   const eventMatches = matches.filter((m) => m.event === event);
   const pools = new Map<number, MatchRow[]>();
   const eventAnchor = `pool-results-${event}`;
+  const formId = `pool-results-form-${event}`;
   for (const match of eventMatches) {
     const list = pools.get(match.pool_number) ?? [];
     list.push(match);
@@ -376,25 +549,32 @@ function EventMatchResults({
   return (
     <section className="space-y-3" id={eventAnchor}>
       <h3 className="text-lg font-semibold">{EVENT_LABEL[event]} results entry</h3>
+      <p className="rounded-xl border border-[#f1b56e] bg-[#fff3e4] px-3 py-2 text-sm text-[#8a5a20]">
+        {inPlayCount > 0
+          ? `${inPlayCount} matches currently in play for ${EVENT_LABEL[event]}.`
+          : `No matches currently in play for ${EVENT_LABEL[event]}.`}
+      </p>
+      {recommendedMatchId ? (
+        <p className="rounded-xl border border-[#e7d35b] bg-[#fffbe3] px-3 py-2 text-sm text-[#7a6715]">
+          Recommended next: match highlighted with yellow border.
+        </p>
+      ) : (
+        <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm text-[var(--muted)]">
+          No recommended next match right now (all available pairs may already be in play or scored).
+        </p>
+      )}
       {pools.size === 0 ? (
         <p className="text-sm text-[var(--muted)]">No fixtures for this event.</p>
       ) : (
-        <form action="/api/admin/champs/pools/matches/bulk-update" method="post" className="space-y-4">
+        <form
+          id={formId}
+          action="/api/admin/champs/pools/matches/bulk-update"
+          method="post"
+          className="space-y-4"
+        >
           <input type="hidden" name="event" value={event} />
           <input type="hidden" name="redirect" value={redirect} />
           <input type="hidden" name="anchor" value={eventAnchor} />
-
-          <div className="sticky top-20 z-20 flex items-center justify-between gap-3 rounded-xl border border-[#9db4c8] bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
-            <p className="text-sm text-[#46607a]">
-              Save all entered scores for <span className="font-semibold">{EVENT_LABEL[event]}</span>.
-            </p>
-            <button
-              type="submit"
-              className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--cool)] shadow-sm"
-            >
-              Save all scores
-            </button>
-          </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             {Array.from(pools.entries())
@@ -411,6 +591,8 @@ function EventMatchResults({
                       const pairB = pairById.get(match.pair_b_id);
                       const starts = handicapStarts(pairA, pairB);
                       const isSaved = match.pair_a_score !== null && match.pair_b_score !== null;
+                      const isActiveInPlay = match.is_playing && !isSaved;
+                      const isRecommended = recommendedMatchId === match.id;
                       const rowId = `pool-${event}-${poolNumber}-match-${match.match_order}`;
                       return (
                         <div
@@ -419,6 +601,10 @@ function EventMatchResults({
                           className={`scroll-mt-24 space-y-2 rounded-xl border-2 p-3 ${
                             isSaved
                               ? "border-emerald-400 bg-emerald-50/60"
+                              : isActiveInPlay
+                              ? "border-[#f59e0b] bg-[#fff4e7]"
+                              : isRecommended
+                              ? "border-[#e7d35b] bg-[#fffbe8]"
                               : "border-[#a2b8cb] bg-white"
                           }`}
                         >
@@ -426,11 +612,38 @@ function EventMatchResults({
                             <div className="text-xs font-semibold text-[#4e6279]">
                               Match {match.match_order}
                             </div>
-                            {isSaved ? (
-                              <span className="rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                                Saved
-                              </span>
-                            ) : null}
+                            <div className="flex items-center gap-2">
+                              {isSaved ? (
+                                <span className="rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                  Saved
+                                </span>
+                              ) : isActiveInPlay ? (
+                                <span className="rounded-full border border-[#f59e0b] bg-[#fde4bf] px-2 py-0.5 text-xs font-semibold text-[#8a5a20]">
+                                  In play
+                                </span>
+                              ) : isRecommended ? (
+                                <span className="rounded-full border border-[#e7d35b] bg-[#fff7d1] px-2 py-0.5 text-xs font-semibold text-[#7a6715]">
+                                  Recommended next
+                                </span>
+                              ) : null}
+                              <button
+                                type="submit"
+                                name="match_id"
+                                value={match.id}
+                                formAction={`/api/admin/champs/pools/matches/toggle-playing?row_anchor=${encodeURIComponent(
+                                  rowId
+                                )}`}
+                                formMethod="post"
+                                disabled={isSaved}
+                                className={`rounded-lg border px-2 py-0.5 text-xs font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
+                                  isActiveInPlay
+                                    ? "border-[#f59e0b] bg-[#fff1dc] text-[#8a5a20]"
+                                    : "border-[#e3c299] bg-white text-[#8a5a20]"
+                                }`}
+                              >
+                                {isSaved ? "Scored" : isActiveInPlay ? "Stop" : "Playing"}
+                              </button>
+                            </div>
                           </div>
                           <div className="grid grid-cols-[1fr_auto] items-center gap-2">
                             <div className="text-sm">
@@ -448,6 +661,7 @@ function EventMatchResults({
                               type="number"
                               min={0}
                               defaultValue={match.pair_a_score ?? ""}
+                              data-track-save="1"
                               className="w-24 rounded-lg border-2 border-[#9eb4c7] bg-white px-2 py-1 text-base font-semibold"
                             />
                           </div>
@@ -467,6 +681,7 @@ function EventMatchResults({
                               type="number"
                               min={0}
                               defaultValue={match.pair_b_score ?? ""}
+                              data-track-save="1"
                               className="w-24 rounded-lg border-2 border-[#9eb4c7] bg-white px-2 py-1 text-base font-semibold"
                             />
                           </div>
@@ -486,6 +701,7 @@ function EventMatchResults({
               Save all scores
             </button>
           </div>
+          <FloatingFormSave formId={formId} label="Save all scores" />
         </form>
       )}
     </section>

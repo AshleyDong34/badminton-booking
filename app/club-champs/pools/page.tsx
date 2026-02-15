@@ -210,7 +210,7 @@ export default async function PublicClubChampsPoolsPage() {
           Current pool standings and submitted match scores.
         </p>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Starting points shown next to each pair are handicap starts for that match.
+          Starting points shown next to each pair reflect the handicap for that match.
         </p>
         <LiveAutoRefresh intervalMs={15000} />
       </section>

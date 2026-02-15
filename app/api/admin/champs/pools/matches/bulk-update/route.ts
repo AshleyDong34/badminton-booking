@@ -10,6 +10,7 @@ type MatchMeta = {
   event: "level_doubles" | "mixed_doubles";
   pool_number: number;
   match_order: number;
+  is_playing: boolean;
 };
 
 function parseScore(value: FormDataEntryValue | null) {
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
   const db = supabaseServer();
   const { data: matchRows, error: matchError } = await db
     .from("club_champs_pool_matches")
-    .select("id,event,pool_number,match_order")
+    .select("id,event,pool_number,match_order,is_playing")
     .eq("event", event)
     .order("pool_number", { ascending: true })
     .order("match_order", { ascending: true });
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=No+pool+matches+found+for+this+event`);
   }
 
-  const updates: Array<{ id: string; pair_a_score: number | null; pair_b_score: number | null }> = [];
+  const updates: Array<{ id: string; pair_a_score: number | null; pair_b_score: number | null; is_playing: boolean }> = [];
   for (const row of rows) {
     const pairAScore = parseScore(form.get(`pair_a_score__${row.id}`));
     const pairBScore = parseScore(form.get(`pair_b_score__${row.id}`));
@@ -85,16 +86,22 @@ export async function POST(req: NextRequest) {
       id: row.id,
       pair_a_score: pairAScore,
       pair_b_score: pairBScore,
+      is_playing: row.is_playing,
     });
   }
 
   for (const update of updates) {
+    const payload: { pair_a_score: number | null; pair_b_score: number | null; is_playing?: boolean } = {
+      pair_a_score: update.pair_a_score,
+      pair_b_score: update.pair_b_score,
+    };
+    if (update.pair_a_score != null && update.pair_b_score != null && update.is_playing) {
+      payload.is_playing = false;
+    }
+
     const { error } = await db
       .from("club_champs_pool_matches")
-      .update({
-        pair_a_score: update.pair_a_score,
-        pair_b_score: update.pair_b_score,
-      })
+      .update(payload)
       .eq("id", update.id)
       .eq("event", event);
 

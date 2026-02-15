@@ -42,10 +42,18 @@ export async function POST(req: NextRequest) {
   const db = supabaseServer();
   const { data: updatedRow, error } = await db
     .from("club_champs_pool_matches")
-    .update({
-      pair_a_score: pairAScore,
-      pair_b_score: pairBScore,
-    })
+    .update(
+      pairAScore != null && pairBScore != null
+        ? {
+            pair_a_score: pairAScore,
+            pair_b_score: pairBScore,
+            is_playing: false,
+          }
+        : {
+            pair_a_score: pairAScore,
+            pair_b_score: pairBScore,
+          }
+    )
     .eq("id", id)
     .select("event")
     .single();

@@ -11,6 +11,7 @@ import {
 } from "@/lib/club-champs-knockout";
 import { InitKnockoutForm } from "./InitKnockoutForm";
 import HashAnchorRestore from "@/app/admin/HashAnchorRestore";
+import FloatingFormSave from "../FloatingFormSave";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -130,6 +131,7 @@ function EventKnockoutResultsCard(args: {
             const stageComplete = matches.every((m) => m.winner_pair_id != null);
             const bestOf = matches[0]?.best_of ?? 1;
             const stageAnchor = `knockout-${event}-stage-${stage}`;
+            const stageFormId = `knockout-stage-form-${event}-${stage}`;
             return (
               <div
                 key={`${event}-stage-${stage}`}
@@ -185,24 +187,16 @@ function EventKnockoutResultsCard(args: {
                     : "Single-game scoring: enter the match score."}
                 </p>
 
-                <form action="/api/admin/champs/knockout/stage-results/update" method="post" className="space-y-3">
+                <form
+                  id={stageFormId}
+                  action="/api/admin/champs/knockout/stage-results/update"
+                  method="post"
+                  className="space-y-3"
+                >
                   <input type="hidden" name="event" value={event} />
                   <input type="hidden" name="stage" value={stage} />
                   <input type="hidden" name="redirect" value={redirect} />
                   <input type="hidden" name="anchor" value={stageAnchor} />
-
-                  <div className="sticky top-20 z-20 flex items-center justify-between gap-3 rounded-xl border border-[#9db4c8] bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
-                    <p className="text-sm text-[#46607a]">
-                      Save all entered scores for <span className="font-semibold">{knockoutStageLabel(stage, totalStages)}</span>.
-                    </p>
-                    <button
-                      type="submit"
-                      className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--cool)] shadow-sm disabled:opacity-50"
-                      disabled={!stageUnlocked}
-                    >
-                      Save stage results
-                    </button>
-                  </div>
 
                   <div className="space-y-3">
                     {matches.map((match) => {
@@ -287,6 +281,7 @@ function EventKnockoutResultsCard(args: {
                                           min={0}
                                           defaultValue={game.a ?? ""}
                                           disabled={!canScore}
+                                          data-track-save="1"
                                           className="h-10 w-20 rounded-lg border-2 border-[#9eb4c7] bg-white px-2 py-1 text-center text-base font-semibold disabled:bg-slate-100"
                                         />
                                       </td>
@@ -297,6 +292,7 @@ function EventKnockoutResultsCard(args: {
                                           min={0}
                                           defaultValue={game.b ?? ""}
                                           disabled={!canScore}
+                                          data-track-save="1"
                                           className="h-10 w-20 rounded-lg border-2 border-[#9eb4c7] bg-white px-2 py-1 text-center text-base font-semibold disabled:bg-slate-100"
                                         />
                                       </td>
@@ -330,6 +326,12 @@ function EventKnockoutResultsCard(args: {
                       Save stage results
                     </button>
                   </div>
+                  {stageUnlocked ? (
+                    <FloatingFormSave
+                      formId={stageFormId}
+                      label={`Save ${knockoutStageLabel(stage, totalStages)}`}
+                    />
+                  ) : null}
                 </form>
               </div>
             );
