@@ -6,6 +6,7 @@ import {
   type PairRow,
 } from "@/lib/club-champs-knockout";
 import LiveAutoRefresh from "../LiveAutoRefresh";
+import ZoomBracket from "./ZoomBracket";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,9 +27,9 @@ type KnockoutMatchRow = {
 };
 
 const events: EventType[] = ["level_doubles", "mixed_doubles"];
-const CARD_HEIGHT = 126;
-const COLUMN_WIDTH = 270;
-const CONNECTOR_WIDTH = 58;
+const CARD_HEIGHT = 132;
+const COLUMN_WIDTH = 288;
+const CONNECTOR_WIDTH = 64;
 
 function pairNames(pair: PairRow | undefined) {
   if (!pair) return "TBD";
@@ -120,8 +121,8 @@ function ConnectorColumn({
 
         return (
           <div key={`conn-${i}`}>
-            <div
-              className="absolute left-0 border-t border-[var(--line)]"
+          <div
+              className="absolute left-0 border-t-2 border-[#b6c7ba]"
               style={{
                 top: `${y1}%`,
                 width: `${CONNECTOR_WIDTH * 0.45}px`,
@@ -129,7 +130,7 @@ function ConnectorColumn({
               }}
             />
             <div
-              className="absolute left-0 border-t border-[var(--line)]"
+              className="absolute left-0 border-t-2 border-[#b6c7ba]"
               style={{
                 top: `${y2}%`,
                 width: `${CONNECTOR_WIDTH * 0.45}px`,
@@ -137,7 +138,7 @@ function ConnectorColumn({
               }}
             />
             <div
-              className="absolute border-l border-[var(--line)]"
+              className="absolute border-l-2 border-[#b6c7ba]"
               style={{
                 left: `${CONNECTOR_WIDTH * 0.45}px`,
                 top: `${top}%`,
@@ -145,7 +146,7 @@ function ConnectorColumn({
               }}
             />
             <div
-              className="absolute border-t border-[var(--line)]"
+              className="absolute border-t-2 border-[#b6c7ba]"
               style={{
                 left: `${CONNECTOR_WIDTH * 0.45}px`,
                 top: `${yTarget}%`,
@@ -187,6 +188,7 @@ function EventBracket({
   const totalStages = stages.length;
   const stageOneMatches = stages[0]?.matches.length ?? 1;
   const bracketHeight = Math.max(stageOneMatches * 160, 220);
+  const bracketWidth = totalStages * COLUMN_WIDTH + (totalStages - 1) * CONNECTOR_WIDTH;
   const finalWinnerId =
     stages[totalStages - 1]?.matches.find((match) => match.winner_pair_id)?.winner_pair_id ??
     null;
@@ -206,24 +208,94 @@ function EventBracket({
         </div>
       </div>
 
-      <div className="overflow-x-auto pb-2">
-        <div className="inline-block min-w-full">
+      <div className="space-y-3 lg:hidden">
+        {stages.map(({ stage, matches: stageMatches }, stageIndex) => (
+          <section
+            key={`mobile-${event}-${stage}`}
+            className="space-y-2 rounded-xl border border-[var(--line)] bg-white p-3"
+          >
+            <h3 className="rounded-lg border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm font-semibold">
+              {stageLabelByIndex(stageIndex, totalStages, stageMatches.length)}
+            </h3>
+            <div className="space-y-2">
+              {stageMatches.map((match) => {
+                const isFirstStage = stageIndex === 0;
+                const pairALabel = sideLabel({
+                  pairId: match.pair_a_id,
+                  otherPairId: match.pair_b_id,
+                  isFirstStage,
+                  pairById,
+                });
+                const pairBLabel = sideLabel({
+                  pairId: match.pair_b_id,
+                  otherPairId: match.pair_a_id,
+                  isFirstStage,
+                  pairById,
+                });
+                const pairA = match.pair_a_id ? pairById.get(match.pair_a_id) : undefined;
+                const pairB = match.pair_b_id ? pairById.get(match.pair_b_id) : undefined;
+                const starts = computeHandicapStarts(pairA, pairB);
+                const winnerId = match.winner_pair_id;
+                const gameText = gameSummary(match);
+
+                return (
+                  <article
+                    key={match.id}
+                    className={`space-y-2 rounded-lg border p-3 text-sm ${
+                      winnerId
+                        ? "border-emerald-300 bg-emerald-50/60"
+                        : match.is_unlocked
+                        ? "border-[var(--line)] bg-white"
+                        : "border-[var(--line)] bg-slate-50"
+                    }`}
+                  >
+                    <div className="text-xs font-semibold text-[var(--muted)]">
+                      Match {match.match_order}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={winnerId === match.pair_a_id ? "font-semibold text-emerald-700" : ""}>
+                        {pairALabel}
+                      </span>
+                      {pairA && starts ? (
+                        <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)]">
+                          {startLabel(starts.pairAStart)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={winnerId === match.pair_b_id ? "font-semibold text-emerald-700" : ""}>
+                        {pairBLabel}
+                      </span>
+                      {pairB && starts ? (
+                        <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)]">
+                          {startLabel(starts.pairBStart)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-xs font-semibold text-[var(--muted)]">
+                      {scoreSummary(match)}
+                    </div>
+                    {gameText ? <div className="text-xs text-[var(--muted)]">{gameText}</div> : null}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+
+      <div className="hidden lg:block">
+        <ZoomBracket contentWidth={bracketWidth} contentHeight={bracketHeight + 40}>
           <div className="mb-2 flex items-end">
             {stages.map(({ matches: stageMatches }, stageIndex) => (
               <div key={`head-${event}-${stageIndex}`} className="contents">
-                <div
-                  className="shrink-0 px-1"
-                  style={{ width: `${COLUMN_WIDTH}px` }}
-                >
+                <div className="shrink-0 px-1" style={{ width: `${COLUMN_WIDTH}px` }}>
                   <h3 className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm font-semibold">
                     {stageLabelByIndex(stageIndex, totalStages, stageMatches.length)}
                   </h3>
                 </div>
                 {stageIndex < stages.length - 1 && (
-                  <div
-                    className="shrink-0"
-                    style={{ width: `${CONNECTOR_WIDTH}px` }}
-                  />
+                  <div className="shrink-0" style={{ width: `${CONNECTOR_WIDTH}px` }} />
                 )}
               </div>
             ))}
@@ -232,10 +304,7 @@ function EventBracket({
           <div className="flex">
             {stages.map(({ stage, matches: stageMatches }, stageIndex) => (
               <div key={`col-${event}-${stage}`} className="contents">
-                <div
-                  className="relative shrink-0"
-                  style={{ width: `${COLUMN_WIDTH}px`, height: `${bracketHeight}px` }}
-                >
+                <div className="relative shrink-0" style={{ width: `${COLUMN_WIDTH}px`, height: `${bracketHeight}px` }}>
                   {stageMatches.map((match, matchIndex) => {
                     const topPercent = centerPercent(matchIndex, stageMatches.length);
                     const isFirstStage = stageIndex === 0;
@@ -262,7 +331,7 @@ function EventBracket({
                         key={match.id}
                         className={`absolute left-0 right-0 rounded-xl border p-3 text-sm shadow-sm ${
                           winnerId
-                            ? "border-emerald-300 bg-emerald-50/50"
+                            ? "border-emerald-300 bg-emerald-50/60"
                             : match.is_unlocked
                             ? "border-[var(--line)] bg-white"
                             : "border-[var(--line)] bg-slate-50"
@@ -276,13 +345,7 @@ function EventBracket({
                           Match {match.match_order}
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <div
-                            className={
-                              winnerId === match.pair_a_id
-                                ? "font-semibold text-emerald-700"
-                                : ""
-                            }
-                          >
+                          <div className={winnerId === match.pair_a_id ? "font-semibold text-emerald-700" : ""}>
                             {pairALabel}
                           </div>
                           {pairA && starts && (
@@ -292,13 +355,7 @@ function EventBracket({
                           )}
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <div
-                            className={
-                              winnerId === match.pair_b_id
-                                ? "font-semibold text-emerald-700"
-                                : ""
-                            }
-                          >
+                          <div className={winnerId === match.pair_b_id ? "font-semibold text-emerald-700" : ""}>
                             {pairBLabel}
                           </div>
                           {pairB && starts && (
@@ -310,9 +367,7 @@ function EventBracket({
                         <div className="mt-1 text-xs font-semibold text-[var(--muted)]">
                           {scoreSummary(match)}
                         </div>
-                        {gameText && (
-                          <div className="mt-1 text-xs text-[var(--muted)]">{gameText}</div>
-                        )}
+                        {gameText && <div className="mt-1 text-xs text-[var(--muted)]">{gameText}</div>}
                       </article>
                     );
                   })}
@@ -327,7 +382,7 @@ function EventBracket({
               </div>
             ))}
           </div>
-        </div>
+        </ZoomBracket>
       </div>
     </section>
   );
@@ -359,10 +414,10 @@ export default async function PublicClubChampsKnockoutPage() {
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
         <h1 className="text-xl font-semibold">Knockout bracket</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Sideways tournament bracket with connected rounds and live results.
+          Live tournament bracket and results.
         </p>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Starting points shown next to each pair are handicap starts for that match.
+          Starting points shown next to each pair are handicap starts for that match. Mobile uses a stacked stage view; desktop has zoomable bracket view.
         </p>
         <LiveAutoRefresh intervalMs={15000} />
       </section>
