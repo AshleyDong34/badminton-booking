@@ -34,6 +34,7 @@ type SearchParams = {
   advance_level?: string;
   advance_mixed?: string;
   initialized?: string;
+  initialized_event?: string;
   updated?: string;
   format_saved?: string;
   error?: string;
@@ -397,7 +398,7 @@ export default async function ClubChampsKnockoutMatchesPage({
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Step 5: Knockout matches</h1>
         <p className="text-sm text-[var(--muted)]">
-          Save all match results in a stage to unlock the next stage. Continue until a final winner is recorded.
+          Generate level/mixed knockout brackets separately, then save all match results in a stage to unlock the next stage.
         </p>
       </div>
 
@@ -415,7 +416,11 @@ export default async function ClubChampsKnockoutMatchesPage({
 
       {params.initialized && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--ink)]">
-          Knockout matches generated.
+          {params.initialized_event === "level_doubles"
+            ? "Level doubles knockout generated."
+            : params.initialized_event === "mixed_doubles"
+            ? "Mixed doubles knockout generated."
+            : "Knockout matches generated."}
         </p>
       )}
       {params.updated && (

@@ -12,6 +12,8 @@ import {
 } from "@/lib/club-champs-knockout";
 import { propagateKnockoutEvent } from "@/lib/club-champs-knockout-progress";
 
+const EVENTS = new Set<EventType>(["level_doubles", "mixed_doubles"]);
+
 type KnockoutInsert = {
   event: EventType;
   stage: number;
@@ -91,7 +93,16 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData();
+  const requestedEventRaw = String(form.get("event") ?? "").trim();
   const redirect = String(form.get("redirect") ?? "/admin/club-champs/knockout-matches");
+  if (requestedEventRaw && !EVENTS.has(requestedEventRaw as EventType)) {
+    return NextResponse.redirect(
+      new URL(`${redirect}?error=${encodeURIComponent("Invalid event")}`, getBaseUrl(req))
+    );
+  }
+  const requestedEvent: EventType | null = EVENTS.has(requestedEventRaw as EventType)
+    ? (requestedEventRaw as EventType)
+    : null;
   const rawAdvanceLevel = String(form.get("advance_level") ?? "").trim();
   const rawAdvanceMixed = String(form.get("advance_mixed") ?? "").trim();
 
@@ -142,31 +153,56 @@ export async function POST(req: NextRequest) {
     advanceCount: advanceMixed,
   });
 
-  const levelInitError = await initEventKnockout({
-    db,
-    event: "level_doubles",
-    qualifiers: levelResult.qualifiers,
-  });
-  if (levelInitError) {
-    return NextResponse.redirect(
-      new URL(`${redirect}?error=${encodeURIComponent(levelInitError.message)}`, getBaseUrl(req))
-    );
+  if (requestedEvent === "level_doubles") {
+    const levelInitError = await initEventKnockout({
+      db,
+      event: "level_doubles",
+      qualifiers: levelResult.qualifiers,
+    });
+    if (levelInitError) {
+      return NextResponse.redirect(
+        new URL(`${redirect}?error=${encodeURIComponent(levelInitError.message)}`, getBaseUrl(req))
+      );
+    }
+  } else if (requestedEvent === "mixed_doubles") {
+    const mixedInitError = await initEventKnockout({
+      db,
+      event: "mixed_doubles",
+      qualifiers: mixedResult.qualifiers,
+    });
+    if (mixedInitError) {
+      return NextResponse.redirect(
+        new URL(`${redirect}?error=${encodeURIComponent(mixedInitError.message)}`, getBaseUrl(req))
+      );
+    }
+  } else {
+    const levelInitError = await initEventKnockout({
+      db,
+      event: "level_doubles",
+      qualifiers: levelResult.qualifiers,
+    });
+    if (levelInitError) {
+      return NextResponse.redirect(
+        new URL(`${redirect}?error=${encodeURIComponent(levelInitError.message)}`, getBaseUrl(req))
+      );
+    }
+
+    const mixedInitError = await initEventKnockout({
+      db,
+      event: "mixed_doubles",
+      qualifiers: mixedResult.qualifiers,
+    });
+    if (mixedInitError) {
+      return NextResponse.redirect(
+        new URL(`${redirect}?error=${encodeURIComponent(mixedInitError.message)}`, getBaseUrl(req))
+      );
+    }
   }
 
-  const mixedInitError = await initEventKnockout({
-    db,
-    event: "mixed_doubles",
-    qualifiers: mixedResult.qualifiers,
-  });
-  if (mixedInitError) {
-    return NextResponse.redirect(
-      new URL(`${redirect}?error=${encodeURIComponent(mixedInitError.message)}`, getBaseUrl(req))
-    );
-  }
-
+  const initializedEvent = requestedEvent ?? "all";
   return NextResponse.redirect(
     new URL(
-      `${redirect}?advance_level=${advanceLevel}&advance_mixed=${advanceMixed}&initialized=1`,
+      `${redirect}?advance_level=${advanceLevel}&advance_mixed=${advanceMixed}&initialized=1&initialized_event=${initializedEvent}`,
       getBaseUrl(req)
     )
   );

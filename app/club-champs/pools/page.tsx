@@ -54,7 +54,7 @@ function PoolResultsSection({
   if (eventMatches.length === 0) {
     return (
       <section className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
-        <h2 className="text-lg font-semibold">{EVENT_LABEL[event]}</h2>
+        <h2 className="text-lg font-semibold text-[var(--cool)]">{EVENT_LABEL[event]}</h2>
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--muted)]">
           No updates yet.
         </p>
@@ -91,7 +91,7 @@ function PoolResultsSection({
               key={`${event}-pool-${pool.poolNumber}`}
               className="space-y-3 rounded-xl border border-[var(--line)] bg-white p-4"
             >
-              <h3 className="font-semibold">{poolName(pool.poolNumber - 1)}</h3>
+                <h3 className="font-semibold">{poolName(pool.poolNumber - 1)}</h3>
 
               <div className="overflow-x-auto">
                 <table className="w-full table-fixed text-sm">
@@ -205,7 +205,7 @@ export default async function PublicClubChampsPoolsPage() {
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
-        <h1 className="text-xl font-semibold">Pool results</h1>
+        <h1 className="text-xl font-semibold text-[var(--cool)]">Pool results</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Current pool standings and submitted match scores.
         </p>

@@ -196,7 +196,7 @@ function EventBracket({
   return (
     <section className="space-y-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{EVENT_LABEL[event]}</h2>
+        <h2 className="text-lg font-semibold text-[var(--cool)]">{EVENT_LABEL[event]}</h2>
         <div className="text-sm">
           {finalWinnerId ? (
             <span className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
@@ -208,84 +208,7 @@ function EventBracket({
         </div>
       </div>
 
-      <div className="space-y-3 lg:hidden">
-        {stages.map(({ stage, matches: stageMatches }, stageIndex) => (
-          <section
-            key={`mobile-${event}-${stage}`}
-            className="space-y-2 rounded-xl border border-[var(--line)] bg-white p-3"
-          >
-            <h3 className="rounded-lg border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm font-semibold">
-              {stageLabelByIndex(stageIndex, totalStages, stageMatches.length)}
-            </h3>
-            <div className="space-y-2">
-              {stageMatches.map((match) => {
-                const isFirstStage = stageIndex === 0;
-                const pairALabel = sideLabel({
-                  pairId: match.pair_a_id,
-                  otherPairId: match.pair_b_id,
-                  isFirstStage,
-                  pairById,
-                });
-                const pairBLabel = sideLabel({
-                  pairId: match.pair_b_id,
-                  otherPairId: match.pair_a_id,
-                  isFirstStage,
-                  pairById,
-                });
-                const pairA = match.pair_a_id ? pairById.get(match.pair_a_id) : undefined;
-                const pairB = match.pair_b_id ? pairById.get(match.pair_b_id) : undefined;
-                const starts = computeHandicapStarts(pairA, pairB);
-                const winnerId = match.winner_pair_id;
-                const gameText = gameSummary(match);
-
-                return (
-                  <article
-                    key={match.id}
-                    className={`space-y-2 rounded-lg border p-3 text-sm ${
-                      winnerId
-                        ? "border-emerald-300 bg-emerald-50/60"
-                        : match.is_unlocked
-                        ? "border-[var(--line)] bg-white"
-                        : "border-[var(--line)] bg-slate-50"
-                    }`}
-                  >
-                    <div className="text-xs font-semibold text-[var(--muted)]">
-                      Match {match.match_order}
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={winnerId === match.pair_a_id ? "font-semibold text-emerald-700" : ""}>
-                        {pairALabel}
-                      </span>
-                      {pairA && starts ? (
-                        <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)]">
-                          {startLabel(starts.pairAStart)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={winnerId === match.pair_b_id ? "font-semibold text-emerald-700" : ""}>
-                        {pairBLabel}
-                      </span>
-                      {pairB && starts ? (
-                        <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)]">
-                          {startLabel(starts.pairBStart)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="text-xs font-semibold text-[var(--muted)]">
-                      {scoreSummary(match)}
-                    </div>
-                    {gameText ? <div className="text-xs text-[var(--muted)]">{gameText}</div> : null}
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </div>
-
-      <div className="hidden lg:block">
-        <ZoomBracket contentWidth={bracketWidth} contentHeight={bracketHeight + 40}>
+      <ZoomBracket contentWidth={bracketWidth} contentHeight={bracketHeight + 40}>
           <div className="mb-2 flex items-end">
             {stages.map(({ matches: stageMatches }, stageIndex) => (
               <div key={`head-${event}-${stageIndex}`} className="contents">
@@ -382,8 +305,7 @@ function EventBracket({
               </div>
             ))}
           </div>
-        </ZoomBracket>
-      </div>
+      </ZoomBracket>
     </section>
   );
 }
@@ -412,12 +334,12 @@ export default async function PublicClubChampsKnockoutPage() {
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
-        <h1 className="text-xl font-semibold">Knockout bracket</h1>
+        <h1 className="text-xl font-semibold text-[var(--cool)]">Knockout bracket</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Live tournament bracket and results.
         </p>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Starting points shown next to each pair are handicap starts for that match. Mobile uses a stacked stage view; desktop has zoomable bracket view.
+          Starting points shown next to each pair are handicap starts for that match. Use the zoom controls to inspect the bracket on mobile and desktop.
         </p>
         <LiveAutoRefresh intervalMs={15000} />
       </section>

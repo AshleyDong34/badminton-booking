@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/adminGuard";
 import { getBaseUrl } from "@/lib/base-url";
 
 type EventType = "level_doubles" | "mixed_doubles";
+const EVENTS = new Set<EventType>(["level_doubles", "mixed_doubles"]);
 
 type PairRow = {
   id: string;
@@ -125,12 +126,21 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData();
+  const requestedEventRaw = String(form.get("event") ?? "").trim();
   const levelPoolTarget = parsePoolTarget(String(form.get("level_pool_target") ?? ""), 3);
   const mixedPoolTarget = parsePoolTarget(String(form.get("mixed_pool_target") ?? ""), 4);
   const queryTail = `level_pool_target=${levelPoolTarget}&mixed_pool_target=${mixedPoolTarget}`;
   const poolsPage = `/admin/club-champs/pools?${queryTail}`;
   const poolsPageWithError = (message: string) =>
     `/admin/club-champs/pools?${queryTail}&error=${encodeURIComponent(message)}`;
+  if (requestedEventRaw && !EVENTS.has(requestedEventRaw as EventType)) {
+    return NextResponse.redirect(
+      new URL(poolsPageWithError("Invalid event"), getBaseUrl(req))
+    );
+  }
+  const requestedEvent: EventType | null = EVENTS.has(requestedEventRaw as EventType)
+    ? (requestedEventRaw as EventType)
+    : null;
 
   const db = supabaseServer();
   const { data, error } = await db
@@ -152,45 +162,64 @@ export async function POST(req: NextRequest) {
 
   const levelRows = rows.filter((r) => r.event === "level_doubles");
   const mixedRows = rows.filter((r) => r.event === "mixed_doubles");
+  const targetEvents: EventType[] = requestedEvent
+    ? [requestedEvent]
+    : (["level_doubles", "mixed_doubles"] as EventType[]);
 
-  const eventsToCheck = [levelRows, mixedRows].filter((list) => list.length > 0);
-  const hasUnseeded = eventsToCheck.some((list) => list.some((row) => row.seed_order == null));
-  if (hasUnseeded) {
-    return NextResponse.redirect(
-      new URL(poolsPageWithError("Save seeding first for all pairs"), getBaseUrl(req))
-    );
-  }
+  for (const event of targetEvents) {
+    const eventRows = event === "level_doubles" ? levelRows : mixedRows;
+    const eventTarget = event === "level_doubles" ? levelPoolTarget : mixedPoolTarget;
+    const eventLabel = event === "level_doubles" ? "level doubles" : "mixed doubles";
 
-  const matchRows = [
-    ...buildMatchRows("level_doubles", buildPools(levelRows, levelPoolTarget)),
-    ...buildMatchRows("mixed_doubles", buildPools(mixedRows, mixedPoolTarget)),
-  ];
-
-  const { error: clearError } = await db.from("club_champs_pool_matches").delete().gte("pool_number", 1);
-  if (clearError) {
-    return NextResponse.redirect(
-      new URL(poolsPageWithError(clearError.message), getBaseUrl(req))
-    );
-  }
-
-  const { error: clearKnockoutError } = await db
-    .from("club_champs_knockout_matches")
-    .delete()
-    .gte("stage", 1);
-  if (clearKnockoutError) {
-    return NextResponse.redirect(
-      new URL(poolsPageWithError(clearKnockoutError.message), getBaseUrl(req))
-    );
-  }
-
-  if (matchRows.length > 0) {
-    const { error: insertError } = await db.from("club_champs_pool_matches").insert(matchRows);
-    if (insertError) {
+    if (eventRows.length === 0) {
       return NextResponse.redirect(
-        new URL(poolsPageWithError(insertError.message), getBaseUrl(req))
+        new URL(poolsPageWithError(`No pairs available for ${eventLabel}`), getBaseUrl(req))
       );
+    }
+
+    const hasUnseeded = eventRows.some((row) => row.seed_order == null);
+    if (hasUnseeded) {
+      return NextResponse.redirect(
+        new URL(poolsPageWithError(`Save seeding first for ${eventLabel}`), getBaseUrl(req))
+      );
+    }
+
+    const matchRows = buildMatchRows(event, buildPools(eventRows, eventTarget));
+
+    const { error: clearError } = await db
+      .from("club_champs_pool_matches")
+      .delete()
+      .eq("event", event);
+    if (clearError) {
+      return NextResponse.redirect(
+        new URL(poolsPageWithError(clearError.message), getBaseUrl(req))
+      );
+    }
+
+    const { error: clearKnockoutError } = await db
+      .from("club_champs_knockout_matches")
+      .delete()
+      .eq("event", event);
+    if (clearKnockoutError) {
+      return NextResponse.redirect(
+        new URL(poolsPageWithError(clearKnockoutError.message), getBaseUrl(req))
+      );
+    }
+
+    if (matchRows.length > 0) {
+      const { error: insertError } = await db
+        .from("club_champs_pool_matches")
+        .insert(matchRows);
+      if (insertError) {
+        return NextResponse.redirect(
+          new URL(poolsPageWithError(insertError.message), getBaseUrl(req))
+        );
+      }
     }
   }
 
-  return NextResponse.redirect(new URL(`${poolsPage}&locked=1&knockout_reset=1`, getBaseUrl(req)));
+  const lockedEvent = requestedEvent ?? "all";
+  return NextResponse.redirect(
+    new URL(`${poolsPage}&locked=1&locked_event=${lockedEvent}&knockout_reset=1`, getBaseUrl(req))
+  );
 }

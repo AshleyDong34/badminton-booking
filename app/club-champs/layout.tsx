@@ -16,16 +16,16 @@ const sectionItems = [
 ];
 
 const themeVars: CSSProperties = {
-  ["--ink" as string]: "#0f1d15",
-  ["--muted" as string]: "#5a6f62",
-  ["--paper" as string]: "#edf3ee",
+  ["--ink" as string]: "#0c1f30",
+  ["--muted" as string]: "#4f6273",
+  ["--paper" as string]: "#e9f0ea",
   ["--card" as string]: "#ffffff",
-  ["--line" as string]: "#c6d7cb",
-  ["--accent" as string]: "#c74d3f",
-  ["--ok" as string]: "#24895d",
-  ["--wait" as string]: "#e7a7b0",
-  ["--cool" as string]: "#1c4064",
-  ["--chip" as string]: "#ecf4ee",
+  ["--line" as string]: "#b5c9be",
+  ["--accent" as string]: "#d24a3d",
+  ["--ok" as string]: "#168557",
+  ["--wait" as string]: "#df8ea0",
+  ["--cool" as string]: "#154c86",
+  ["--chip" as string]: "#e8f0f8",
 };
 
 export const dynamic = "force-dynamic";
@@ -79,8 +79,9 @@ export default async function ClubChampsPublicLayout({
       style={themeVars}
     >
       <div className="relative isolate mx-auto max-w-6xl px-5 pb-16 pt-10 sm:px-8">
-        <div className="pointer-events-none absolute -left-24 top-0 -z-10 h-72 w-72 rounded-full bg-[#b6d2b8] opacity-40 blur-3xl" />
-        <div className="pointer-events-none absolute right-0 top-12 -z-10 h-56 w-56 rounded-full bg-[#d8ceb8] opacity-50 blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 top-0 -z-10 h-72 w-72 rounded-full bg-[#9ac7ab] opacity-45 blur-3xl" />
+        <div className="pointer-events-none absolute right-0 top-12 -z-10 h-56 w-56 rounded-full bg-[#8fb2d9] opacity-35 blur-3xl" />
+        <div className="pointer-events-none absolute right-24 top-48 -z-10 h-44 w-44 rounded-full bg-[#e6b67f] opacity-28 blur-3xl" />
 
         <header className="mb-6 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -94,7 +95,7 @@ export default async function ClubChampsPublicLayout({
             </div>
             <Link
               href="/"
-              className="rounded-full border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-sm font-medium text-[var(--cool)] shadow-sm transition hover:bg-[var(--chip)]"
+              className="rounded-full border border-[var(--cool)]/25 bg-[var(--card)] px-4 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:bg-[var(--chip)]"
             >
               Back to sessions
             </Link>
@@ -109,7 +110,7 @@ export default async function ClubChampsPublicLayout({
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-xl border border-[var(--line)] bg-[var(--card)] px-3 py-2 text-sm font-medium shadow-sm transition hover:translate-y-[-1px] hover:bg-[var(--chip)]"
+              className="rounded-xl border border-[var(--cool)]/20 bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:translate-y-[-1px] hover:bg-[var(--chip)]"
             >
               {item.label}
             </Link>

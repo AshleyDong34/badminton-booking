@@ -73,16 +73,16 @@ function EventStatusCard({
 
   return (
     <article className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
-      <h2 className="text-lg font-semibold">{EVENT_LABEL[event]}</h2>
+      <h2 className="text-lg font-semibold text-[var(--cool)]">{EVENT_LABEL[event]}</h2>
 
-      <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm">
+      <div className="rounded-xl border border-[var(--cool)]/20 bg-[var(--chip)] px-3 py-2 text-sm">
         Pairings:{" "}
         <span className="font-semibold">
           {pairCount === 0 ? "No updates yet" : `${pairCount} pairs`}
         </span>
       </div>
 
-      <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm">
+      <div className="rounded-xl border border-[var(--ok)]/30 bg-[#ebf6f0] px-3 py-2 text-sm">
         Pool stage:{" "}
         <span className="font-semibold">
           {eventPoolRows.length === 0
@@ -93,7 +93,7 @@ function EventStatusCard({
         </span>
       </div>
 
-      <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm">
+      <div className="rounded-xl border border-[var(--accent)]/30 bg-[#fdf0ed] px-3 py-2 text-sm">
         Knockout:{" "}
         <span className="font-semibold">
           {eventKnockoutRows.length === 0
@@ -131,7 +131,7 @@ export default async function PublicClubChampsPage() {
   return (
     <div className="space-y-5">
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
-        <h2 className="text-xl font-semibold">Overview</h2>
+        <h2 className="text-xl font-semibold text-[var(--cool)]">Overview</h2>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Live tournament status for both events. Open each section for full
           details.
@@ -140,19 +140,19 @@ export default async function PublicClubChampsPage() {
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <Link
             href="/club-champs/pairings"
-            className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm font-medium transition hover:translate-y-[-1px]"
+            className="rounded-xl border border-[var(--cool)]/20 bg-[#eaf2fb] px-4 py-3 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:translate-y-[-1px]"
           >
             Pairings
           </Link>
           <Link
             href="/club-champs/pools"
-            className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm font-medium transition hover:translate-y-[-1px]"
+            className="rounded-xl border border-[var(--ok)]/25 bg-[#ebf6f0] px-4 py-3 text-sm font-semibold text-[var(--ok)] shadow-sm transition hover:translate-y-[-1px]"
           >
             Pool results
           </Link>
           <Link
             href="/club-champs/knockout"
-            className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm font-medium transition hover:translate-y-[-1px]"
+            className="rounded-xl border border-[var(--accent)]/30 bg-[#fdf0ed] px-4 py-3 text-sm font-semibold text-[var(--accent)] shadow-sm transition hover:translate-y-[-1px]"
           >
             Knockout bracket
           </Link>

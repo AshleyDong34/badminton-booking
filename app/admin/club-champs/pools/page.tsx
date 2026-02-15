@@ -214,6 +214,7 @@ function EventPoolsPreview({
 
 type SearchParams = {
   locked?: string;
+  locked_event?: string;
   updated?: string;
   error?: string;
   level_pool_target?: string;
@@ -263,7 +264,7 @@ export default async function ClubChampsPoolsPage({
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Step 3: Pools</h1>
         <p className="text-sm text-[var(--muted)]">
-          Lock pools from saved seeding, review the generated groups, then enter scores for each fixture.
+          Generate pools per event from saved seeding, review the generated groups, then enter scores for each fixture.
         </p>
       </div>
 
@@ -273,7 +274,11 @@ export default async function ClubChampsPoolsPage({
 
       {params.locked && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--ink)]">
-          Tournament locked and pool fixtures generated.
+          {params.locked_event === "level_doubles"
+            ? "Level doubles pools generated."
+            : params.locked_event === "mixed_doubles"
+            ? "Mixed doubles pools generated."
+            : "Tournament locked and pool fixtures generated."}
         </p>
       )}
       {params.updated && (
