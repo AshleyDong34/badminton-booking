@@ -78,27 +78,44 @@ export async function propagateKnockoutEvent(db: ReturnType<typeof supabaseServe
       const pairB = sourceB?.winner_pair_id ?? null;
       const autoWinner = pairA && !pairB ? pairA : pairB && !pairA ? pairB : null;
 
+      // Only reset downstream match scores if feeder pair assignments changed.
+      // This prevents already-entered results in later stages from being wiped
+      // when saving matches in earlier completed stages.
+      const feederChanged = next[i].pair_a_id !== pairA || next[i].pair_b_id !== pairB;
+
+      if (!feederChanged && next[i].is_unlocked) {
+        continue;
+      }
+
+      const payload = feederChanged
+        ? {
+            pair_a_id: pairA,
+            pair_b_id: pairB,
+            pair_a_score: null,
+            pair_b_score: null,
+            game_scores: null,
+            winner_pair_id: autoWinner,
+            is_unlocked: true,
+          }
+        : {
+            // Preserve existing scores/results when feeder did not change.
+            is_unlocked: true,
+          };
+
       const { error: updateError } = await db
         .from("club_champs_knockout_matches")
-        .update({
-          pair_a_id: pairA,
-          pair_b_id: pairB,
-          pair_a_score: null,
-          pair_b_score: null,
-          game_scores: null,
-          winner_pair_id: autoWinner,
-          is_unlocked: true,
-        })
+        .update(payload)
         .eq("id", next[i].id);
 
       if (updateError) return updateError;
-
-      next[i].pair_a_id = pairA;
-      next[i].pair_b_id = pairB;
-      next[i].pair_a_score = null;
-      next[i].pair_b_score = null;
-      next[i].game_scores = null;
-      next[i].winner_pair_id = autoWinner;
+      if (feederChanged) {
+        next[i].pair_a_id = pairA;
+        next[i].pair_b_id = pairB;
+        next[i].pair_a_score = null;
+        next[i].pair_b_score = null;
+        next[i].game_scores = null;
+        next[i].winner_pair_id = autoWinner;
+      }
       next[i].is_unlocked = true;
     }
   }
