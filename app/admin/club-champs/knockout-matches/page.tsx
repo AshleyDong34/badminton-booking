@@ -12,6 +12,8 @@ import {
 import { InitKnockoutForm } from "./InitKnockoutForm";
 import HashAnchorRestore from "@/app/admin/HashAnchorRestore";
 import FloatingFormSave from "../FloatingFormSave";
+import CollapsibleSection from "../CollapsibleSection";
+import KnockoutEventResultsClient from "./KnockoutEventResultsClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -106,20 +108,18 @@ function EventKnockoutResultsCard(args: {
   const finalStage = stages[totalStages - 1];
   const finalWinnerId = finalStage?.matches[0]?.winner_pair_id ?? null;
   const winnerPair = finalWinnerId ? pairById.get(finalWinnerId) : null;
+  const eventComplete = Boolean(winnerPair);
+  const eventSubtitle = winnerPair
+    ? `Winner: ${pairLabel(winnerPair)}. Completed and hidden by default.`
+    : "Winner not decided yet.";
 
   return (
-    <section className="space-y-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{EVENT_LABEL[event]}</h2>
-        {winnerPair ? (
-          <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
-            Winner: {pairLabel(winnerPair)}
-          </div>
-        ) : (
-          <div className="text-sm text-[var(--muted)]">Winner not decided yet.</div>
-        )}
-      </div>
-
+    <CollapsibleSection
+      id={`knockout-event-${event}`}
+      title={`${EVENT_LABEL[event]} knockout`}
+      subtitle={eventSubtitle}
+      defaultOpen={!eventComplete}
+    >
       {stages.length === 0 ? (
         <p className="rounded-xl border border-[#b8c9d8] bg-[#f6faff] px-4 py-3 text-sm text-[#4f6277]">
           No knockout bracket yet for this event. Generate/reset knockout matches first.
@@ -129,105 +129,104 @@ function EventKnockoutResultsCard(args: {
           {stages.map(({ stage, matches }) => {
             const stageUnlocked = matches.some((m) => m.is_unlocked);
             const stageComplete = matches.every((m) => m.winner_pair_id != null);
+            const stageStatus = stageComplete
+              ? "Stage complete."
+              : stageUnlocked
+              ? "Stage unlocked. Enter all match results to unlock the next stage."
+              : "Locked until the previous stage is complete.";
             const bestOf = matches[0]?.best_of ?? 1;
             const stageAnchor = `knockout-${event}-stage-${stage}`;
             const stageFormId = `knockout-stage-form-${event}-${stage}`;
             return (
-              <div
+              <CollapsibleSection
                 key={`${event}-stage-${stage}`}
-                id={stageAnchor}
-                className={`space-y-3 rounded-xl border p-4 scroll-mt-24 ${
-                  stageUnlocked
-                    ? "border-[#86a8bf] bg-[#f3f9ff]"
-                    : "border-slate-300 bg-slate-100/80"
-                }`}
+                id={`knockout-stage-${event}-${stage}`}
+                anchorId={stageAnchor}
+                title={knockoutStageLabel(stage, totalStages)}
+                subtitle={stageComplete ? "Completed and hidden by default." : stageStatus}
+                defaultOpen={!stageComplete}
               >
-                <div className="flex flex-wrap items-end justify-between gap-2">
-                  <div>
-                    <h3 className="font-semibold">
-                      {knockoutStageLabel(stage, totalStages)}
-                    </h3>
-                    <p className="text-xs text-[var(--muted)]">
-                      {stageComplete
-                        ? "Stage complete."
-                        : stageUnlocked
-                        ? "Stage unlocked. Enter all match results to unlock the next stage."
-                        : "Locked until the previous stage is complete."}
-                    </p>
+                <div
+                  className={`space-y-3 rounded-xl border p-4 scroll-mt-24 ${
+                    stageUnlocked
+                      ? "border-[#86a8bf] bg-[#f3f9ff]"
+                      : "border-slate-300 bg-slate-100/80"
+                  }`}
+                >
+                  <div className="flex justify-end">
+                    <form
+                      action="/api/admin/champs/knockout/stage-format/update"
+                      method="post"
+                      className="flex items-end gap-2"
+                    >
+                      <input type="hidden" name="event" value={event} />
+                      <input type="hidden" name="stage" value={stage} />
+                      <input type="hidden" name="redirect" value={redirect} />
+                      <input type="hidden" name="anchor" value={stageAnchor} />
+                      <label className="text-xs font-medium text-[var(--muted)]">
+                        Match format
+                        <select
+                          name="best_of"
+                          defaultValue={bestOf}
+                          className="mt-1 block rounded-lg border border-[#9db4c8] bg-white px-2 py-1 text-sm"
+                        >
+                          <option value="1">1 game to win</option>
+                          <option value="3">Best of 3</option>
+                        </select>
+                      </label>
+                      <button className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-xs font-medium text-[var(--cool)] shadow-sm">
+                        Save format
+                      </button>
+                    </form>
                   </div>
+
+                  <p className="text-xs text-[var(--muted)]">
+                    {bestOf === 3
+                      ? "Best-of-3 scoring: enter all games until a pair wins 2 games (the third game is only needed at 1-1)."
+                      : "Single-game scoring: enter the match score."}
+                  </p>
+
                   <form
-                    action="/api/admin/champs/knockout/stage-format/update"
+                    id={stageFormId}
+                    action="/api/admin/champs/knockout/stage-results/update"
                     method="post"
-                    className="flex items-end gap-2"
+                    className="space-y-3"
                   >
                     <input type="hidden" name="event" value={event} />
                     <input type="hidden" name="stage" value={stage} />
                     <input type="hidden" name="redirect" value={redirect} />
                     <input type="hidden" name="anchor" value={stageAnchor} />
-                    <label className="text-xs font-medium text-[var(--muted)]">
-                      Match format
-                      <select
-                        name="best_of"
-                        defaultValue={bestOf}
-                        className="mt-1 block rounded-lg border border-[#9db4c8] bg-white px-2 py-1 text-sm"
-                      >
-                        <option value="1">1 game to win</option>
-                        <option value="3">Best of 3</option>
-                      </select>
-                    </label>
-                    <button className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-xs font-medium text-[var(--cool)] shadow-sm">
-                      Save format
-                    </button>
-                  </form>
-                </div>
 
-                <p className="text-xs text-[var(--muted)]">
-                  {bestOf === 3
-                    ? "Best-of-3 scoring: enter all games until a pair wins 2 games (the third game is only needed at 1-1)."
-                    : "Single-game scoring: enter the match score."}
-                </p>
+                    <div className="space-y-3">
+                      {matches.map((match) => {
+                        const pairA = match.pair_a_id ? pairById.get(match.pair_a_id) : null;
+                        const pairB = match.pair_b_id ? pairById.get(match.pair_b_id) : null;
+                        const canScore = !!(match.is_unlocked && pairA && pairB);
+                        const isBye = (pairA && !pairB) || (!pairA && pairB);
+                        const winner = match.winner_pair_id ? pairById.get(match.winner_pair_id) : null;
+                        const games = matchGames(match);
+                        const fullyScored = isMatchFullyScored(match);
+                        const starts = handicapStarts(pairA ?? undefined, pairB ?? undefined);
 
-                <form
-                  id={stageFormId}
-                  action="/api/admin/champs/knockout/stage-results/update"
-                  method="post"
-                  className="space-y-3"
-                >
-                  <input type="hidden" name="event" value={event} />
-                  <input type="hidden" name="stage" value={stage} />
-                  <input type="hidden" name="redirect" value={redirect} />
-                  <input type="hidden" name="anchor" value={stageAnchor} />
-
-                  <div className="space-y-3">
-                    {matches.map((match) => {
-                      const pairA = match.pair_a_id ? pairById.get(match.pair_a_id) : null;
-                      const pairB = match.pair_b_id ? pairById.get(match.pair_b_id) : null;
-                      const canScore = !!(match.is_unlocked && pairA && pairB);
-                      const isBye = (pairA && !pairB) || (!pairA && pairB);
-                      const winner = match.winner_pair_id ? pairById.get(match.winner_pair_id) : null;
-                      const games = matchGames(match);
-                      const fullyScored = isMatchFullyScored(match);
-                      const starts = handicapStarts(pairA ?? undefined, pairB ?? undefined);
-
-                      return (
-                        <article
-                          key={match.id}
-                          className={`space-y-3 rounded-xl border-2 p-3 ${
-                            fullyScored
-                              ? "border-emerald-400 bg-emerald-50/70"
-                              : canScore
-                              ? "border-[#8fb1c8] bg-[#f8fcff]"
-                              : "border-[#bcc9d5] bg-[#f2f6fa]"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="text-xs font-semibold text-[#51667d]">Match {match.match_order}</div>
-                            {winner ? (
-                              <span className="rounded-full border border-emerald-400 bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                                Winner set
-                              </span>
-                            ) : null}
-                          </div>
+                        return (
+                          <article
+                            key={match.id}
+                            className={`space-y-3 rounded-xl border-2 p-3 ${
+                              fullyScored
+                                ? "border-emerald-400 bg-emerald-50/70"
+                                : canScore
+                                ? "border-[#8fb1c8] bg-[#f8fcff]"
+                                : "border-[#bcc9d5] bg-[#f2f6fa]"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-xs font-semibold text-[#51667d]">Match {match.match_order}</div>
+                              {winner ? (
+                                <span className="rounded-full border border-emerald-400 bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                                  Winner set
+                                </span>
+                              ) : null}
+                            </div>
 
                           <div className="grid gap-2 sm:grid-cols-2">
                             <div className="rounded-lg border border-[#b8cad9] bg-[#e8f1fa] px-3 py-2">
@@ -303,42 +302,43 @@ function EventKnockoutResultsCard(args: {
                             </div>
                           )}
 
-                          <div className="text-sm text-[#556b80]">
-                            {isBye
-                              ? "Bye match: winner is auto-advanced."
-                              : winner
-                              ? `Winner: ${pairLabel(winner)}`
-                              : !match.is_unlocked
-                              ? "Locked"
-                              : "Awaiting result"}
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
+                            <div className="text-sm text-[#556b80]">
+                              {isBye
+                                ? "Bye match: winner is auto-advanced."
+                                : winner
+                                ? `Winner: ${pairLabel(winner)}`
+                                : !match.is_unlocked
+                                ? "Locked"
+                                : "Awaiting result"}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
 
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--cool)] shadow-sm disabled:opacity-50"
-                      disabled={!stageUnlocked}
-                    >
-                      Save stage results
-                    </button>
-                  </div>
-                  {stageUnlocked ? (
-                    <FloatingFormSave
-                      formId={stageFormId}
-                      label={`Save ${knockoutStageLabel(stage, totalStages)}`}
-                    />
-                  ) : null}
-                </form>
-              </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--cool)] shadow-sm disabled:opacity-50"
+                        disabled={!stageUnlocked}
+                      >
+                        Save stage results
+                      </button>
+                    </div>
+                    {stageUnlocked ? (
+                      <FloatingFormSave
+                        formId={stageFormId}
+                        label={`Save ${knockoutStageLabel(stage, totalStages)}`}
+                      />
+                    ) : null}
+                  </form>
+                </div>
+              </CollapsibleSection>
             );
           })}
         </div>
       )}
-    </section>
+    </CollapsibleSection>
   );
 }
 
@@ -404,7 +404,11 @@ export default async function ClubChampsKnockoutMatchesPage({
         </p>
       </div>
 
-      <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm">
+      <CollapsibleSection
+        id="knockout-generate-controls"
+        title="Knockout generation controls"
+        subtitle="Generate or regenerate knockout brackets for each event."
+      >
         <InitKnockoutForm
           advanceLevel={advanceLevel}
           advanceMixed={advanceMixed}
@@ -414,7 +418,7 @@ export default async function ClubChampsKnockoutMatchesPage({
         <p className="mt-2 text-xs text-[var(--muted)]">
           Resetting rebuilds knockout rounds from current pool standings and clears existing knockout results.
         </p>
-      </div>
+      </CollapsibleSection>
 
       {params.initialized && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--ink)]">
@@ -457,16 +461,16 @@ export default async function ClubChampsKnockoutMatchesPage({
         </p>
       )}
 
-      <EventKnockoutResultsCard
+      <KnockoutEventResultsClient
         event="level_doubles"
-        knockoutRows={knockoutRows}
-        pairById={pairById}
+        initialRows={knockoutRows.filter((row) => row.event === "level_doubles")}
+        pairs={pairs}
         redirect={redirect}
       />
-      <EventKnockoutResultsCard
+      <KnockoutEventResultsClient
         event="mixed_doubles"
-        knockoutRows={knockoutRows}
-        pairById={pairById}
+        initialRows={knockoutRows.filter((row) => row.event === "mixed_doubles")}
+        pairs={pairs}
         redirect={redirect}
       />
     </div>

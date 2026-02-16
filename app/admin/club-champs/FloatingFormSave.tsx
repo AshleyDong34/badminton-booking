@@ -40,6 +40,15 @@ export default function FloatingFormSave({ formId, label }: FloatingFormSaveProp
     form.addEventListener("input", onInput, true);
     form.addEventListener("change", onInput, true);
 
+    // Keep the dirty count in sync after fetch-save rerenders that replace inputs/defaults.
+    const mutationObserver = new MutationObserver(() => refresh());
+    mutationObserver.observe(form, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["value", "disabled", "data-track-save"],
+    });
+
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
@@ -52,6 +61,7 @@ export default function FloatingFormSave({ formId, label }: FloatingFormSaveProp
     return () => {
       form.removeEventListener("input", onInput, true);
       form.removeEventListener("change", onInput, true);
+      mutationObserver.disconnect();
       observer.disconnect();
     };
   }, [formId]);

@@ -8,6 +8,8 @@ type EventType = "level_doubles" | "mixed_doubles";
 type MatchRow = {
   id: string;
   event: EventType;
+  pool_number: number;
+  match_order: number;
   pair_a_id: string;
   pair_b_id: string;
   pair_a_score: number | null;
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData();
+  const wantsJson = req.headers.get("x-admin-fetch") === "1";
   const redirect = String(form.get("redirect") ?? "/admin/club-champs/pools");
   const anchor =
     String(req.nextUrl.searchParams.get("row_anchor") ?? "").trim() ||
@@ -48,34 +51,34 @@ export async function POST(req: NextRequest) {
     if (anchor) url.hash = anchor;
     return NextResponse.redirect(url, 303);
   };
+  const toError = (message: string, status = 400) =>
+    wantsJson
+      ? NextResponse.json({ ok: false, error: message }, { status })
+      : toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
+  const toSuccess = (payload: Record<string, unknown>, redirectPath: string) =>
+    wantsJson ? NextResponse.json({ ok: true, ...payload }) : toRedirect(redirectPath);
 
   const matchId = String(form.get("match_id") ?? "").trim();
   if (!matchId) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Missing+match+id`);
+    return toError("Missing match id");
   }
 
   const db = supabaseServer();
   const { data: matchData, error: matchError } = await db
     .from("club_champs_pool_matches")
-    .select("id,event,pair_a_id,pair_b_id,pair_a_score,pair_b_score,is_playing")
+    .select("id,event,pool_number,match_order,pair_a_id,pair_b_id,pair_a_score,pair_b_score,is_playing")
     .eq("id", matchId)
     .single();
 
   if (matchError || !matchData) {
-    return toRedirect(
-      `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(
-        matchError?.message ?? "Match not found"
-      )}`
-    );
+    return toError(matchError?.message ?? "Match not found", matchError ? 500 : 404);
   }
 
   const match = matchData as MatchRow;
   const nextPlaying = !match.is_playing;
 
   if (nextPlaying && match.pair_a_score != null && match.pair_b_score != null) {
-    return toRedirect(
-      `${redirect}${redirect.includes("?") ? "&" : "?"}error=Cannot+mark+a+scored+match+as+playing`
-    );
+    return toError("Cannot mark a scored match as playing");
   }
 
   if (nextPlaying) {
@@ -86,9 +89,7 @@ export async function POST(req: NextRequest) {
       .neq("id", match.id);
 
     if (playingError) {
-      return toRedirect(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(playingError.message)}`
-      );
+      return toError(playingError.message, 500);
     }
 
     const pairIds = new Set<string>([match.pair_a_id, match.pair_b_id]);
@@ -103,9 +104,7 @@ export async function POST(req: NextRequest) {
       .in("id", [...pairIds]);
 
     if (pairError) {
-      return toRedirect(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(pairError.message)}`
-      );
+      return toError(pairError.message, 500);
     }
 
     const pairById = new Map((pairData ?? []).map((pair) => [pair.id, pair as PairRow]));
@@ -121,9 +120,7 @@ export async function POST(req: NextRequest) {
     ];
 
     if (selectedPlayers.some((name) => busyPlayers.has(name))) {
-      return toRedirect(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=One+or+more+players+are+already+in+play`
-      );
+      return toError("One or more players are already in play");
     }
   }
 
@@ -133,10 +130,17 @@ export async function POST(req: NextRequest) {
     .eq("id", match.id);
 
   if (updateError) {
-    return toRedirect(
-      `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(updateError.message)}`
-    );
+    return toError(updateError.message, 500);
   }
 
-  return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}playing=1`);
+  return toSuccess(
+    {
+      playing: 1,
+      match: {
+        ...match,
+        is_playing: nextPlaying,
+      },
+    },
+    `${redirect}${redirect.includes("?") ? "&" : "?"}playing=1`
+  );
 }

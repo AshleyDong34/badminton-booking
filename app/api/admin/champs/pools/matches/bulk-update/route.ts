@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData();
+  const wantsJson = req.headers.get("x-admin-fetch") === "1";
   const event = String(form.get("event") ?? "").trim();
   const redirect = String(form.get("redirect") ?? "/admin/club-champs/pools");
   const anchor = String(form.get("anchor") ?? "").trim();
@@ -39,9 +40,15 @@ export async function POST(req: NextRequest) {
     if (anchor) url.hash = anchor;
     return NextResponse.redirect(url, 303);
   };
+  const toError = (message: string, status = 400) =>
+    wantsJson
+      ? NextResponse.json({ ok: false, error: message }, { status })
+      : toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
+  const toSuccess = (payload: Record<string, unknown>, redirectPath: string) =>
+    wantsJson ? NextResponse.json({ ok: true, ...payload }) : toRedirect(redirectPath);
 
   if (!EVENTS.has(event)) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Invalid+event`);
+    return toError("Invalid event");
   }
 
   const db = supabaseServer();
@@ -53,12 +60,12 @@ export async function POST(req: NextRequest) {
     .order("match_order", { ascending: true });
 
   if (matchError) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(matchError.message)}`);
+    return toError(matchError.message, 500);
   }
 
   const rows = (matchRows ?? []) as MatchMeta[];
   if (rows.length === 0) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=No+pool+matches+found+for+this+event`);
+    return toError("No pool matches found for this event");
   }
 
   const updates: Array<{ id: string; pair_a_score: number | null; pair_b_score: number | null; is_playing: boolean }> = [];
@@ -67,19 +74,11 @@ export async function POST(req: NextRequest) {
     const pairBScore = parseScore(form.get(`pair_b_score__${row.id}`));
 
     if (Number.isNaN(pairAScore) || Number.isNaN(pairBScore)) {
-      return toRedirect(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(
-          `Pool ${row.pool_number}, match ${row.match_order}: scores must be whole numbers or blank.`
-        )}`
-      );
+      return toError(`Pool ${row.pool_number}, match ${row.match_order}: scores must be whole numbers or blank.`);
     }
 
     if ((pairAScore == null) !== (pairBScore == null)) {
-      return toRedirect(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(
-          `Pool ${row.pool_number}, match ${row.match_order}: enter both scores or leave both blank.`
-        )}`
-      );
+      return toError(`Pool ${row.pool_number}, match ${row.match_order}: enter both scores or leave both blank.`);
     }
 
     updates.push({
@@ -106,7 +105,7 @@ export async function POST(req: NextRequest) {
       .eq("event", event);
 
     if (error) {
-      return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(error.message)}`);
+      return toError(error.message, 500);
     }
   }
 
@@ -116,8 +115,22 @@ export async function POST(req: NextRequest) {
     .eq("event", event);
 
   if (clearKnockoutError) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(clearKnockoutError.message)}`);
+    return toError(clearKnockoutError.message, 500);
   }
 
-  return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}updated=1&knockout_reset=1`);
+  const { data: updatedRows, error: updatedRowsError } = await db
+    .from("club_champs_pool_matches")
+    .select("id,event,pool_number,match_order,pair_a_id,pair_b_id,pair_a_score,pair_b_score,is_playing")
+    .eq("event", event)
+    .order("pool_number", { ascending: true })
+    .order("match_order", { ascending: true });
+
+  if (updatedRowsError) {
+    return toError(updatedRowsError.message, 500);
+  }
+
+  return toSuccess(
+    { updated: true, knockout_reset: true, event, matches: updatedRows ?? [] },
+    `${redirect}${redirect.includes("?") ? "&" : "?"}updated=1&knockout_reset=1`
+  );
 }

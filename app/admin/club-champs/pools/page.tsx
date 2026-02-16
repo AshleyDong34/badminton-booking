@@ -1,7 +1,8 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { LockPoolsForm } from "./LockPoolsForm";
 import HashAnchorRestore from "@/app/admin/HashAnchorRestore";
-import FloatingFormSave from "../FloatingFormSave";
+import CollapsibleSection from "../CollapsibleSection";
+import PoolsResultsClient from "./PoolsResultsClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -379,6 +380,14 @@ function parsePoolTarget(raw: string | undefined, fallback: 3 | 4): 3 | 4 {
   return fallback;
 }
 
+function isEventFinished(matches: MatchRow[], event: EventType) {
+  const eventMatches = matches.filter((match) => match.event === event);
+  return (
+    eventMatches.length > 0 &&
+    eventMatches.every((match) => match.pair_a_score != null && match.pair_b_score != null)
+  );
+}
+
 export default async function ClubChampsPoolsPage({
   searchParams,
 }: {
@@ -407,9 +416,8 @@ export default async function ClubChampsPoolsPage({
   const matches = (matchData ?? []) as MatchRow[];
   const levelRows = rows.filter((r) => r.event === "level_doubles");
   const mixedRows = rows.filter((r) => r.event === "mixed_doubles");
-  const pairById = new Map(rows.map((row) => [row.id, row]));
-  const { recommendedByEvent, inPlayMatchesByEvent, inPlayTotal, busyPlayersCount } =
-    computeRecommendedMatches(matches, pairById);
+  const levelFinished = isEventFinished(matches, "level_doubles");
+  const mixedFinished = isEventFinished(matches, "mixed_doubles");
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -421,9 +429,13 @@ export default async function ClubChampsPoolsPage({
         </p>
       </div>
 
-      <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm">
+      <CollapsibleSection
+        id="pools-generate-controls"
+        title="Pool generation controls"
+        subtitle="Generate or regenerate pools for each event."
+      >
         <LockPoolsForm levelPoolTarget={levelPoolTarget} mixedPoolTarget={mixedPoolTarget} />
-      </div>
+      </CollapsibleSection>
 
       {params.locked && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--ink)]">
@@ -466,244 +478,42 @@ export default async function ClubChampsPoolsPage({
         </p>
       )}
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Generated pools review</h2>
-        <p className="text-sm text-[var(--muted)]">
-          Read-only preview of generated pools for each event. This section is separate from results entry.
-        </p>
-        <EventPoolsPreview event="level_doubles" rows={levelRows} targetSize={levelPoolTarget} />
-        <EventPoolsPreview event="mixed_doubles" rows={mixedRows} targetSize={mixedPoolTarget} />
-      </div>
+      <CollapsibleSection
+        id="pools-generated-review"
+        title="Generated pools review"
+        subtitle="Read-only preview of generated pools for each event. Separate from results entry."
+      >
+        <CollapsibleSection
+          id="pools-review-level"
+          title="Level doubles pools review"
+          subtitle={levelFinished ? "Completed. Hidden by default after completion." : "In progress."}
+          defaultOpen={!levelFinished}
+        >
+          <EventPoolsPreview event="level_doubles" rows={levelRows} targetSize={levelPoolTarget} />
+        </CollapsibleSection>
+        <CollapsibleSection
+          id="pools-review-mixed"
+          title="Mixed doubles pools review"
+          subtitle={mixedFinished ? "Completed. Hidden by default after completion." : "In progress."}
+          defaultOpen={!mixedFinished}
+        >
+          <EventPoolsPreview event="mixed_doubles" rows={mixedRows} targetSize={mixedPoolTarget} />
+        </CollapsibleSection>
+      </CollapsibleSection>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Pool match results entry</h2>
-        <p className="text-sm text-[var(--muted)]">
-          Enter and save scores below. This section is separate from the generated pools review above.
-        </p>
-        <p className="text-sm text-[var(--muted)]">
-          Numbers shown next to each pair name are that pair&apos;s starting points for the match.
-        </p>
-        <p className="text-sm text-[var(--muted)]">
-          Use the global save button to save all entered scores at once. Green match cards mean those scores are saved.
-        </p>
-        <p className="text-sm text-[var(--muted)]">
-          Orange cards are currently in play. Recommended next avoids in-play player clashes and prioritizes fairness:
-          underplayed players/pairs first, then those with more matches still to complete.
-          {busyPlayersCount > 0 ? ` (${busyPlayersCount} players currently in play)` : ""}
-          {inPlayTotal > 0 ? ` (${inPlayTotal} matches currently in play)` : ""}
-        </p>
+      <CollapsibleSection
+        id="pools-results-entry"
+        title="Pool match results entry"
+        subtitle="Enter and save scores. Completed event sections can be hidden."
+      >
         {matches.length === 0 ? (
           <p className="rounded-xl border border-[var(--line)] bg-[var(--card)] px-4 py-3 text-sm text-[var(--muted)] shadow-sm">
             No generated fixtures yet. Lock the tournament first.
           </p>
         ) : (
-          <>
-            <EventMatchResults
-              event="level_doubles"
-              matches={matches}
-              pairById={pairById}
-              redirect={poolRedirectBase}
-              recommendedMatchId={recommendedByEvent.get("level_doubles")?.id ?? null}
-              inPlayCount={inPlayMatchesByEvent.get("level_doubles") ?? 0}
-            />
-            <EventMatchResults
-              event="mixed_doubles"
-              matches={matches}
-              pairById={pairById}
-              redirect={poolRedirectBase}
-              recommendedMatchId={recommendedByEvent.get("mixed_doubles")?.id ?? null}
-              inPlayCount={inPlayMatchesByEvent.get("mixed_doubles") ?? 0}
-            />
-          </>
+          <PoolsResultsClient initialMatches={matches} rows={rows} redirect={poolRedirectBase} />
         )}
-      </div>
+      </CollapsibleSection>
     </div>
-  );
-}
-
-function EventMatchResults({
-  event,
-  matches,
-  pairById,
-  redirect,
-  recommendedMatchId,
-  inPlayCount,
-}: {
-  event: EventType;
-  matches: MatchRow[];
-  pairById: Map<string, Row>;
-  redirect: string;
-  recommendedMatchId: string | null;
-  inPlayCount: number;
-}) {
-  const eventMatches = matches.filter((m) => m.event === event);
-  const pools = new Map<number, MatchRow[]>();
-  const eventAnchor = `pool-results-${event}`;
-  const formId = `pool-results-form-${event}`;
-  for (const match of eventMatches) {
-    const list = pools.get(match.pool_number) ?? [];
-    list.push(match);
-    pools.set(match.pool_number, list);
-  }
-
-  return (
-    <section className="space-y-3" id={eventAnchor}>
-      <h3 className="text-lg font-semibold">{EVENT_LABEL[event]} results entry</h3>
-      <p className="rounded-xl border border-[#f1b56e] bg-[#fff3e4] px-3 py-2 text-sm text-[#8a5a20]">
-        {inPlayCount > 0
-          ? `${inPlayCount} matches currently in play for ${EVENT_LABEL[event]}.`
-          : `No matches currently in play for ${EVENT_LABEL[event]}.`}
-      </p>
-      {recommendedMatchId ? (
-        <p className="rounded-xl border border-[#e7d35b] bg-[#fffbe3] px-3 py-2 text-sm text-[#7a6715]">
-          Recommended next: match highlighted with yellow border.
-        </p>
-      ) : (
-        <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm text-[var(--muted)]">
-          No recommended next match right now (all available pairs may already be in play or scored).
-        </p>
-      )}
-      {pools.size === 0 ? (
-        <p className="text-sm text-[var(--muted)]">No fixtures for this event.</p>
-      ) : (
-        <form
-          id={formId}
-          action="/api/admin/champs/pools/matches/bulk-update"
-          method="post"
-          className="space-y-4"
-        >
-          <input type="hidden" name="event" value={event} />
-          <input type="hidden" name="redirect" value={redirect} />
-          <input type="hidden" name="anchor" value={eventAnchor} />
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {Array.from(pools.entries())
-              .sort((a, b) => a[0] - b[0])
-              .map(([poolNumber, poolMatches]) => (
-                <div
-                  key={`${event}-${poolNumber}`}
-                  className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm"
-                >
-                  <h4 className="font-semibold">{poolName(poolNumber - 1)}</h4>
-                  <div className="space-y-2">
-                    {poolMatches.map((match) => {
-                      const pairA = pairById.get(match.pair_a_id);
-                      const pairB = pairById.get(match.pair_b_id);
-                      const starts = handicapStarts(pairA, pairB);
-                      const isSaved = match.pair_a_score !== null && match.pair_b_score !== null;
-                      const isActiveInPlay = match.is_playing && !isSaved;
-                      const isRecommended = recommendedMatchId === match.id;
-                      const rowId = `pool-${event}-${poolNumber}-match-${match.match_order}`;
-                      return (
-                        <div
-                          key={match.id}
-                          id={rowId}
-                          className={`scroll-mt-24 space-y-2 rounded-xl border-2 p-3 ${
-                            isSaved
-                              ? "border-emerald-400 bg-emerald-50/60"
-                              : isActiveInPlay
-                              ? "border-[#f59e0b] bg-[#fff4e7]"
-                              : isRecommended
-                              ? "border-[#e7d35b] bg-[#fffbe8]"
-                              : "border-[#a2b8cb] bg-white"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="text-xs font-semibold text-[#4e6279]">
-                              Match {match.match_order}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {isSaved ? (
-                                <span className="rounded-full border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                                  Saved
-                                </span>
-                              ) : isActiveInPlay ? (
-                                <span className="rounded-full border border-[#f59e0b] bg-[#fde4bf] px-2 py-0.5 text-xs font-semibold text-[#8a5a20]">
-                                  In play
-                                </span>
-                              ) : isRecommended ? (
-                                <span className="rounded-full border border-[#e7d35b] bg-[#fff7d1] px-2 py-0.5 text-xs font-semibold text-[#7a6715]">
-                                  Recommended next
-                                </span>
-                              ) : null}
-                              <button
-                                type="submit"
-                                name="match_id"
-                                value={match.id}
-                                formAction={`/api/admin/champs/pools/matches/toggle-playing?row_anchor=${encodeURIComponent(
-                                  rowId
-                                )}`}
-                                formMethod="post"
-                                disabled={isSaved}
-                                className={`rounded-lg border px-2 py-0.5 text-xs font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
-                                  isActiveInPlay
-                                    ? "border-[#f59e0b] bg-[#fff1dc] text-[#8a5a20]"
-                                    : "border-[#e3c299] bg-white text-[#8a5a20]"
-                                }`}
-                              >
-                                {isSaved ? "Scored" : isActiveInPlay ? "Stop" : "Playing"}
-                              </button>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-                            <div className="text-sm">
-                              <span className="font-semibold text-[var(--cool)]">{pairA?.player_one_name ?? "Pair A"}</span>
-                              <span className="text-[var(--muted)]"> + </span>
-                              <span className="font-semibold text-[var(--ok)]">{pairA?.player_two_name ?? ""}</span>
-                              {starts ? (
-                                <span className="ml-2 rounded-full border border-[#ccdae8] bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
-                                  start {starts.pairAStart}
-                                </span>
-                              ) : null}
-                            </div>
-                            <input
-                              name={`pair_a_score__${match.id}`}
-                              type="number"
-                              min={0}
-                              defaultValue={match.pair_a_score ?? ""}
-                              data-track-save="1"
-                              className="w-24 rounded-lg border-2 border-[#9eb4c7] bg-white px-2 py-1 text-base font-semibold"
-                            />
-                          </div>
-                          <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-                            <div className="text-sm">
-                              <span className="font-semibold text-[var(--cool)]">{pairB?.player_one_name ?? "Pair B"}</span>
-                              <span className="text-[var(--muted)]"> + </span>
-                              <span className="font-semibold text-[var(--ok)]">{pairB?.player_two_name ?? ""}</span>
-                              {starts ? (
-                                <span className="ml-2 rounded-full border border-[#ccdae8] bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
-                                  start {starts.pairBStart}
-                                </span>
-                              ) : null}
-                            </div>
-                            <input
-                              name={`pair_b_score__${match.id}`}
-                              type="number"
-                              min={0}
-                              defaultValue={match.pair_b_score ?? ""}
-                              data-track-save="1"
-                              className="w-24 rounded-lg border-2 border-[#9eb4c7] bg-white px-2 py-1 text-base font-semibold"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className="rounded-lg border border-[#9db4c8] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--cool)] shadow-sm"
-            >
-              Save all scores
-            </button>
-          </div>
-          <FloatingFormSave formId={formId} label="Save all scores" />
-        </form>
-      )}
-    </section>
   );
 }

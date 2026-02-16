@@ -208,6 +208,7 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData();
+  const wantsJson = req.headers.get("x-admin-fetch") === "1";
   const event = String(form.get("event") ?? "").trim() as EventType;
   const stage = Number(form.get("stage"));
   const redirect = String(form.get("redirect") ?? "/admin/club-champs/knockout-matches");
@@ -217,12 +218,18 @@ export async function POST(req: NextRequest) {
     if (anchor) url.hash = anchor;
     return NextResponse.redirect(url, 303);
   };
+  const toError = (message: string, status = 400) =>
+    wantsJson
+      ? NextResponse.json({ ok: false, error: message }, { status })
+      : toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
+  const toSuccess = (payload: Record<string, unknown>, redirectPath: string) =>
+    wantsJson ? NextResponse.json({ ok: true, ...payload }) : toRedirect(redirectPath);
 
   if (!EVENTS.has(event)) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Invalid+event`);
+    return toError("Invalid event");
   }
   if (!Number.isInteger(stage) || stage < 1) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Invalid+stage`);
+    return toError("Invalid stage");
   }
 
   const db = supabaseServer();
@@ -236,16 +243,16 @@ export async function POST(req: NextRequest) {
     .order("match_order", { ascending: true });
 
   if (matchError) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(matchError.message)}`);
+    return toError(matchError.message, 500);
   }
 
   const rows = (matchRows ?? []) as MatchRow[];
   if (rows.length === 0) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=No+knockout+matches+for+this+stage`);
+    return toError("No knockout matches for this stage");
   }
 
   if (rows.some((row) => !row.is_unlocked)) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=This+stage+is+currently+locked`);
+    return toError("This stage is currently locked");
   }
 
   const updates: Array<{
@@ -259,20 +266,12 @@ export async function POST(req: NextRequest) {
   for (const row of rows) {
     const parsed = parseGames(form, row.id, row.best_of);
     if (!parsed.ok) {
-      return toRedirect(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(
-          `Match ${row.match_order}: ${parsed.error}`
-        )}`
-      );
+      return toError(`Match ${row.match_order}: ${parsed.error}`);
     }
 
     const decided = determineWinner(row, parsed.games);
     if (!decided.ok) {
-      return toRedirect(
-        `${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(
-          `Match ${row.match_order}: ${decided.error}`
-        )}`
-      );
+      return toError(`Match ${row.match_order}: ${decided.error}`);
     }
 
     updates.push({
@@ -298,19 +297,35 @@ export async function POST(req: NextRequest) {
       .eq("stage", stage);
 
     if (updateError) {
-      return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(updateError.message)}`);
+      return toError(updateError.message, 500);
     }
   }
 
   const downstreamError = await clearDownstreamStages(db, event, stage);
   if (downstreamError) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(downstreamError.message)}`);
+    return toError(downstreamError.message, 500);
   }
 
   const propagateError = await propagateKnockoutEvent(db, event);
   if (propagateError) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(propagateError.message)}`);
+    return toError(propagateError.message, 500);
   }
 
-  return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}updated=1`);
+  const { data: eventRows, error: eventRowsError } = await db
+    .from("club_champs_knockout_matches")
+    .select(
+      "id,event,stage,match_order,pair_a_id,pair_b_id,pair_a_score,pair_b_score,game_scores,winner_pair_id,best_of,is_unlocked"
+    )
+    .eq("event", event)
+    .order("stage", { ascending: true })
+    .order("match_order", { ascending: true });
+
+  if (eventRowsError) {
+    return toError(eventRowsError.message, 500);
+  }
+
+  return toSuccess(
+    { updated: true, event, rows: eventRows ?? [] },
+    `${redirect}${redirect.includes("?") ? "&" : "?"}updated=1`
+  );
 }

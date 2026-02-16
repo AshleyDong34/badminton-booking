@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData();
+  const wantsJson = req.headers.get("x-admin-fetch") === "1";
   const event = String(form.get("event") ?? "").trim() as EventType;
   const stage = Number(form.get("stage"));
   const bestOf = Number(form.get("best_of"));
@@ -25,15 +26,21 @@ export async function POST(req: NextRequest) {
     if (anchor) url.hash = anchor;
     return NextResponse.redirect(url, 303);
   };
+  const toError = (message: string, status = 400) =>
+    wantsJson
+      ? NextResponse.json({ ok: false, error: message }, { status })
+      : toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
+  const toSuccess = (payload: Record<string, unknown>, redirectPath: string) =>
+    wantsJson ? NextResponse.json({ ok: true, ...payload }) : toRedirect(redirectPath);
 
   if (!EVENTS.has(event)) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Invalid+event`);
+    return toError("Invalid event");
   }
   if (!Number.isInteger(stage) || stage < 1) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Invalid+stage`);
+    return toError("Invalid stage");
   }
   if (bestOf !== 1 && bestOf !== 3) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=Format+must+be+best+of+1+or+3`);
+    return toError("Format must be best of 1 or 3");
   }
 
   const db = supabaseServer();
@@ -44,7 +51,7 @@ export async function POST(req: NextRequest) {
     .eq("stage", stage);
 
   if (stageReadError) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(stageReadError.message)}`);
+    return toError(stageReadError.message, 500);
   }
 
   const hasScoredNonByeMatch = (stageRows ?? []).some((row) => {
@@ -54,9 +61,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (hasScoredNonByeMatch) {
-    return toRedirect(
-      `${redirect}${redirect.includes("?") ? "&" : "?"}error=Cannot+change+format+after+stage+has+started`
-    );
+    return toError("Cannot change format after stage has started");
   }
 
   const { error: updateError } = await db
@@ -66,8 +71,11 @@ export async function POST(req: NextRequest) {
     .eq("stage", stage);
 
   if (updateError) {
-    return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}error=${encodeURIComponent(updateError.message)}`);
+    return toError(updateError.message, 500);
   }
 
-  return toRedirect(`${redirect}${redirect.includes("?") ? "&" : "?"}format_saved=1`);
+  return toSuccess(
+    { format_saved: true, event, stage, best_of: bestOf },
+    `${redirect}${redirect.includes("?") ? "&" : "?"}format_saved=1`
+  );
 }
