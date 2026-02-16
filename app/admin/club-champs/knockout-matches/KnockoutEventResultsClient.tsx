@@ -214,13 +214,13 @@ export default function KnockoutEventResultsClient({
                 defaultOpen={!stageComplete}
               >
                 <div
-                  className={`mx-auto w-full max-w-5xl space-y-4 rounded-2xl border p-5 scroll-mt-24 ${
+                  className={`mx-auto w-full max-w-5xl space-y-4 rounded-2xl border p-3 scroll-mt-24 sm:p-5 ${
                     stageUnlocked
                       ? "border-[#a7c1ad] bg-gradient-to-br from-[#f9fcf8] to-[#f2f7f2]"
                       : "border-slate-300 bg-slate-100/80"
                   }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#cfdccc] bg-[#fefefd] px-3 py-2.5">
+                  <div className="flex flex-col items-stretch justify-between gap-3 rounded-xl border border-[#cfdccc] bg-[#fefefd] px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center">
                     <div className="space-y-1">
                       <div
                         className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${
@@ -242,7 +242,7 @@ export default function KnockoutEventResultsClient({
                     <form
                       action="/api/admin/champs/knockout/stage-format/update"
                       method="post"
-                      className="flex items-end gap-2"
+                      className="flex w-full flex-wrap items-end gap-2 sm:w-auto sm:flex-nowrap"
                       onSubmit={async (eventSubmit) => {
                         eventSubmit.preventDefault();
                         await saveStageFormat(stage, eventSubmit.currentTarget);
@@ -252,13 +252,13 @@ export default function KnockoutEventResultsClient({
                       <input type="hidden" name="stage" value={stage} />
                       <input type="hidden" name="redirect" value={redirect} />
                       <input type="hidden" name="anchor" value={stageAnchor} />
-                      <label className="text-xs font-medium text-[var(--muted)]">
+                      <label className="grow text-xs font-medium text-[var(--muted)] sm:grow-0">
                         Match format
                         <select
                           name="best_of"
                           defaultValue={bestOf}
                           disabled={isSavingFormat}
-                          className="mt-1 block rounded-lg border border-[#a8baa6] bg-white px-2 py-1 text-sm"
+                          className="mt-1 block w-full rounded-lg border border-[#a8baa6] bg-white px-2 py-1 text-sm sm:w-auto"
                         >
                           <option value="1">1 game to win</option>
                           <option value="3">Best of 3</option>
@@ -266,7 +266,7 @@ export default function KnockoutEventResultsClient({
                       </label>
                       <button
                         disabled={isSavingFormat}
-                        className="rounded-lg border border-[#a3b7a2] bg-[#f6faf4] px-3 py-1.5 text-xs font-medium text-[var(--cool)] shadow-sm disabled:opacity-50"
+                          className="rounded-lg border border-[#a3b7a2] bg-[#f6faf4] px-3 py-1.5 text-xs font-medium text-[var(--cool)] shadow-sm disabled:opacity-50"
                       >
                         {isSavingFormat ? "Saving..." : "Save format"}
                       </button>
@@ -311,7 +311,7 @@ export default function KnockoutEventResultsClient({
                         return (
                           <article
                             key={match.id}
-                            className={`w-full space-y-3 rounded-2xl border p-4 shadow-sm ${
+                            className={`w-full min-w-0 space-y-3 overflow-hidden rounded-2xl border p-3 shadow-sm sm:p-4 ${
                               fullyScored
                                 ? "border-emerald-300 bg-emerald-50/60"
                                 : canScore
@@ -329,22 +329,22 @@ export default function KnockoutEventResultsClient({
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-2">
-                              <div className="rounded-xl border border-[#b8d8bf] bg-[#effaf1] px-3 py-2.5">
+                              <div className="min-w-0 rounded-xl border border-[#b8d8bf] bg-[#effaf1] px-3 py-2.5">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#446245]">
                                   Pair A
                                 </p>
-                                <p className="text-sm font-medium">{pairA ? pairLabel(pairA) : "TBD"}</p>
+                                <p className="break-words text-sm font-medium">{pairA ? pairLabel(pairA) : "TBD"}</p>
                                 {pairA && starts ? (
                                   <span className="mt-1 inline-block rounded-full border border-[#a9cfb3] bg-white px-2 py-0.5 text-xs font-medium text-[#2f6b3c]">
                                     start {starts.pairAStart}
                                   </span>
                                 ) : null}
                               </div>
-                              <div className="rounded-xl border border-[#e1cfab] bg-[#fff8ea] px-3 py-2.5">
+                              <div className="min-w-0 rounded-xl border border-[#e1cfab] bg-[#fff8ea] px-3 py-2.5">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6b5635]">
                                   Pair B
                                 </p>
-                                <p className="text-sm font-medium">{pairB ? pairLabel(pairB) : "BYE"}</p>
+                                <p className="break-words text-sm font-medium">{pairB ? pairLabel(pairB) : "BYE"}</p>
                                 {pairB && starts ? (
                                   <span className="mt-1 inline-block rounded-full border border-[#e2caa2] bg-white px-2 py-0.5 text-xs font-medium text-[#835b1f]">
                                     start {starts.pairBStart}
@@ -359,8 +359,8 @@ export default function KnockoutEventResultsClient({
                               </p>
                             ) : (
                               <div className="rounded-xl border border-[#d4dfd2] bg-[#fbfdfa] p-3">
-                                <div className="mx-auto w-full max-w-[420px]">
-                                  <div className="grid grid-cols-[72px_1fr_1fr] items-center gap-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#546551]">
+                                <div className="mx-auto w-full max-w-full sm:max-w-[420px]">
+                                  <div className="grid grid-cols-[58px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#546551] sm:grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)]">
                                     <span>Game</span>
                                     <span className="rounded-md bg-[#e6f6ea] px-2 py-1 text-center text-[#2f6b3c]">
                                       Pair A
@@ -373,7 +373,7 @@ export default function KnockoutEventResultsClient({
                                     {games.map((game, index) => (
                                       <div
                                         key={`${match.id}-g-${index + 1}`}
-                                        className="grid grid-cols-[72px_1fr_1fr] items-center gap-2 rounded-lg border border-[#d7e2d5] bg-white px-2 py-2"
+                                        className="grid grid-cols-[58px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 rounded-lg border border-[#d7e2d5] bg-white px-2 py-2 sm:grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)]"
                                       >
                                         <span className="text-xs font-semibold text-[#546551]">
                                           {match.best_of === 1 ? "Match" : `Game ${index + 1}`}
@@ -387,7 +387,7 @@ export default function KnockoutEventResultsClient({
                                             defaultValue={game.a ?? ""}
                                             disabled={!canScore || isSaving}
                                             data-track-save="1"
-                                            className="h-10 w-20 rounded-lg border-2 border-[#86b28f] bg-white px-2 py-1 text-center text-base font-semibold disabled:bg-slate-100"
+                                            className="h-10 w-full max-w-[72px] rounded-lg border-2 border-[#86b28f] bg-white px-2 py-1 text-center text-base font-semibold disabled:bg-slate-100 sm:max-w-[80px]"
                                           />
                                         </div>
                                         <div className="flex justify-center">
@@ -399,7 +399,7 @@ export default function KnockoutEventResultsClient({
                                             defaultValue={game.b ?? ""}
                                             disabled={!canScore || isSaving}
                                             data-track-save="1"
-                                            className="h-10 w-20 rounded-lg border-2 border-[#cfad76] bg-white px-2 py-1 text-center text-base font-semibold disabled:bg-slate-100"
+                                            className="h-10 w-full max-w-[72px] rounded-lg border-2 border-[#cfad76] bg-white px-2 py-1 text-center text-base font-semibold disabled:bg-slate-100 sm:max-w-[80px]"
                                           />
                                         </div>
                                       </div>

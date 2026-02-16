@@ -47,17 +47,17 @@ export default function CollapsibleSection({
   return (
     <section
       id={anchorId}
-      className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm"
+      className="space-y-2 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-3 shadow-sm sm:space-y-3 sm:p-4"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2 sm:items-center">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {subtitle ? <p className="text-sm text-[var(--muted)]">{subtitle}</p> : null}
+          <h2 className="text-base font-semibold sm:text-lg">{title}</h2>
+          {subtitle ? <p className="text-xs text-[var(--muted)] sm:text-sm">{subtitle}</p> : null}
         </div>
         <button
           type="button"
           onClick={toggle}
-          className="rounded-xl border border-[var(--line)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--cool)] shadow-sm"
+          className="shrink-0 rounded-xl border border-[var(--line)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--cool)] shadow-sm sm:px-3 sm:py-1.5 sm:text-xs"
         >
           {open ? "Hide" : "Show"}
         </button>
@@ -66,11 +66,10 @@ export default function CollapsibleSection({
       {open ? (
         <div className="space-y-3">{children}</div>
       ) : (
-        <p className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--muted)]">
-          Hidden. Use “Show” to expand this section.
+        <p className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 text-xs text-[var(--muted)] sm:text-sm">
+          Hidden. Use "Show" to expand this section.
         </p>
       )}
     </section>
   );
 }
-
