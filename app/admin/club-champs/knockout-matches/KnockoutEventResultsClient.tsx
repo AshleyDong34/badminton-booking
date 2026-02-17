@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   EVENT_LABEL,
   knockoutStageLabel,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/club-champs-knockout";
 import CollapsibleSection from "../CollapsibleSection";
 import FloatingFormSave from "../FloatingFormSave";
+import { supabase } from "@/lib/supabaseClient";
 
 type KnockoutMatchRow = {
   id: string;
@@ -104,6 +105,42 @@ export default function KnockoutEventResultsClient({
   const eventSubtitle = winnerPair
     ? `Winner: ${pairLabel(winnerPair)}. Completed and hidden by default.`
     : "Winner not decided yet.";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshRows = async () => {
+      const { data, error } = await supabase
+        .from("club_champs_knockout_matches")
+        .select("id,event,stage,match_order,pair_a_id,pair_b_id,pair_a_score,pair_b_score,game_scores,winner_pair_id,best_of,is_unlocked")
+        .eq("event", event)
+        .order("stage", { ascending: true })
+        .order("match_order", { ascending: true });
+
+      if (cancelled || error || !data) return;
+      setRows(data as KnockoutMatchRow[]);
+    };
+
+    const channel = supabase
+      .channel(`admin-club-champs-knockout-${event}-${Date.now()}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "club_champs_knockout_matches" },
+        (payload) => {
+          const nextRow = (payload.new ?? {}) as Record<string, unknown>;
+          const oldRow = (payload.old ?? {}) as Record<string, unknown>;
+          const changedEvent = String(nextRow.event ?? oldRow.event ?? "");
+          if (changedEvent && changedEvent !== event) return;
+          void refreshRows();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [event]);
 
   async function saveStage(stage: number, form: HTMLFormElement) {
     setSavingStage(stage);

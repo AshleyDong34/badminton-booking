@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FloatingFormSave from "../FloatingFormSave";
 import CollapsibleSection from "../CollapsibleSection";
+import { supabase } from "@/lib/supabaseClient";
 
 type EventType = "level_doubles" | "mixed_doubles";
 
@@ -215,11 +216,53 @@ export default function PoolsResultsClient({
   const [matches, setMatches] = useState<MatchRow[]>(initialMatches);
   const [savingEvent, setSavingEvent] = useState<EventType | null>(null);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [errorModal, setErrorModal] = useState<string | null>(null);
 
   const pairById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
   const recommendation = useMemo(() => computeRecommendedMatches(matches, pairById), [matches, pairById]);
   const levelFinished = isEventFinished(matches, "level_doubles");
   const mixedFinished = isEventFinished(matches, "mixed_doubles");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshMatches = async () => {
+      const { data, error } = await supabase
+        .from("club_champs_pool_matches")
+        .select("id,event,pool_number,match_order,pair_a_id,pair_b_id,pair_a_score,pair_b_score,is_playing")
+        .order("event", { ascending: true })
+        .order("pool_number", { ascending: true })
+        .order("match_order", { ascending: true });
+
+      if (cancelled || error || !data) return;
+      setMatches(data as MatchRow[]);
+    };
+
+    const channel = supabase
+      .channel(`admin-club-champs-pools-${Date.now()}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "club_champs_pool_matches" },
+        () => {
+          void refreshMatches();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!errorModal) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [errorModal]);
 
   const setEventMatches = (event: EventType, nextEventMatches: MatchRow[]) => {
     const nextById = new Map(nextEventMatches.map((match) => [match.id, match]));
@@ -248,13 +291,13 @@ export default function PoolsResultsClient({
       });
       const payload = (await response.json()) as ApiOk<{ matches: MatchRow[] }> | ApiErr;
       if (!response.ok || !payload.ok) {
-        setMessage({ type: "error", text: payload.ok ? "Failed to save pool scores." : payload.error });
+        setErrorModal(payload.ok ? "Failed to save pool scores." : payload.error);
         return;
       }
       setEventMatches(event, payload.matches ?? []);
       setMessage({ type: "ok", text: `${EVENT_LABEL[event]} pool scores saved.` });
     } catch {
-      setMessage({ type: "error", text: "Network error while saving scores." });
+      setErrorModal("Network error while saving scores.");
     } finally {
       setSavingEvent(null);
     }
@@ -274,7 +317,7 @@ export default function PoolsResultsClient({
       const payload =
         (await response.json()) as ApiOk<{ match: Pick<MatchRow, "id" | "is_playing" | "pool_number" | "match_order" | "event"> }> | ApiErr;
       if (!response.ok || !payload.ok) {
-        setMessage({ type: "error", text: payload.ok ? "Failed to update playing status." : payload.error });
+        setErrorModal(payload.ok ? "Failed to update playing status." : payload.error);
         return;
       }
       setMatches((prev) =>
@@ -288,12 +331,37 @@ export default function PoolsResultsClient({
         )
       );
     } catch {
-      setMessage({ type: "error", text: "Network error while updating playing status." });
+      setErrorModal("Network error while updating playing status.");
     }
   }
 
   return (
     <div className="space-y-4">
+      {errorModal ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 p-4">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="pool-error-title"
+            className="w-full max-w-md rounded-2xl border border-red-300 bg-white p-5 shadow-2xl"
+          >
+            <h3 id="pool-error-title" className="text-lg font-semibold text-red-800">
+              Pool update error
+            </h3>
+            <p className="mt-2 text-sm text-red-700">{errorModal}</p>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setErrorModal(null)}
+                className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-800 shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {message ? (
         <p
           className={`rounded-xl border px-4 py-3 text-sm ${

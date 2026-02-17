@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type NavItem = {
   href: string;
@@ -16,9 +16,25 @@ export default function AdminShell({
   navItems: NavItem[];
   children: React.ReactNode;
 }) {
+  const collapsedKey = "admin-shell-collapsed";
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(collapsedKey) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(collapsedKey, collapsed ? "1" : "0");
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [collapsed]);
 
   function toggleNav() {
     if (window.matchMedia("(min-width: 768px)").matches) {
