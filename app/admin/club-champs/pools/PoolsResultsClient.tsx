@@ -217,6 +217,7 @@ export default function PoolsResultsClient({
   const [savingEvent, setSavingEvent] = useState<EventType | null>(null);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
+  const [togglingMatchId, setTogglingMatchId] = useState<string | null>(null);
   const [liveStatus, setLiveStatus] = useState<"connecting" | "live" | "offline">("connecting");
   const [lastSyncLabel, setLastSyncLabel] = useState<string>("");
 
@@ -376,6 +377,22 @@ export default function PoolsResultsClient({
 
   async function onTogglePlaying(match: MatchRow) {
     setMessage(null);
+    if (togglingMatchId === match.id) return;
+
+    const previousIsPlaying = match.is_playing;
+    const optimisticIsPlaying = !previousIsPlaying;
+    setTogglingMatchId(match.id);
+    setMatches((prev) =>
+      prev.map((row) =>
+        row.id === match.id
+          ? {
+              ...row,
+              is_playing: optimisticIsPlaying,
+            }
+          : row
+      )
+    );
+
     try {
       const formData = new FormData();
       formData.set("match_id", match.id);
@@ -388,6 +405,16 @@ export default function PoolsResultsClient({
       const payload =
         (await response.json()) as ApiOk<{ match: Pick<MatchRow, "id" | "is_playing" | "pool_number" | "match_order" | "event"> }> | ApiErr;
       if (!response.ok || !payload.ok) {
+        setMatches((prev) =>
+          prev.map((row) =>
+            row.id === match.id
+              ? {
+                  ...row,
+                  is_playing: previousIsPlaying,
+                }
+              : row
+          )
+        );
         setErrorModal(payload.ok ? "Failed to update playing status." : payload.error);
         return;
       }
@@ -402,7 +429,19 @@ export default function PoolsResultsClient({
         )
       );
     } catch {
+      setMatches((prev) =>
+        prev.map((row) =>
+          row.id === match.id
+            ? {
+                ...row,
+                is_playing: previousIsPlaying,
+              }
+            : row
+        )
+      );
       setErrorModal("Network error while updating playing status.");
+    } finally {
+      setTogglingMatchId((current) => (current === match.id ? null : current));
     }
   }
 
@@ -490,6 +529,7 @@ export default function PoolsResultsClient({
           recommendedMatchId={recommendation.recommendedByEvent.get("level_doubles")?.id ?? null}
           inPlayCount={recommendation.inPlayMatchesByEvent.get("level_doubles") ?? 0}
           isSaving={savingEvent === "level_doubles"}
+          togglingMatchId={togglingMatchId}
           onSaveEvent={onSaveEvent}
           onTogglePlaying={onTogglePlaying}
         />
@@ -507,6 +547,7 @@ export default function PoolsResultsClient({
           recommendedMatchId={recommendation.recommendedByEvent.get("mixed_doubles")?.id ?? null}
           inPlayCount={recommendation.inPlayMatchesByEvent.get("mixed_doubles") ?? 0}
           isSaving={savingEvent === "mixed_doubles"}
+          togglingMatchId={togglingMatchId}
           onSaveEvent={onSaveEvent}
           onTogglePlaying={onTogglePlaying}
         />
@@ -522,6 +563,7 @@ function EventMatchResults({
   recommendedMatchId,
   inPlayCount,
   isSaving,
+  togglingMatchId,
   onSaveEvent,
   onTogglePlaying,
 }: {
@@ -531,6 +573,7 @@ function EventMatchResults({
   recommendedMatchId: string | null;
   inPlayCount: number;
   isSaving: boolean;
+  togglingMatchId: string | null;
   onSaveEvent: (event: EventType, form: HTMLFormElement) => Promise<void>;
   onTogglePlaying: (match: MatchRow) => Promise<void>;
 }) {
@@ -596,6 +639,7 @@ function EventMatchResults({
                       const isSaved = match.pair_a_score !== null && match.pair_b_score !== null;
                       const isActiveInPlay = match.is_playing && !isSaved;
                       const isRecommended = recommendedMatchId === match.id;
+                      const isToggling = togglingMatchId === match.id;
                       const rowId = `pool-${event}-${poolNumber}-match-${match.match_order}`;
                       return (
                         <div
@@ -629,7 +673,7 @@ function EventMatchResults({
                               ) : null}
                               <button
                                 type="button"
-                                disabled={isSaved || isSaving}
+                                disabled={isSaved || isSaving || isToggling}
                                 onClick={() => onTogglePlaying(match)}
                                 className={`rounded-lg border px-2 py-0.5 text-xs font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
                                   isActiveInPlay
@@ -637,7 +681,7 @@ function EventMatchResults({
                                     : "border-[#e3c299] bg-white text-[#8a5a20]"
                                 }`}
                               >
-                                {isSaved ? "Scored" : isActiveInPlay ? "Stop" : "Playing"}
+                                {isSaved ? "Scored" : isToggling ? "Updating..." : isActiveInPlay ? "Stop" : "Playing"}
                               </button>
                             </div>
                           </div>

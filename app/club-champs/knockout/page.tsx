@@ -200,7 +200,7 @@ function EventBracket({
         <div className="text-sm">
           {finalWinnerId ? (
             <span className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-              Winner: {pairNames(pairById.get(finalWinnerId))}
+              ✓ Winner: {pairNames(pairById.get(finalWinnerId))}
             </span>
           ) : (
             <span className="text-[var(--muted)]">Winner not decided yet</span>
@@ -248,6 +248,10 @@ function EventBracket({
                     const starts = computeHandicapStarts(pairA, pairB);
                     const gameText = gameSummary(match);
                     const winnerId = match.winner_pair_id;
+                    const pairAIsWinner = Boolean(winnerId && winnerId === match.pair_a_id);
+                    const pairBIsWinner = Boolean(winnerId && winnerId === match.pair_b_id);
+                    const pairAIsLoser = Boolean(winnerId && match.pair_a_id && winnerId !== match.pair_a_id);
+                    const pairBIsLoser = Boolean(winnerId && match.pair_b_id && winnerId !== match.pair_b_id);
 
                     return (
                       <article
@@ -268,21 +272,55 @@ function EventBracket({
                           Match {match.match_order}
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <div className={winnerId === match.pair_a_id ? "font-semibold text-emerald-700" : ""}>
-                            {pairALabel}
+                          <div
+                            className={`flex items-center gap-1.5 ${
+                              pairAIsWinner
+                                ? "font-semibold text-emerald-700"
+                                : pairAIsLoser
+                                ? "text-[var(--muted)] opacity-60"
+                                : ""
+                            }`}
+                          >
+                            <span>{pairALabel}</span>
+                            {pairAIsWinner ? (
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300 bg-emerald-100 text-[11px] leading-none text-emerald-700">
+                                ✓
+                              </span>
+                            ) : null}
                           </div>
                           {pairA && starts && (
-                            <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)]">
+                            <span
+                              className={`rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)] ${
+                                pairAIsLoser ? "opacity-50" : ""
+                              }`}
+                            >
                               {startLabel(starts.pairAStart)}
                             </span>
                           )}
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <div className={winnerId === match.pair_b_id ? "font-semibold text-emerald-700" : ""}>
-                            {pairBLabel}
+                          <div
+                            className={`flex items-center gap-1.5 ${
+                              pairBIsWinner
+                                ? "font-semibold text-emerald-700"
+                                : pairBIsLoser
+                                ? "text-[var(--muted)] opacity-60"
+                                : ""
+                            }`}
+                          >
+                            <span>{pairBLabel}</span>
+                            {pairBIsWinner ? (
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300 bg-emerald-100 text-[11px] leading-none text-emerald-700">
+                                ✓
+                              </span>
+                            ) : null}
                           </div>
                           {pairB && starts && (
-                            <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)]">
+                            <span
+                              className={`rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)] ${
+                                pairBIsLoser ? "opacity-50" : ""
+                              }`}
+                            >
                               {startLabel(starts.pairBStart)}
                             </span>
                           )}
