@@ -217,6 +217,8 @@ export default function PoolsResultsClient({
   const [savingEvent, setSavingEvent] = useState<EventType | null>(null);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
+  const [liveStatus, setLiveStatus] = useState<"connecting" | "live" | "offline">("connecting");
+  const [lastSyncLabel, setLastSyncLabel] = useState<string>("");
 
   const pairById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
   const recommendation = useMemo(() => computeRecommendedMatches(matches, pairById), [matches, pairById]);
@@ -226,6 +228,24 @@ export default function PoolsResultsClient({
   useEffect(() => {
     let cancelled = false;
 
+    const stampSync = () => {
+      const now = new Date();
+      setLastSyncLabel(
+        now.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })
+      );
+    };
+
+    const sortMatches = (rowsToSort: MatchRow[]) =>
+      [...rowsToSort].sort((a, b) => {
+        if (a.event !== b.event) return a.event.localeCompare(b.event);
+        if (a.pool_number !== b.pool_number) return a.pool_number - b.pool_number;
+        return a.match_order - b.match_order;
+      });
+
     const refreshMatches = async () => {
       const { data, error } = await supabase
         .from("club_champs_pool_matches")
@@ -234,8 +254,13 @@ export default function PoolsResultsClient({
         .order("pool_number", { ascending: true })
         .order("match_order", { ascending: true });
 
-      if (cancelled || error || !data) return;
-      setMatches(data as MatchRow[]);
+      if (cancelled) return;
+      if (error || !data) {
+        setLiveStatus("offline");
+        return;
+      }
+      setMatches(sortMatches(data as MatchRow[]));
+      stampSync();
     };
 
     const channel = supabase
@@ -243,14 +268,60 @@ export default function PoolsResultsClient({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "club_champs_pool_matches" },
-        () => {
+        (payload) => {
+          if (cancelled) return;
+
+          const nextRow = (payload.new ?? null) as MatchRow | null;
+          const oldRow = (payload.old ?? null) as MatchRow | null;
+          const eventType = payload.eventType;
+
+          if ((eventType === "INSERT" || eventType === "UPDATE") && nextRow?.id) {
+            setMatches((prev) => {
+              const idx = prev.findIndex((row) => row.id === nextRow.id);
+              if (idx === -1) return sortMatches([...prev, nextRow]);
+              const copy = [...prev];
+              copy[idx] = nextRow;
+              return sortMatches(copy);
+            });
+            stampSync();
+            return;
+          }
+
+          if (eventType === "DELETE" && oldRow?.id) {
+            setMatches((prev) => sortMatches(prev.filter((row) => row.id !== oldRow.id)));
+            stampSync();
+            return;
+          }
+
           void refreshMatches();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setLiveStatus("live");
+          return;
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          setLiveStatus("offline");
+        }
+      });
+
+    const poll = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void refreshMatches();
+    }, 12000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void refreshMatches();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    void refreshMatches();
 
     return () => {
       cancelled = true;
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisibility);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -389,6 +460,21 @@ export default function PoolsResultsClient({
         {recommendation.inPlayTotal > 0
           ? ` (${recommendation.inPlayTotal} matches currently in play)`
           : ""}
+      </p>
+      <p className="text-xs text-[var(--muted)]">
+        Live sync:{" "}
+        <span
+          className={
+            liveStatus === "live"
+              ? "font-semibold text-emerald-700"
+              : liveStatus === "connecting"
+              ? "font-semibold text-amber-700"
+              : "font-semibold text-red-700"
+          }
+        >
+          {liveStatus === "live" ? "connected" : liveStatus === "connecting" ? "connecting" : "offline"}
+        </span>
+        {lastSyncLabel ? ` - last update ${lastSyncLabel}` : ""}
       </p>
 
       <CollapsibleSection
