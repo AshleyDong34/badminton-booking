@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EUBC Badminton Signup
 
-## Getting Started
+Next.js app for EUBC badminton session booking, waitlists, admin operations, and Club Champs tournament management.
 
-First, run the development server:
+## What the website does right now
+
+### Public site
+
+- `/`: Shows upcoming sessions grouped by day, booking counts, waitlist counts, refresh button, and bulletin popups (Club rules + Useful info).
+- `/sessions/[id]`: Booking form with live availability, membership/taster checks, waitlist fallback, and confirmation email trigger.
+- `/cancel?token=...`: Cancels a booking from email link and auto-promotes next waitlisted player when applicable.
+- `/club-champs`, `/club-champs/pairings`, `/club-champs/pools`, `/club-champs/knockout`: Public tournament views (only visible when enabled in settings).
+
+### Admin site
+
+- `/signin`: Magic-link admin login (restricted to pending/current admin emails).
+- `/admin`: Dashboard with session capacity and waitlist overview.
+- `/admin/sessions`: Create/manage sessions, split upcoming/past sessions, export attendance for selected past sessions.
+- `/admin/sessions/[id]`: Move people between signed up/waitlist, remove signups.
+- `/admin/sessions/[id]/attendance`: Mark attendance per player.
+- `/admin/settings`: Weekly quota, same-day multi-booking, booking window, public visibility toggles, bulletin content.
+- `/admin/whitelist`: Upload membership list via CSV/XLSX (email/student id).
+- `/admin/first-time`: Manage first-time (taster) records.
+- `/admin/admins`: Invite/remove admins.
+- `/admin/club-champs/*`: 6-step tournament workflow (pair entries, seeding, pools, knockout setup, knockout matches, export/finalize/reset).
+
+## Stack
+
+- Next.js 16 (App Router), React 19, TypeScript
+- Supabase (Auth + Postgres)
+- Tailwind CSS 4
+- Resend API (transactional emails)
+- ExcelJS (exports/import parsing)
+
+## Environment variables
+
+Create `.env.local` with:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+
+RESEND_API_KEY=...
+RESEND_FROM=...
+
+# Optional but recommended for correct redirect/cancel links
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+# or
+SITE_URL=https://eubcbadminton.co.uk
+```
+
+## Supabase prerequisites
+
+This app expects these tables:
+
+- `settings`
+- `sessions`
+- `signups`
+- `student_whitelist`
+- `first_time_signups`
+- `admins`
+- `pending_admin_emails`
+- `club_champs_pairs`
+- `club_champs_pool_matches`
+- `club_champs_knockout_matches`
+
+And these RPC functions:
+
+- `insert_signup_guarded`
+- `cancel_signup_by_token`
+
+Important: schema/migrations are not included in this repo, so your Supabase project must already have these objects.
+
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Scripts
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm run start
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Notes
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Admin routes are protected by middleware + server-side admin checks.
+- Club Champs public pages are hidden unless `club_champs_public_enabled` is true.
+- Session booking visibility can be disabled globally via settings.
