@@ -89,7 +89,11 @@ export async function getClubChampsStepReadiness(): Promise<ReadinessMap> {
       return poolCountByEvent[event] > 0;
     });
 
-  const knockoutMatchesReady =
+  // Step 5 is where admins generate/reset knockout rows, so it should unlock
+  // as soon as setup (Step 4) is available.
+  const knockoutMatchesReady = knockoutSetupReady;
+
+  const finalizeReady =
     knockoutSetupReady &&
     EVENTS.every((event) => {
       const total = pairCountByEvent[event];
@@ -103,6 +107,6 @@ export async function getClubChampsStepReadiness(): Promise<ReadinessMap> {
     pools: poolsReady,
     knockoutSetup: knockoutSetupReady,
     knockoutMatches: knockoutMatchesReady,
-    finalize: knockoutMatchesReady,
+    finalize: finalizeReady,
   };
 }
