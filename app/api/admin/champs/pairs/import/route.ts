@@ -103,17 +103,25 @@ function parseCsv(text: string): string[][] {
 
 function parseLevel(raw: string) {
   const value = raw.trim().toLowerCase();
+  const compact = value.replace(/\s+/g, " ");
   if (!value) return NaN;
 
-  if (value === "rec" || value === "recreational") return 7;
+  if (
+    compact === "rec" ||
+    compact === "recreational" ||
+    compact === "rec player" ||
+    compact === "recreational player"
+  ) {
+    return 7;
+  }
 
-  const teamMatch = value.match(/^team\s*([1-7])$/);
+  const teamMatch = compact.match(/^team\s*([1-7])(?:\.0+)?$/);
   if (teamMatch) return Number(teamMatch[1]);
 
-  const tMatch = value.match(/^t([1-7])$/);
+  const tMatch = compact.match(/^t([1-7])(?:\.0+)?$/);
   if (tMatch) return Number(tMatch[1]);
 
-  if (/^[1-7]$/.test(value)) return Number(value);
+  if (/^[1-7](?:\.0+)?$/.test(compact)) return Number(compact);
 
   return NaN;
 }
@@ -196,7 +204,7 @@ function parseMixedCsv(args: {
     if (!LEVELS.has(p1Level) || !LEVELS.has(p2Level)) {
       return {
         inserts: [] as PairInsert[],
-        error: `Mixed CSV row ${rowNum}: invalid level (expected Team 1-6 or Rec).`,
+        error: `Mixed CSV row ${rowNum}: invalid level (expected Team 1-7 or Rec).`,
       };
     }
     if (p1Name.toLowerCase() === p2Name.toLowerCase()) {
@@ -257,7 +265,7 @@ function parseLevelCsv(args: {
     if (!LEVELS.has(p1Level) || !LEVELS.has(p2Level)) {
       return {
         inserts: [] as PairInsert[],
-        error: `Level CSV row ${rowNum}: invalid level (expected Team 1-6 or Rec).`,
+        error: `Level CSV row ${rowNum}: invalid level (expected Team 1-7 or Rec).`,
       };
     }
     if (!g1 || !g2) {
