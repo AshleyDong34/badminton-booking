@@ -4,6 +4,9 @@ import { requireAdmin } from "@/lib/adminGuard";
 import { getBaseUrl } from "@/lib/base-url";
 
 export async function POST(req: NextRequest) {
+  const redirectTo = (path: string) =>
+    NextResponse.redirect(new URL(path, getBaseUrl(req)), 303);
+
   const guard = await requireAdmin();
   if (!guard.ok) {
     const status = guard.reason === "not_logged_in" ? 401 : 403;
@@ -16,21 +19,41 @@ export async function POST(req: NextRequest) {
   const redirect = String(form.get("redirect") ?? "/admin/club-champs");
 
   if (!id) {
-    return NextResponse.redirect(
-      new URL(`/admin/club-champs?error=Missing+id`, getBaseUrl(req))
-    );
+    return redirectTo(`/admin/club-champs?error=Missing+id`);
   }
 
   const db = supabaseServer();
+  const { data: pair, error: pairLookupError } = await db
+    .from("club_champs_pairs")
+    .select("event")
+    .eq("id", id)
+    .single();
+  if (pairLookupError || !pair?.event) {
+    return redirectTo(`/admin/club-champs?error=${encodeURIComponent(pairLookupError?.message ?? "Pair not found")}`);
+  }
+
   const { error } = await db.from("club_champs_pairs").delete().eq("id", id);
 
   if (error) {
-    return NextResponse.redirect(
-      new URL(`/admin/club-champs?error=${encodeURIComponent(error.message)}`, getBaseUrl(req))
-    );
+    return redirectTo(`/admin/club-champs?error=${encodeURIComponent(error.message)}`);
   }
 
-  return NextResponse.redirect(
-    new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}removed=1`, getBaseUrl(req))
-  );
+  const event = String(pair.event);
+  const { error: resetPoolsError } = await db
+    .from("club_champs_pool_matches")
+    .delete()
+    .eq("event", event);
+  if (resetPoolsError) {
+    return redirectTo(`/admin/club-champs?error=${encodeURIComponent(resetPoolsError.message)}`);
+  }
+
+  const { error: resetKnockoutError } = await db
+    .from("club_champs_knockout_matches")
+    .delete()
+    .eq("event", event);
+  if (resetKnockoutError) {
+    return redirectTo(`/admin/club-champs?error=${encodeURIComponent(resetKnockoutError.message)}`);
+  }
+
+  return redirectTo(`${redirect}${redirect.includes("?") ? "&" : "?"}removed=1`);
 }

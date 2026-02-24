@@ -21,6 +21,9 @@ function calculatePairStrength(args: {
 }
 
 export async function POST(req: NextRequest) {
+  const redirectTo = (path: string) =>
+    NextResponse.redirect(new URL(path, getBaseUrl(req)), 303);
+
   const guard = await requireAdmin();
   if (!guard.ok) {
     const status = guard.reason === "not_logged_in" ? 401 : 403;
@@ -45,33 +48,23 @@ export async function POST(req: NextRequest) {
     !Number.isFinite(playerOneLevel) ||
     !Number.isFinite(playerTwoLevel)
   ) {
-    return NextResponse.redirect(
-      new URL(`/admin/club-champs?error=Missing+required+fields`, getBaseUrl(req))
-    );
+    return redirectTo(`/admin/club-champs?error=Missing+required+fields`);
   }
 
   if (!EVENTS.has(event)) {
-    return NextResponse.redirect(
-      new URL(`/admin/club-champs?error=Invalid+event+type`, getBaseUrl(req))
-    );
+    return redirectTo(`/admin/club-champs?error=Invalid+event+type`);
   }
 
   if (!LEVELS.has(playerOneLevel) || !LEVELS.has(playerTwoLevel)) {
-    return NextResponse.redirect(
-      new URL(`/admin/club-champs?error=Invalid+player+level`, getBaseUrl(req))
-    );
+    return redirectTo(`/admin/club-champs?error=Invalid+player+level`);
   }
 
   if (event === "level_doubles" && !LEVEL_DOUBLES_TYPES.has(levelDoublesTypeRaw)) {
-    return NextResponse.redirect(
-      new URL(`/admin/club-champs?error=Choose+mens+or+womens+doubles`, getBaseUrl(req))
-    );
+    return redirectTo(`/admin/club-champs?error=Choose+mens+or+womens+doubles`);
   }
 
   if (playerOneName.toLowerCase() === playerTwoName.toLowerCase()) {
-    return NextResponse.redirect(
-      new URL(`/admin/club-champs?error=Players+must+be+different`, getBaseUrl(req))
-    );
+    return redirectTo(`/admin/club-champs?error=Players+must+be+different`);
   }
 
   const pairStrength = calculatePairStrength({
@@ -93,12 +86,24 @@ export async function POST(req: NextRequest) {
   });
 
   if (error) {
-    return NextResponse.redirect(
-      new URL(`/admin/club-champs?error=${encodeURIComponent(error.message)}`, getBaseUrl(req))
-    );
+    return redirectTo(`/admin/club-champs?error=${encodeURIComponent(error.message)}`);
   }
 
-  return NextResponse.redirect(
-    new URL(`${redirect}${redirect.includes("?") ? "&" : "?"}ok=1`, getBaseUrl(req))
-  );
+  const { error: resetPoolsError } = await db
+    .from("club_champs_pool_matches")
+    .delete()
+    .eq("event", event);
+  if (resetPoolsError) {
+    return redirectTo(`/admin/club-champs?error=${encodeURIComponent(resetPoolsError.message)}`);
+  }
+
+  const { error: resetKnockoutError } = await db
+    .from("club_champs_knockout_matches")
+    .delete()
+    .eq("event", event);
+  if (resetKnockoutError) {
+    return redirectTo(`/admin/club-champs?error=${encodeURIComponent(resetKnockoutError.message)}`);
+  }
+
+  return redirectTo(`${redirect}${redirect.includes("?") ? "&" : "?"}ok=1`);
 }
