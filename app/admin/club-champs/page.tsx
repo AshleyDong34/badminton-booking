@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import PairForm from "./PairForm";
+import PairImportForm from "./PairImportForm";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,6 +31,9 @@ type SearchParams = {
   ok?: string;
   removed?: string;
   visibility_saved?: string;
+  imported?: string;
+  imported_level?: string;
+  imported_mixed?: string;
   error?: string;
 };
 
@@ -67,12 +71,16 @@ export default async function ClubChampsPage({
         </p>
       </div>
 
-      {(params.ok || params.removed || params.visibility_saved) && (
+      {(params.ok || params.removed || params.visibility_saved || params.imported) && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--ink)]">
           {params.removed
             ? "Pair removed."
             : params.visibility_saved
             ? "Club champs public visibility updated."
+            : params.imported
+            ? `CSV import complete: ${Number(params.imported_level ?? 0)} level pairs, ${Number(
+                params.imported_mixed ?? 0
+              )} mixed pairs.`
             : "Pair saved."}
         </p>
       )}
@@ -106,8 +114,16 @@ export default async function ClubChampsPage({
       </div>
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-sm">
+        <div className="mb-3 space-y-1">
+          <h2 className="text-lg font-semibold">Manual pair entry</h2>
+          <p className="text-sm text-[var(--muted)]">
+            Add one pairing at a time.
+          </p>
+        </div>
         <PairForm />
       </div>
+
+      <PairImportForm />
 
       {error && (
         <p className="text-sm text-red-600">Failed to load entries: {error.message}</p>
