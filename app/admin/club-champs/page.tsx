@@ -53,7 +53,7 @@ export default async function ClubChampsPage({
     .order("created_at", { ascending: false });
   const { data: settingsData } = await db
     .from("settings")
-    .select("club_champs_public_enabled")
+    .select("club_champs_public_enabled,club_champs_pairs_only_public")
     .eq("id", 1)
     .single();
 
@@ -61,6 +61,7 @@ export default async function ClubChampsPage({
   const mixedRows = rows.filter((row) => row.event === "mixed_doubles");
   const levelRows = rows.filter((row) => row.event === "level_doubles");
   const clubChampsPublicEnabled = Boolean(settingsData?.club_champs_public_enabled);
+  const clubChampsPairsOnlyPublic = Boolean(settingsData?.club_champs_pairs_only_public);
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -76,7 +77,7 @@ export default async function ClubChampsPage({
           {params.removed
             ? "Pair removed."
             : params.visibility_saved
-            ? "Club champs public visibility updated."
+            ? "Club champs public visibility settings updated."
             : params.imported
             ? `CSV import complete: ${Number(params.imported_level ?? 0)} level pairs, ${Number(
                 params.imported_mixed ?? 0
@@ -107,6 +108,25 @@ export default async function ClubChampsPage({
               </span>
             </span>
           </label>
+          {clubChampsPublicEnabled ? (
+            <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] bg-white p-3">
+              <input type="hidden" name="club_champs_pairs_only_public" value="off" />
+              <input
+                id="club_champs_pairs_only_public"
+                name="club_champs_pairs_only_public"
+                type="checkbox"
+                value="on"
+                defaultChecked={clubChampsPairsOnlyPublic}
+                className="mt-1 h-4 w-4"
+              />
+              <span className="text-sm">
+                <span className="block font-medium">Hide knockout and pools, only show pairings</span>
+                <span className="block text-xs text-[var(--muted)]">
+                  Hide pools and knockout pages for users while keeping pairings visible.
+                </span>
+              </span>
+            </label>
+          ) : null}
           <button className="rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm">
             Save visibility
           </button>
@@ -131,7 +151,10 @@ export default async function ClubChampsPage({
 
       <div className="space-y-6">
         <section className="space-y-2">
-          <h2 className="text-lg font-semibold">Level doubles</h2>
+          <h2 className="text-lg font-semibold">
+            Level doubles{" "}
+            <span className="text-sm font-medium text-[var(--muted)]">({levelRows.length} pairs)</span>
+          </h2>
           <p className="text-sm text-[var(--muted)]">
             Men&apos;s and women&apos;s level doubles entries.
           </p>
@@ -186,7 +209,10 @@ export default async function ClubChampsPage({
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-lg font-semibold">Mixed doubles</h2>
+          <h2 className="text-lg font-semibold">
+            Mixed doubles{" "}
+            <span className="text-sm font-medium text-[var(--muted)]">({mixedRows.length} pairs)</span>
+          </h2>
           <p className="text-sm text-[var(--muted)]">Mixed doubles entries.</p>
           <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-sm overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse text-sm">

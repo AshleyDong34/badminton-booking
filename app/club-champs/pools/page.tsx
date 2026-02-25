@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase-server";
+import Link from "next/link";
 import {
   computeHandicapStarts,
   EVENT_LABEL,
@@ -14,6 +15,10 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const events: EventType[] = ["level_doubles", "mixed_doubles"];
+
+type PublicPoolMatchRow = PoolMatchRow & {
+  is_playing: boolean;
+};
 
 function poolName(index: number) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -36,14 +41,137 @@ function startLabel(value: number | undefined) {
   return `start ${value}`;
 }
 
+function normalizeName(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function pairPlayers(pair: PairRow | undefined) {
+  if (!pair) return [];
+  return [normalizeName(pair.player_one_name), normalizeName(pair.player_two_name)].filter(Boolean);
+}
+
+function computeRecommendedMatches(matches: PublicPoolMatchRow[], pairById: Map<string, PairRow>) {
+  const remainingByPair = new Map<string, number>();
+  const playedByPair = new Map<string, number>();
+  const playedByPlayer = new Map<string, number>();
+  const pendingByPlayer = new Map<string, number>();
+
+  const addPlayed = (pairId: string) => {
+    playedByPair.set(pairId, (playedByPair.get(pairId) ?? 0) + 1);
+    for (const player of pairPlayers(pairById.get(pairId))) {
+      playedByPlayer.set(player, (playedByPlayer.get(player) ?? 0) + 1);
+    }
+  };
+
+  for (const match of matches) {
+    const scored = match.pair_a_score != null && match.pair_b_score != null;
+    if (scored) {
+      addPlayed(match.pair_a_id);
+      addPlayed(match.pair_b_id);
+      continue;
+    }
+
+    remainingByPair.set(match.pair_a_id, (remainingByPair.get(match.pair_a_id) ?? 0) + 1);
+    remainingByPair.set(match.pair_b_id, (remainingByPair.get(match.pair_b_id) ?? 0) + 1);
+    for (const player of pairPlayers(pairById.get(match.pair_a_id))) {
+      pendingByPlayer.set(player, (pendingByPlayer.get(player) ?? 0) + 1);
+    }
+    for (const player of pairPlayers(pairById.get(match.pair_b_id))) {
+      pendingByPlayer.set(player, (pendingByPlayer.get(player) ?? 0) + 1);
+    }
+  }
+
+  const busyPlayers = new Set<string>();
+  for (const match of matches) {
+    if (!match.is_playing) continue;
+    for (const key of pairPlayers(pairById.get(match.pair_a_id))) busyPlayers.add(key);
+    for (const key of pairPlayers(pairById.get(match.pair_b_id))) busyPlayers.add(key);
+  }
+
+  const recommendedByEvent = new Map<EventType, PublicPoolMatchRow>();
+  const inPlayMatchesByEvent = new Map<EventType, number>();
+  const maxPlayedByPlayer = Math.max(0, ...playedByPlayer.values());
+
+  for (const event of events) {
+    const count = matches.filter((match) => match.event === event && match.is_playing).length;
+    inPlayMatchesByEvent.set(event, count);
+  }
+
+  for (const event of events) {
+    const eventPairIds = new Set(
+      matches
+        .filter((match) => match.event === event)
+        .flatMap((match) => [match.pair_a_id, match.pair_b_id])
+    );
+    const maxPlayedInEvent = Math.max(
+      0,
+      ...Array.from(eventPairIds).map((pairId) => playedByPair.get(pairId) ?? 0)
+    );
+
+    const candidates = matches
+      .filter((match) => match.event === event)
+      .filter((match) => !match.is_playing)
+      .filter((match) => match.pair_a_score == null || match.pair_b_score == null)
+      .filter((match) => {
+        const keys = [
+          ...pairPlayers(pairById.get(match.pair_a_id)),
+          ...pairPlayers(pairById.get(match.pair_b_id)),
+        ];
+        return keys.every((key) => !busyPlayers.has(key));
+      });
+
+    const candidateScore = (match: PublicPoolMatchRow) => {
+      const pairAPlayed = playedByPair.get(match.pair_a_id) ?? 0;
+      const pairBPlayed = playedByPair.get(match.pair_b_id) ?? 0;
+      const pairWaitDebt = (maxPlayedInEvent - pairAPlayed) + (maxPlayedInEvent - pairBPlayed);
+      const players = [
+        ...pairPlayers(pairById.get(match.pair_a_id)),
+        ...pairPlayers(pairById.get(match.pair_b_id)),
+      ];
+      const playerWaitDebt = players.reduce(
+        (sum, key) => sum + (maxPlayedByPlayer - (playedByPlayer.get(key) ?? 0)),
+        0
+      );
+      const playerBacklog = players.reduce((sum, key) => sum + (pendingByPlayer.get(key) ?? 0), 0);
+      const pairBalanceGap = Math.abs(pairAPlayed - pairBPlayed);
+      const remainingWork =
+        (remainingByPair.get(match.pair_a_id) ?? 0) + (remainingByPair.get(match.pair_b_id) ?? 0);
+      return { pairWaitDebt, playerWaitDebt, playerBacklog, pairBalanceGap, remainingWork };
+    };
+
+    candidates.sort((a, b) => {
+      const aScore = candidateScore(a);
+      const bScore = candidateScore(b);
+      if (aScore.pairWaitDebt !== bScore.pairWaitDebt) return bScore.pairWaitDebt - aScore.pairWaitDebt;
+      if (aScore.playerWaitDebt !== bScore.playerWaitDebt) return bScore.playerWaitDebt - aScore.playerWaitDebt;
+      if (aScore.playerBacklog !== bScore.playerBacklog) return bScore.playerBacklog - aScore.playerBacklog;
+      if (aScore.pairBalanceGap !== bScore.pairBalanceGap) return aScore.pairBalanceGap - bScore.pairBalanceGap;
+      if (aScore.remainingWork !== bScore.remainingWork) return bScore.remainingWork - aScore.remainingWork;
+      if (a.pool_number !== b.pool_number) return a.pool_number - b.pool_number;
+      return a.match_order - b.match_order;
+    });
+
+    if (candidates[0]) recommendedByEvent.set(event, candidates[0]);
+  }
+
+  return {
+    recommendedByEvent,
+    inPlayMatchesByEvent,
+  };
+}
+
 function PoolResultsSection({
   event,
   pairs,
   matches,
+  recommendedMatchId,
+  inPlayCount,
 }: {
   event: EventType;
   pairs: PairRow[];
-  matches: PoolMatchRow[];
+  matches: PublicPoolMatchRow[];
+  recommendedMatchId: string | null;
+  inPlayCount: number;
 }) {
   const eventMatches = matches.filter((match) => match.event === event);
   const scoredMatches = eventMatches.filter(
@@ -77,6 +205,9 @@ function PoolResultsSection({
           {scoredMatches === 0
             ? "Fixtures published. No results submitted yet."
             : `${scoredMatches}/${eventMatches.length} matches scored.`}
+        </p>
+        <p className="text-sm text-[var(--muted)]">
+          {inPlayCount > 0 ? `${inPlayCount} matches currently in play.` : "No matches currently in play."}
         </p>
       </div>
 
@@ -135,17 +266,38 @@ function PoolResultsSection({
                   Match results
                 </p>
                 {poolMatches.map((match) => (
-                  <div key={match.id} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm">
+                  <div
+                    key={match.id}
+                    className={`rounded-lg border px-3 py-2 text-sm ${
+                      match.pair_a_score != null && match.pair_b_score != null
+                        ? "border-emerald-300 bg-emerald-50/60"
+                        : match.is_playing
+                        ? "border-[#f59e0b] bg-[#fff4e7]"
+                        : recommendedMatchId === match.id
+                        ? "border-[#e7d35b] bg-[#fffbe8]"
+                        : "border-[var(--line)] bg-white"
+                    }`}
+                  >
                     <div className="mb-2 flex items-center justify-between gap-2 text-xs text-[var(--muted)]">
                       <span>Match {match.match_order}</span>
                       <span
                         className={`rounded-full px-2 py-0.5 font-semibold ${
                           match.pair_a_score != null && match.pair_b_score != null
                             ? "bg-emerald-100 text-emerald-700"
+                            : match.is_playing
+                            ? "bg-[#fde4bf] text-[#8a5a20]"
+                            : recommendedMatchId === match.id
+                            ? "bg-[#fff7d1] text-[#7a6715]"
                             : "bg-amber-100 text-amber-700"
                         }`}
                       >
-                        {scoreLabel(match)}
+                        {match.pair_a_score != null && match.pair_b_score != null
+                          ? scoreLabel(match)
+                          : match.is_playing
+                          ? "In play"
+                          : recommendedMatchId === match.id
+                          ? "Recommended next"
+                          : "Pending"}
                       </span>
                     </div>
                     {(() => {
@@ -188,7 +340,7 @@ function PoolResultsSection({
 
 export default async function PublicClubChampsPoolsPage() {
   const db = supabaseServer();
-  const [{ data: pairData }, { data: matchData }] = await Promise.all([
+  const [{ data: pairData }, { data: matchData }, { data: settingsData }] = await Promise.all([
     db
       .from("club_champs_pairs")
       .select(
@@ -196,11 +348,36 @@ export default async function PublicClubChampsPoolsPage() {
       ),
     db
       .from("club_champs_pool_matches")
-      .select("id,event,pool_number,match_order,pair_a_id,pair_b_id,pair_a_score,pair_b_score"),
+      .select("id,event,pool_number,match_order,pair_a_id,pair_b_id,pair_a_score,pair_b_score,is_playing"),
+    db
+      .from("settings")
+      .select("club_champs_pairs_only_public")
+      .eq("id", 1)
+      .single(),
   ]);
 
+  const pairsOnlyPublic = Boolean(settingsData?.club_champs_pairs_only_public);
+  if (pairsOnlyPublic) {
+    return (
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+        <h1 className="text-xl font-semibold text-[var(--cool)]">Pool results</h1>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          Pool updates are temporarily hidden while the committee prepares updates.
+        </p>
+        <Link
+          href="/club-champs/pairings"
+          className="mt-4 inline-block rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-2 text-sm font-medium text-[var(--cool)]"
+        >
+          View pairings
+        </Link>
+      </section>
+    );
+  }
+
   const pairs = (pairData ?? []) as PairRow[];
-  const matches = (matchData ?? []) as PoolMatchRow[];
+  const matches = (matchData ?? []) as PublicPoolMatchRow[];
+  const pairById = new Map(pairs.map((pair) => [pair.id, pair]));
+  const recommendation = computeRecommendedMatches(matches, pairById);
 
   return (
     <div className="space-y-5">
@@ -222,6 +399,8 @@ export default async function PublicClubChampsPoolsPage() {
             event={event}
             pairs={pairs}
             matches={matches}
+            recommendedMatchId={recommendation.recommendedByEvent.get(event)?.id ?? null}
+            inPlayCount={recommendation.inPlayMatchesByEvent.get(event) ?? 0}
           />
         ))}
       </div>

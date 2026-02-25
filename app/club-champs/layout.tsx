@@ -31,15 +31,18 @@ const themeVars: CSSProperties = {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-async function isPublicEnabled() {
+async function getPublicSettings() {
   const db = supabaseServer();
   const { data } = await db
     .from("settings")
-    .select("club_champs_public_enabled")
+    .select("club_champs_public_enabled,club_champs_pairs_only_public")
     .eq("id", 1)
     .single();
 
-  return Boolean(data?.club_champs_public_enabled);
+  return {
+    clubChampsPublicEnabled: Boolean(data?.club_champs_public_enabled),
+    clubChampsPairsOnlyPublic: Boolean(data?.club_champs_pairs_only_public),
+  };
 }
 
 export default async function ClubChampsPublicLayout({
@@ -47,7 +50,9 @@ export default async function ClubChampsPublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const enabled = await isPublicEnabled();
+  const settings = await getPublicSettings();
+  const enabled = settings.clubChampsPublicEnabled;
+  const pairsOnlyPublic = settings.clubChampsPairsOnlyPublic;
 
   if (!enabled) {
     return (
@@ -106,15 +111,33 @@ export default async function ClubChampsPublicLayout({
         </header>
 
         <nav className="mb-6 flex flex-wrap gap-2">
-          {sectionItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-xl border border-[var(--cool)]/20 bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:translate-y-[-1px] hover:bg-[var(--chip)]"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {sectionItems.map((item) => {
+            const disabled =
+              pairsOnlyPublic &&
+              (item.href === "/club-champs/pools" || item.href === "/club-champs/knockout");
+
+            if (disabled) {
+              return (
+                <span
+                  key={item.href}
+                  aria-disabled="true"
+                  className="cursor-not-allowed rounded-xl border border-[var(--cool)]/20 bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm opacity-60 saturate-50"
+                >
+                  {item.label}
+                </span>
+              );
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-xl border border-[var(--cool)]/20 bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:translate-y-[-1px] hover:bg-[var(--chip)]"
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {children}

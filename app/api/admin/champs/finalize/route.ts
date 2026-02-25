@@ -40,7 +40,10 @@ export async function POST(req: NextRequest) {
 
   const { error: settingsError } = await db
     .from("settings")
-    .update({ club_champs_public_enabled: false })
+    .update({
+      club_champs_public_enabled: false,
+      club_champs_pairs_only_public: false,
+    })
     .eq("id", 1);
   if (settingsError) return fail(settingsError.message);
 
@@ -48,4 +51,3 @@ export async function POST(req: NextRequest) {
     new URL(`${redirectPath}?done=1`, getBaseUrl(req))
   );
 }
-

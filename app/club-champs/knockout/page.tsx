@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase-server";
+import Link from "next/link";
 import {
   computeHandicapStarts,
   EVENT_LABEL,
@@ -350,7 +351,7 @@ function EventBracket({
 
 export default async function PublicClubChampsKnockoutPage() {
   const db = supabaseServer();
-  const [{ data: pairData }, { data: matchData }] = await Promise.all([
+  const [{ data: pairData }, { data: matchData }, { data: settingsData }] = await Promise.all([
     db
       .from("club_champs_pairs")
       .select(
@@ -364,7 +365,30 @@ export default async function PublicClubChampsKnockoutPage() {
       .order("event", { ascending: true })
       .order("stage", { ascending: true })
       .order("match_order", { ascending: true }),
+    db
+      .from("settings")
+      .select("club_champs_pairs_only_public")
+      .eq("id", 1)
+      .single(),
   ]);
+
+  const pairsOnlyPublic = Boolean(settingsData?.club_champs_pairs_only_public);
+  if (pairsOnlyPublic) {
+    return (
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+        <h1 className="text-xl font-semibold text-[var(--cool)]">Knockout bracket</h1>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          Knockout updates are temporarily hidden while the committee prepares updates.
+        </p>
+        <Link
+          href="/club-champs/pairings"
+          className="mt-4 inline-block rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-2 text-sm font-medium text-[var(--cool)]"
+        >
+          View pairings
+        </Link>
+      </section>
+    );
+  }
 
   const pairs = (pairData ?? []) as PairRow[];
   const matches = (matchData ?? []) as KnockoutMatchRow[];

@@ -325,7 +325,7 @@ export default function Home() {
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)] text-white">
               !
             </span>
-            Club rules
+            Club Champ Rules
           </button>
           <button
             type="button"
@@ -415,7 +415,7 @@ export default function Home() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold">
-                  {openBulletin === "rules" ? "Club rules" : "Useful information"}
+                  {openBulletin === "rules" ? "Club Champ rules" : "Useful information"}
                 </h3>
                 <p className="mt-1 text-sm text-[var(--muted)]">
                   Updated by the committee.
