@@ -270,7 +270,7 @@ function PoolResultsSection({
                     key={match.id}
                     className={`rounded-lg border px-3 py-2 text-sm ${
                       match.pair_a_score != null && match.pair_b_score != null
-                        ? "border-emerald-300 bg-emerald-50/60"
+                        ? "border-[var(--line)] bg-white"
                         : match.is_playing
                         ? "border-[#f59e0b] bg-[#fff4e7]"
                         : recommendedMatchId === match.id
@@ -296,7 +296,7 @@ function PoolResultsSection({
                           : match.is_playing
                           ? "In play"
                           : recommendedMatchId === match.id
-                          ? "Recommended next"
+                          ? "Likely next"
                           : "Pending"}
                       </span>
                     </div>

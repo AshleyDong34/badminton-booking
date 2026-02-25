@@ -2,11 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Space_Grotesk } from "next/font/google";
+import { Space_Grotesk, Sora } from "next/font/google";
 
 const space = Space_Grotesk({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+});
+
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["600", "700"],
 });
 
 type SessionRow = {
@@ -267,29 +272,34 @@ export default function Home() {
       style={
         {
           "--ink": "#0f1a12",
-          "--muted": "#5f6d60",
-          "--paper": "#f1f2ec",
+          "--muted": "#56626f",
+          "--paper": "#eef2f2",
           "--card": "#ffffff",
-          "--line": "#d7e0d6",
-          "--accent": "#c4473a",
-          "--ok": "#2f8a5b",
+          "--line": "#cedbd3",
+          "--accent": "#d4573e",
+          "--ok": "#1f8d5b",
           "--wait": "#e8a6ad",
-          "--cool": "#1d3b5a",
-          "--chip": "#eaf0ea",
+          "--cool": "#1f4f85",
+          "--chip": "#eaf1f4",
         } as React.CSSProperties
       }
     >
       <div className="relative mx-auto max-w-5xl px-5 pb-16 pt-10 sm:px-8">
-        <div className="pointer-events-none absolute -left-24 top-0 h-64 w-64 rounded-full bg-[#c6dcc7] opacity-45 blur-3xl -z-10" />
-        <div className="pointer-events-none absolute right-0 top-16 h-52 w-52 rounded-full bg-[#d8c9a9] opacity-55 blur-3xl -z-10" />
+        <div className="pointer-events-none absolute -left-24 top-0 h-64 w-64 rounded-full bg-[#a9cfb0] opacity-45 blur-3xl -z-10" />
+        <div className="pointer-events-none absolute right-0 top-16 h-56 w-56 rounded-full bg-[#b9d0eb] opacity-40 blur-3xl -z-10" />
+        <div className="pointer-events-none absolute right-28 top-0 h-40 w-40 rounded-full bg-[#f0c38f] opacity-35 blur-3xl -z-10" />
 
-        <header className="relative mb-8 flex flex-col gap-4">
+        <header className="relative mb-8 overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--card)]/90 p-5 shadow-sm sm:p-6">
+          <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-[#c8ddf3] opacity-45 blur-2xl" />
+          <div className="pointer-events-none absolute -left-10 bottom-0 h-28 w-28 rounded-full bg-[#c4dfc8] opacity-45 blur-2xl" />
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--muted)]">
+              <p className={`${sora.className} text-xs font-semibold uppercase tracking-[0.34em] text-[var(--cool)]`}>
                 EUBC Badminton Club
               </p>
-              <h1 className="text-2xl font-semibold sm:text-3xl">
+              <h1
+                className={`${sora.className} bg-gradient-to-r from-[#103656] via-[#164f84] to-[#1f7c5b] bg-clip-text text-3xl font-bold leading-tight text-transparent sm:text-4xl`}
+              >
                 Weekly Sessions
               </h1>
               <p className="max-w-2xl text-sm text-[var(--muted)] sm:text-base">
@@ -439,4 +449,3 @@ export default function Home() {
     </div>
   );
 }
-
