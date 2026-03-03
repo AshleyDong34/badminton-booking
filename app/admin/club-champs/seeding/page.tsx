@@ -12,6 +12,7 @@ type Row = {
   player_one_level: number | string;
   player_two_name: string;
   player_two_level: number | string;
+  pair_strength: number | null;
   seed_order: number | null;
   created_at: string | null;
 };
@@ -21,7 +22,7 @@ export default async function ClubChampsSeedingPage() {
   const { data, error } = await db
     .from("club_champs_pairs")
     .select(
-      "id,event,level_doubles_type,player_one_name,player_one_level,player_two_name,player_two_level,seed_order,created_at"
+      "id,event,level_doubles_type,player_one_name,player_one_level,player_two_name,player_two_level,pair_strength,seed_order,created_at"
     )
     .order("created_at", { ascending: false });
 

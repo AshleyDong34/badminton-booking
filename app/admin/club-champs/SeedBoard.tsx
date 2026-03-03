@@ -10,6 +10,7 @@ type SeedRow = {
   player_one_level: number | string;
   player_two_name: string;
   player_two_level: number | string;
+  pair_strength: number | null;
   seed_order: number | null;
 };
 
@@ -30,6 +31,18 @@ function seedBand(position: number) {
   while (upper < position) upper *= 2;
   const lower = upper / 2 + 1;
   return `${lower}/${upper}`;
+}
+
+function renderPairStrength(row: SeedRow) {
+  if (typeof row.pair_strength === "number") return row.pair_strength;
+
+  const p1 = typeof row.player_one_level === "number" ? row.player_one_level : Number(row.player_one_level);
+  const p2 = typeof row.player_two_level === "number" ? row.player_two_level : Number(row.player_two_level);
+  if (!Number.isFinite(p1) || !Number.isFinite(p2)) return "-";
+
+  const womensBonus =
+    row.event === "level_doubles" && row.level_doubles_type === "womens_doubles" ? 3 : 0;
+  return p1 + p2 + womensBonus;
 }
 
 function reorderRows(rows: SeedRow[], draggedId: string, targetId: string) {
@@ -149,6 +162,9 @@ function SeedList({
                   <span className="text-[var(--ok)]">{row.player_two_name}</span>
                   <span className="text-[var(--muted)]"> ({renderLevel(row.player_two_level)})</span>
                 </div>
+                <span className="rounded-full border border-[var(--line)] bg-[var(--chip)] px-2 py-0.5 text-xs font-semibold text-[var(--ink)]">
+                  Strength {renderPairStrength(row)}
+                </span>
               </div>
             </li>
           ))}
