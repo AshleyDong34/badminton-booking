@@ -218,6 +218,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const { error: settingsUpdateError } = await db
+    .from("settings")
+    .update({
+      club_champs_level_pool_target: levelPoolTarget,
+      club_champs_mixed_pool_target: mixedPoolTarget,
+    })
+    .eq("id", 1);
+
+  if (
+    settingsUpdateError &&
+    !settingsUpdateError.message.includes("club_champs_level_pool_target") &&
+    !settingsUpdateError.message.includes("club_champs_mixed_pool_target")
+  ) {
+    return NextResponse.redirect(
+      new URL(poolsPageWithError(settingsUpdateError.message), getBaseUrl(req))
+    );
+  }
+
   const lockedEvent = requestedEvent ?? "all";
   return NextResponse.redirect(
     new URL(`${poolsPage}&locked=1&locked_event=${lockedEvent}&knockout_reset=1`, getBaseUrl(req))

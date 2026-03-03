@@ -35,6 +35,11 @@ type MatchRow = {
   is_playing: boolean;
 };
 
+type SettingsRow = {
+  club_champs_level_pool_target: number | null;
+  club_champs_mixed_pool_target: number | null;
+};
+
 type SeededPair = Row & {
   seed: number;
 };
@@ -396,8 +401,29 @@ export default async function ClubChampsPoolsPage({
 }) {
   const db = supabaseServer();
   const params = (await searchParams) ?? {};
-  const levelPoolTarget = parsePoolTarget(params.level_pool_target, 3);
-  const mixedPoolTarget = parsePoolTarget(params.mixed_pool_target, 4);
+
+  const { data: settingsData } = await db
+    .from("settings")
+    .select("club_champs_level_pool_target,club_champs_mixed_pool_target")
+    .eq("id", 1)
+    .maybeSingle();
+
+  const settings = (settingsData ?? null) as SettingsRow | null;
+  const savedLevelPoolTarget = parsePoolTarget(
+    settings?.club_champs_level_pool_target != null
+      ? String(settings.club_champs_level_pool_target)
+      : undefined,
+    3
+  );
+  const savedMixedPoolTarget = parsePoolTarget(
+    settings?.club_champs_mixed_pool_target != null
+      ? String(settings.club_champs_mixed_pool_target)
+      : undefined,
+    4
+  );
+
+  const levelPoolTarget = parsePoolTarget(params.level_pool_target, savedLevelPoolTarget);
+  const mixedPoolTarget = parsePoolTarget(params.mixed_pool_target, savedMixedPoolTarget);
   const poolRedirectBase = `/admin/club-champs/pools?level_pool_target=${levelPoolTarget}&mixed_pool_target=${mixedPoolTarget}`;
 
   const { data, error } = await db
