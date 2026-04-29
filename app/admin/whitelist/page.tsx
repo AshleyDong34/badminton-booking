@@ -1,5 +1,8 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import WhitelistUploadForm from "./WhitelistUploadForm";
+import {
+  normalizeMembershipImportColumns,
+} from "@/lib/import-column-mappings";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,6 +29,14 @@ export default async function WhitelistPage({
     .select("email,student_id")
     .order("email", { ascending: true, nullsFirst: false })
     .limit(200);
+  const { data: settingsData } = await db
+    .from("settings")
+    .select("membership_import_columns")
+    .eq("id", 1)
+    .single();
+  const membershipColumns = normalizeMembershipImportColumns(
+    settingsData?.membership_import_columns
+  );
 
   const inserted = params.inserted ?? "";
   const rows = whitelist ?? [];
@@ -61,7 +72,10 @@ export default async function WhitelistPage({
       )}
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-sm">
-        <WhitelistUploadForm />
+        <WhitelistUploadForm
+          defaultEmailColumn={membershipColumns.email}
+          defaultStudentIdColumn={membershipColumns.studentId}
+        />
       </div>
 
       <div className="text-sm text-[var(--muted)]">

@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 
-export default function WhitelistUploadForm() {
+export default function WhitelistUploadForm({
+  defaultEmailColumn,
+  defaultStudentIdColumn,
+}: {
+  defaultEmailColumn: string;
+  defaultStudentIdColumn: string;
+}) {
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [fileName, setFileName] = useState("");
@@ -32,8 +38,9 @@ export default function WhitelistUploadForm() {
       }
 
       setMessage("Upload complete.");
-    } catch (err: any) {
-      setMessage(err?.message ?? "Upload failed.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Upload failed.";
+      setMessage(message);
     } finally {
       setSubmitting(false);
     }
@@ -63,11 +70,37 @@ export default function WhitelistUploadForm() {
         disabled={submitting}
         className="rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {submitting ? "Uploading..." : "Step 2: Upload membership list"}
+        {submitting ? "Uploading..." : "Step 2: Upload membership file"}
       </button>
+      <details className="rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
+        <summary className="cursor-pointer text-sm font-medium">
+          Column mapping (optional)
+        </summary>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          Set the exact column names from your file. Values are saved for next time.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-xs text-[var(--muted)]">Email column name</span>
+            <input
+              name="membership_col_email"
+              defaultValue={defaultEmailColumn}
+              className="mt-1 block w-full rounded-lg border border-[var(--line)] bg-white px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-[var(--muted)]">Student ID column name</span>
+            <input
+              name="membership_col_student_id"
+              defaultValue={defaultStudentIdColumn}
+              className="mt-1 block w-full rounded-lg border border-[var(--line)] bg-white px-2 py-1.5 text-sm"
+            />
+          </label>
+        </div>
+      </details>
       <p className="text-sm text-[var(--muted)]">
-        Upload replaces the existing membership list. Headers must include email and/or
-        student_id.
+        Upload replaces the existing membership list. You can map by exact header names,
+        or leave defaults and let auto-detection run.
       </p>
       {message && (
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm">

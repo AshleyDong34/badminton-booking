@@ -54,6 +54,26 @@ function autoSessionName(location: string, startLocal: Date, endLocal: Date) {
 }
 /* ------------------------------------------------------------ */
 
+const DURATION_OPTIONS = [
+  { value: 60, label: "1:00" },
+  { value: 75, label: "1:15" },
+  { value: 90, label: "1:30 (default)" },
+  { value: 105, label: "1:45" },
+  { value: 120, label: "2:00" },
+  { value: 135, label: "2:15" },
+  { value: 150, label: "2:30" },
+  { value: 165, label: "2:45" },
+  { value: 180, label: "3:00" },
+  { value: 210, label: "3:30" },
+  { value: 240, label: "4:00" },
+];
+
+function formatDurationLabel(totalMinutes: number) {
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return `${hours}:${String(mins).padStart(2, "0")}`;
+}
+
 type NewSessionFormProps = {
   defaultAllowNameOnly?: boolean;
 };
@@ -69,6 +89,8 @@ export default function NewSessionForm({
 
   // default duration = 90 mins
   const [durationMin, setDurationMin] = useState(90);
+  const [durationChoice, setDurationChoice] = useState<string>("90");
+  const [customDurationInput, setCustomDurationInput] = useState("150");
 
   // End follows start+duration unless manually edited
   const [endDate, setEndDate] = useState(todayStr());
@@ -148,18 +170,54 @@ export default function NewSessionForm({
         <label className="block text-sm">Duration</label>
         <select
           className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
-          value={durationMin}
+          value={durationChoice}
           onChange={(e) => {
-            setDurationMin(Number(e.target.value));
+            const selected = e.target.value;
+            setDurationChoice(selected);
+            if (selected !== "custom") {
+              setDurationMin(Number(selected));
+            } else {
+              const parsed = Number(customDurationInput);
+              if (Number.isFinite(parsed) && parsed >= 15) {
+                setDurationMin(Math.round(parsed));
+              }
+            }
             setEndManual(false);
           }}
         >
-          <option value={60}>1:00</option>
-          <option value={75}>1:15</option>
-          <option value={90}>1:30 (default)</option>
-          <option value={105}>1:45</option>
-          <option value={120}>2:00</option>
+          {DURATION_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+          <option value="custom">Custom (minutes)</option>
         </select>
+        {durationChoice === "custom" && (
+          <div className="mt-2">
+            <label className="block text-xs text-[var(--muted)]">
+              Custom duration in minutes
+            </label>
+            <input
+              type="number"
+              min={15}
+              step={5}
+              value={customDurationInput}
+              onChange={(e) => {
+                const next = e.target.value;
+                setCustomDurationInput(next);
+                const parsed = Number(next);
+                if (Number.isFinite(parsed) && parsed >= 15) {
+                  setDurationMin(Math.round(parsed));
+                  setEndManual(false);
+                }
+              }}
+              className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
+            />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Current duration: {formatDurationLabel(durationMin)} ({durationMin} mins)
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

@@ -335,7 +335,7 @@ export default function Home() {
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)] text-white">
               !
             </span>
-            Club Champ Rules
+            Club Rules
           </button>
           <button
             type="button"

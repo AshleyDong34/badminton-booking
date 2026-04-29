@@ -7,6 +7,11 @@ type SignupRow = {
   status: "signed_up" | "waiting_list";
 };
 
+function visibilityMessage(days: number) {
+  if (days === 1) return "Bookings open 1 day before the session starts.";
+  return `Bookings open ${days} days before the session starts.`;
+}
+
 export async function GET(
   req: NextRequest,
   ctx: { params: { id: string } | Promise<{ id: string }> }
@@ -46,9 +51,11 @@ export async function GET(
   const now = new Date();
   const windowDays = Number(settings?.booking_window_days ?? 7);
   const safeDays = Number.isFinite(windowDays) && windowDays >= 0 ? windowDays : 7;
-  const weekAhead = new Date(now.getTime() + safeDays * 24 * 60 * 60 * 1000);
   const start = new Date(startIso);
   const end = new Date(session.ends_at ?? startIso);
+  const visibilityOpensAt = new Date(
+    start.getTime() - safeDays * 24 * 60 * 60 * 1000
+  );
 
   if (end < now) {
     return NextResponse.json(
@@ -57,9 +64,9 @@ export async function GET(
     );
   }
 
-  if (start > weekAhead) {
+  if (now < visibilityOpensAt) {
     return NextResponse.json(
-      { error: "Bookings open one week before the session starts." },
+      { error: visibilityMessage(safeDays) },
       { status: 403 }
     );
   }

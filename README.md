@@ -96,3 +96,11 @@ npm run lint
 - Admin routes are protected by middleware + server-side admin checks.
 - Club Champs public pages are hidden unless `club_champs_public_enabled` is true.
 - Session booking visibility can be disabled globally via settings.
+
+## Documentation
+
+- Docs index: `docs/README.md`
+- Onboarding: `docs/onboarding.md`
+- Architecture: `docs/architecture/system-overview.md`
+- Business rules: `docs/feature-and-flow.md`
+- Deploy runbook: `docs/runbooks/deploy-and-rollback.md`

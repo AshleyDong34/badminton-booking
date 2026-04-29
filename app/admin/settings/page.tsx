@@ -80,7 +80,9 @@ export default async function SettingsPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Session visibility window (days)</label>
+          <label className="block text-sm font-medium">
+            Show sessions this many days before start
+          </label>
           <input
             name="booking_window_days"
             type="number"
@@ -91,7 +93,7 @@ export default async function SettingsPage() {
             defaultValue={s.booking_window_days ?? 7}
           />
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Users can see sessions up to this many days before the start time.
+            Example: 7 means sessions appear 7 days before they start.
           </p>
         </div>
 

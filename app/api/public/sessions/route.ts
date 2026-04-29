@@ -22,15 +22,15 @@ export async function GET() {
   }
   const windowDays = Number(settings?.booking_window_days ?? 7);
   const safeDays = Number.isFinite(windowDays) && windowDays >= 0 ? windowDays : 7;
-  const weekAhead = new Date(now.getTime() + safeDays * 24 * 60 * 60 * 1000);
+  const visibleUntil = new Date(now.getTime() + safeDays * 24 * 60 * 60 * 1000);
   const nowIso = now.toISOString();
-  const weekAheadIso = weekAhead.toISOString();
+  const visibleUntilIso = visibleUntil.toISOString();
 
   const { data: sessions, error: sessionsErr } = await db
     .from("sessions")
     .select("id,name,capacity,starts_at,ends_at,notes")
     .not("starts_at", "is", null)
-    .lte("starts_at", weekAheadIso)
+    .lte("starts_at", visibleUntilIso)
     .or(`ends_at.gte.${nowIso},and(ends_at.is.null,starts_at.gte.${nowIso})`)
     .order("starts_at", { ascending: true });
 

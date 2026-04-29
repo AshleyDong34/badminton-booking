@@ -1,4 +1,10 @@
-export default function PairImportForm() {
+import { ClubChampsPairImportColumns } from "@/lib/import-column-mappings";
+
+export default function PairImportForm({
+  defaults,
+}: {
+  defaults: ClubChampsPairImportColumns;
+}) {
   return (
     <section className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm">
       <div className="space-y-1">
@@ -11,7 +17,7 @@ export default function PairImportForm() {
           This import replaces pairings only for the uploaded event file(s) and resets pools/knockout for those events.
         </p>
         <p className="text-xs text-[var(--muted)]">
-          Framework mode: default column names are prefilled below and can be adjusted later.
+          Column names are prefilled from your last import and saved each time you import.
         </p>
       </div>
 
@@ -71,32 +77,32 @@ export default function PairImportForm() {
               <MappingInput
                 name="level_col_player_one_name"
                 label="Player 1 name"
-                defaultValue="player_one_name"
+                defaultValue={defaults.level.playerOneName}
               />
               <MappingInput
                 name="level_col_player_one_level"
                 label="Player 1 level"
-                defaultValue="player_one_level"
+                defaultValue={defaults.level.playerOneLevel}
               />
               <MappingInput
                 name="level_col_player_one_gender"
                 label="Player 1 gender"
-                defaultValue="player_one_gender"
+                defaultValue={defaults.level.playerOneGender}
               />
               <MappingInput
                 name="level_col_player_two_name"
                 label="Player 2 name"
-                defaultValue="player_two_name"
+                defaultValue={defaults.level.playerTwoName}
               />
               <MappingInput
                 name="level_col_player_two_level"
                 label="Player 2 level"
-                defaultValue="player_two_level"
+                defaultValue={defaults.level.playerTwoLevel}
               />
               <MappingInput
                 name="level_col_player_two_gender"
                 label="Player 2 gender"
-                defaultValue="player_two_gender"
+                defaultValue={defaults.level.playerTwoGender}
               />
             </div>
 
@@ -107,22 +113,22 @@ export default function PairImportForm() {
               <MappingInput
                 name="mixed_col_player_one_name"
                 label="Player 1 name"
-                defaultValue="player_one_name"
+                defaultValue={defaults.mixed.playerOneName}
               />
               <MappingInput
                 name="mixed_col_player_one_level"
                 label="Player 1 level"
-                defaultValue="player_one_level"
+                defaultValue={defaults.mixed.playerOneLevel}
               />
               <MappingInput
                 name="mixed_col_player_two_name"
                 label="Player 2 name"
-                defaultValue="player_two_name"
+                defaultValue={defaults.mixed.playerTwoName}
               />
               <MappingInput
                 name="mixed_col_player_two_level"
                 label="Player 2 level"
-                defaultValue="player_two_level"
+                defaultValue={defaults.mixed.playerTwoLevel}
               />
             </div>
           </div>

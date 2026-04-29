@@ -4,6 +4,9 @@ import { Readable } from "stream";
 import { requireAdmin } from "@/lib/adminGuard";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getBaseUrl } from "@/lib/base-url";
+import {
+  DEFAULT_MEMBERSHIP_IMPORT_COLUMNS,
+} from "@/lib/import-column-mappings";
 
 export const runtime = "nodejs";
 
@@ -59,6 +62,12 @@ export async function POST(req: NextRequest) {
 
   const form = await req.formData();
   const file = form.get("file");
+  const mappedEmailColumn =
+    String(form.get("membership_col_email") ?? "").trim() ||
+    DEFAULT_MEMBERSHIP_IMPORT_COLUMNS.email;
+  const mappedStudentIdColumn =
+    String(form.get("membership_col_student_id") ?? "").trim() ||
+    DEFAULT_MEMBERSHIP_IMPORT_COLUMNS.studentId;
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Missing file upload." }, { status: 400 });
@@ -86,15 +95,32 @@ export async function POST(req: NextRequest) {
   }
 
   const headerRow = sheet.getRow(1);
+  const headerMap = new Map<string, number>();
   const emailCols: number[] = [];
   const idCols: number[] = [];
 
   headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
     const header = normalizeHeader(cellToText(cell.value));
     if (!header) return;
-    if (isEmailHeader(header)) emailCols.push(colNumber);
-    if (isIdHeader(header)) idCols.push(colNumber);
+    headerMap.set(header, colNumber);
   });
+
+  const explicitEmailHeader = normalizeHeader(mappedEmailColumn);
+  const explicitIdHeader = normalizeHeader(mappedStudentIdColumn);
+
+  const explicitEmailCol = headerMap.get(explicitEmailHeader);
+  const explicitIdCol = headerMap.get(explicitIdHeader);
+
+  if (explicitEmailCol != null) emailCols.push(explicitEmailCol);
+  if (explicitIdCol != null) idCols.push(explicitIdCol);
+
+  // Fallback to auto-detection when mapped column names are not found.
+  if (emailCols.length === 0 || idCols.length === 0) {
+    for (const [header, colNumber] of headerMap.entries()) {
+      if (emailCols.length === 0 && isEmailHeader(header)) emailCols.push(colNumber);
+      if (idCols.length === 0 && isIdHeader(header)) idCols.push(colNumber);
+    }
+  }
 
   if (emailCols.length === 0 && idCols.length === 0) {
     return NextResponse.json(
@@ -190,6 +216,22 @@ export async function POST(req: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+  }
+  const { error: mappingSaveError } = await adminDb.from("settings").upsert(
+    {
+      id: 1,
+      membership_import_columns: {
+        email: mappedEmailColumn,
+        studentId: mappedStudentIdColumn,
+      },
+    },
+    { onConflict: "id" }
+  );
+  if (
+    mappingSaveError &&
+    !mappingSaveError.message.includes("membership_import_columns")
+  ) {
+    return NextResponse.json({ error: mappingSaveError.message }, { status: 500 });
   }
 
   const inserted = emailRows.size + idOnly.size;

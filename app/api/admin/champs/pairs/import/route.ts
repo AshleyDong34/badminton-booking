@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/adminGuard";
 import { getBaseUrl } from "@/lib/base-url";
+import {
+  ClubChampsLevelImportColumns,
+  ClubChampsMixedImportColumns,
+  DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS,
+} from "@/lib/import-column-mappings";
 
 type EventType = "level_doubles" | "mixed_doubles";
 type LevelDoublesType = "mens_doubles" | "womens_doubles" | null;
@@ -17,22 +22,6 @@ type PairInsert = {
 };
 
 const LEVELS = new Set([1, 2, 3, 4, 5, 6, 7]);
-
-const DEFAULT_LEVEL_COLUMNS = {
-  playerOneName: "player_one_name",
-  playerOneLevel: "player_one_level",
-  playerOneGender: "player_one_gender",
-  playerTwoName: "player_two_name",
-  playerTwoLevel: "player_two_level",
-  playerTwoGender: "player_two_gender",
-};
-
-const DEFAULT_MIXED_COLUMNS = {
-  playerOneName: "player_one_name",
-  playerOneLevel: "player_one_level",
-  playerTwoName: "player_two_name",
-  playerTwoLevel: "player_two_level",
-};
 
 function normalizeHeader(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -173,7 +162,7 @@ function getCell(
 
 function parseMixedCsv(args: {
   content: string;
-  columns: typeof DEFAULT_MIXED_COLUMNS;
+  columns: ClubChampsMixedImportColumns;
 }) {
   const rows = parseCsv(args.content);
   if (rows.length < 2) return { inserts: [] as PairInsert[], error: "Mixed CSV has no data rows." };
@@ -232,7 +221,7 @@ function parseMixedCsv(args: {
 
 function parseLevelCsv(args: {
   content: string;
-  columns: typeof DEFAULT_LEVEL_COLUMNS;
+  columns: ClubChampsLevelImportColumns;
 }) {
   const rows = parseCsv(args.content);
   if (rows.length < 2) return { inserts: [] as PairInsert[], error: "Level CSV has no data rows." };
@@ -326,19 +315,59 @@ export async function POST(req: NextRequest) {
   }
 
   const levelColumns = {
-    playerOneName: mappingValue(form, "level_col_player_one_name", DEFAULT_LEVEL_COLUMNS.playerOneName),
-    playerOneLevel: mappingValue(form, "level_col_player_one_level", DEFAULT_LEVEL_COLUMNS.playerOneLevel),
-    playerOneGender: mappingValue(form, "level_col_player_one_gender", DEFAULT_LEVEL_COLUMNS.playerOneGender),
-    playerTwoName: mappingValue(form, "level_col_player_two_name", DEFAULT_LEVEL_COLUMNS.playerTwoName),
-    playerTwoLevel: mappingValue(form, "level_col_player_two_level", DEFAULT_LEVEL_COLUMNS.playerTwoLevel),
-    playerTwoGender: mappingValue(form, "level_col_player_two_gender", DEFAULT_LEVEL_COLUMNS.playerTwoGender),
+    playerOneName: mappingValue(
+      form,
+      "level_col_player_one_name",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.level.playerOneName
+    ),
+    playerOneLevel: mappingValue(
+      form,
+      "level_col_player_one_level",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.level.playerOneLevel
+    ),
+    playerOneGender: mappingValue(
+      form,
+      "level_col_player_one_gender",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.level.playerOneGender
+    ),
+    playerTwoName: mappingValue(
+      form,
+      "level_col_player_two_name",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.level.playerTwoName
+    ),
+    playerTwoLevel: mappingValue(
+      form,
+      "level_col_player_two_level",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.level.playerTwoLevel
+    ),
+    playerTwoGender: mappingValue(
+      form,
+      "level_col_player_two_gender",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.level.playerTwoGender
+    ),
   };
 
   const mixedColumns = {
-    playerOneName: mappingValue(form, "mixed_col_player_one_name", DEFAULT_MIXED_COLUMNS.playerOneName),
-    playerOneLevel: mappingValue(form, "mixed_col_player_one_level", DEFAULT_MIXED_COLUMNS.playerOneLevel),
-    playerTwoName: mappingValue(form, "mixed_col_player_two_name", DEFAULT_MIXED_COLUMNS.playerTwoName),
-    playerTwoLevel: mappingValue(form, "mixed_col_player_two_level", DEFAULT_MIXED_COLUMNS.playerTwoLevel),
+    playerOneName: mappingValue(
+      form,
+      "mixed_col_player_one_name",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.mixed.playerOneName
+    ),
+    playerOneLevel: mappingValue(
+      form,
+      "mixed_col_player_one_level",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.mixed.playerOneLevel
+    ),
+    playerTwoName: mappingValue(
+      form,
+      "mixed_col_player_two_name",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.mixed.playerTwoName
+    ),
+    playerTwoLevel: mappingValue(
+      form,
+      "mixed_col_player_two_level",
+      DEFAULT_CLUB_CHAMPS_PAIR_IMPORT_COLUMNS.mixed.playerTwoLevel
+    ),
   };
 
   let levelInserts: PairInsert[] = [];
@@ -400,6 +429,23 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     return redirectTo(`/admin/club-champs?error=${encodeURIComponent(error.message)}`);
+  }
+  const { error: mappingSaveError } = await db.from("settings").upsert(
+    {
+      id: 1,
+      club_champs_pair_import_columns: {
+        level: levelColumns,
+        mixed: mixedColumns,
+      },
+    },
+    { onConflict: "id" }
+  );
+
+  if (
+    mappingSaveError &&
+    !mappingSaveError.message.includes("club_champs_pair_import_columns")
+  ) {
+    return redirectTo(`/admin/club-champs?error=${encodeURIComponent(mappingSaveError.message)}`);
   }
 
   const successUrl = `${redirect}${redirect.includes("?") ? "&" : "?"}imported=1&imported_level=${

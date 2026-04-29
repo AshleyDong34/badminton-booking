@@ -1,6 +1,7 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import PairForm from "./PairForm";
 import PairImportForm from "./PairImportForm";
+import { normalizeClubChampsPairImportColumns } from "@/lib/import-column-mappings";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -53,7 +54,7 @@ export default async function ClubChampsPage({
     .order("created_at", { ascending: false });
   const { data: settingsData } = await db
     .from("settings")
-    .select("club_champs_public_enabled,club_champs_pairs_only_public")
+    .select("club_champs_public_enabled,club_champs_pairs_only_public,club_champs_pair_import_columns")
     .eq("id", 1)
     .single();
 
@@ -62,6 +63,9 @@ export default async function ClubChampsPage({
   const levelRows = rows.filter((row) => row.event === "level_doubles");
   const clubChampsPublicEnabled = Boolean(settingsData?.club_champs_public_enabled);
   const clubChampsPairsOnlyPublic = Boolean(settingsData?.club_champs_pairs_only_public);
+  const importColumnDefaults = normalizeClubChampsPairImportColumns(
+    settingsData?.club_champs_pair_import_columns
+  );
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -143,7 +147,7 @@ export default async function ClubChampsPage({
         <PairForm />
       </div>
 
-      <PairImportForm />
+      <PairImportForm defaults={importColumnDefaults} />
 
       {error && (
         <p className="text-sm text-red-600">Failed to load entries: {error.message}</p>
