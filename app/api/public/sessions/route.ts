@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import {
+  bookingWindowEndUtc,
+  safeBookingWindowDays,
+} from "@/lib/session-visibility";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type SignupRow = {
   session_id: string;
@@ -20,9 +26,8 @@ export async function GET() {
   if (!sessionsPublicEnabled) {
     return NextResponse.json({ sessions: [], hidden: true });
   }
-  const windowDays = Number(settings?.booking_window_days ?? 7);
-  const safeDays = Number.isFinite(windowDays) && windowDays >= 0 ? windowDays : 7;
-  const visibleUntil = new Date(now.getTime() + safeDays * 24 * 60 * 60 * 1000);
+  const safeDays = safeBookingWindowDays(settings?.booking_window_days);
+  const visibleUntil = bookingWindowEndUtc(now, safeDays);
   const nowIso = now.toISOString();
   const visibleUntilIso = visibleUntil.toISOString();
 

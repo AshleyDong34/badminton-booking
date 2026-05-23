@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import {
+  bookingWindowOpensUtc,
+  safeBookingWindowDays,
+} from "@/lib/session-visibility";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type SignupRow = {
   status: "signed_up" | "waiting_list";
@@ -49,13 +55,9 @@ export async function GET(
   }
 
   const now = new Date();
-  const windowDays = Number(settings?.booking_window_days ?? 7);
-  const safeDays = Number.isFinite(windowDays) && windowDays >= 0 ? windowDays : 7;
-  const start = new Date(startIso);
+  const safeDays = safeBookingWindowDays(settings?.booking_window_days);
   const end = new Date(session.ends_at ?? startIso);
-  const visibilityOpensAt = new Date(
-    start.getTime() - safeDays * 24 * 60 * 60 * 1000
-  );
+  const visibilityOpensAt = bookingWindowOpensUtc(startIso, safeDays);
 
   if (end < now) {
     return NextResponse.json(
