@@ -18,23 +18,28 @@ export default function AdminShell({
 }) {
   const collapsedKey = "admin-shell-collapsed";
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem(collapsedKey) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [collapsed, setCollapsed] = useState(false);
+  const [loadedPreference, setLoadedPreference] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem(collapsedKey) === "1");
+    } catch {
+      // Ignore storage failures.
+    } finally {
+      setLoadedPreference(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!loadedPreference) return;
     try {
       window.localStorage.setItem(collapsedKey, collapsed ? "1" : "0");
     } catch {
       // Ignore storage failures.
     }
-  }, [collapsed]);
+  }, [collapsed, loadedPreference]);
 
   function toggleNav() {
     if (window.matchMedia("(min-width: 768px)").matches) {

@@ -30,6 +30,18 @@ type BulletinContent = {
   useful_info: string;
 };
 
+type EventRow = {
+  id: string;
+  title: string;
+  body: string | null;
+  link_label: string | null;
+  link_url: string | null;
+  image_url: string | null;
+  image_alt: string | null;
+  image_side: "left" | "right" | null;
+  sort_order: number | null;
+};
+
 type PublicSettings = {
   club_champs_public_enabled: boolean;
   sessions_public_enabled: boolean;
@@ -133,6 +145,23 @@ function renderBulletin(text: string) {
   return blocks.length ? blocks : <p>No bulletin posted yet.</p>;
 }
 
+function renderEventBody(text: string | null) {
+  const lines = (text ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return null;
+
+  return (
+    <div className="space-y-2 text-sm leading-relaxed text-[var(--muted)]">
+      {lines.map((line, index) => (
+        <p key={`${line}-${index}`}>{linkify(line)}</p>
+      ))}
+    </div>
+  );
+}
+
 function SessionCard({ session }: { session: SessionRow }) {
   const signedUp = session.signed_up_count ?? 0;
   const waitlist = session.waitlist_count ?? 0;
@@ -175,8 +204,331 @@ function SessionCard({ session }: { session: SessionRow }) {
   );
 }
 
+function EventImagePanel({
+  event,
+  className,
+}: {
+  event: EventRow;
+  className: string;
+}) {
+  if (!event.image_url) return null;
+
+  return (
+    <div className={`relative overflow-hidden bg-[#dfe8e8] ${className}`}>
+      <img
+        src={event.image_url}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-lg"
+      />
+      <div className="absolute inset-0 bg-white/40" />
+      <div className="absolute inset-2 z-10 flex items-center justify-center sm:inset-3">
+        <img
+          src={event.image_url}
+          alt={event.image_alt || ""}
+          className="max-h-full max-w-full rounded-2xl object-contain shadow-sm"
+        />
+      </div>
+    </div>
+  );
+}
+
+function EventsBanner({ events }: { events: EventRow[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [openEventIndex, setOpenEventIndex] = useState<number | null>(null);
+
+  if (events.length === 0) return null;
+
+  const activeEvent = events[activeIndex] ?? events[0];
+  const body = renderEventBody(activeEvent.body);
+  const hasLink = activeEvent.link_label && activeEvent.link_url;
+  const hasImage = Boolean(activeEvent.image_url);
+  const imageFirst = hasImage && activeEvent.image_side === "left";
+  const hasMultipleEvents = events.length > 1;
+  const openEvent =
+    openEventIndex === null ? null : events[openEventIndex] ?? null;
+
+  const goPrevious = () => {
+    setActiveIndex((current) => (current === 0 ? events.length - 1 : current - 1));
+  };
+
+  const goNext = () => {
+    setActiveIndex((current) => (current + 1) % events.length);
+  };
+
+  const openEventAt = (index: number) => {
+    setActiveIndex(index);
+    setOpenEventIndex(index);
+  };
+
+  const goModalPrevious = () => {
+    const current = openEventIndex ?? activeIndex;
+    const next = current === 0 ? events.length - 1 : current - 1;
+    setActiveIndex(next);
+    setOpenEventIndex(next);
+  };
+
+  const goModalNext = () => {
+    const current = openEventIndex ?? activeIndex;
+    const next = (current + 1) % events.length;
+    setActiveIndex(next);
+    setOpenEventIndex(next);
+  };
+
+  return (
+    <section className="mb-8">
+      <div className="relative px-0 pt-4 sm:px-10">
+        {hasMultipleEvents && (
+          <>
+            <div className="absolute left-10 right-10 top-0 h-[calc(100%-3.25rem)] rounded-3xl border border-[var(--line)] bg-[var(--card)] opacity-45 shadow-sm sm:left-20 sm:right-20" />
+            <div className="absolute left-5 right-5 top-2 h-[calc(100%-3.25rem)] rounded-3xl border border-[var(--line)] bg-[var(--card)] opacity-75 shadow-sm sm:left-14 sm:right-14" />
+          </>
+        )}
+
+        <article className="relative overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--card)] shadow-md">
+          <div
+            className={`grid h-[28rem] md:h-[20rem] ${
+              hasImage ? "md:grid-cols-[minmax(0,1fr)_minmax(280px,0.88fr)]" : ""
+            }`}
+          >
+            {hasImage && imageFirst && (
+              <button
+                type="button"
+                onClick={() => openEventAt(activeIndex)}
+                className="block h-44 w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none md:order-first md:h-full"
+                aria-label={`Open ${activeEvent.title}`}
+              >
+                <EventImagePanel event={activeEvent} className="h-full" />
+              </button>
+            )}
+
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => openEventAt(activeIndex)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openEventAt(activeIndex);
+                }
+              }}
+              className="flex min-h-0 cursor-pointer flex-col justify-between gap-5 overflow-hidden p-6 text-left sm:p-8"
+              aria-label={`Open ${activeEvent.title}`}
+            >
+              <div className="min-h-0 space-y-3 overflow-hidden">
+                <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--chip)] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cool)]">
+                  Event
+                </div>
+                <h2 className="text-2xl font-semibold leading-tight text-[var(--ink)]">
+                  {activeEvent.title}
+                </h2>
+                <div className="max-h-36 overflow-y-auto pr-1 md:max-h-28">
+                  {body}
+                </div>
+              </div>
+
+              <div className="flex items-center">
+                {hasLink ? (
+                  <a
+                    href={activeEvent.link_url!}
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex w-fit items-center gap-2 rounded-xl bg-[var(--cool)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:translate-y-[-1px]"
+                  >
+                    {activeEvent.link_label}
+                    <span aria-hidden="true">-&gt;</span>
+                  </a>
+                ) : (
+                  <span />
+                )}
+              </div>
+            </div>
+
+            {hasImage && !imageFirst && (
+              <button
+                type="button"
+                onClick={() => openEventAt(activeIndex)}
+                className="block h-44 w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none md:h-full"
+                aria-label={`Open ${activeEvent.title}`}
+              >
+                <EventImagePanel event={activeEvent} className="h-full" />
+              </button>
+            )}
+          </div>
+        </article>
+
+        {hasMultipleEvents && (
+          <>
+            <button
+              type="button"
+              onClick={goPrevious}
+              className="absolute left-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[var(--chip)] sm:flex"
+              aria-label="Previous event"
+            >
+              &#8249;
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              className="absolute right-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-white/95 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[var(--chip)] sm:flex"
+              aria-label="Next event"
+            >
+              &#8250;
+            </button>
+
+            <div className="relative z-10 mt-4 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={goPrevious}
+                className="flex h-10 min-w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white px-3 text-xl font-semibold text-[var(--cool)] shadow-sm sm:hidden"
+                aria-label="Previous event"
+              >
+                &#8249;
+              </button>
+              <div className="flex items-center gap-2 rounded-full border border-[var(--line)] bg-white px-3 py-2 shadow-md">
+                <span className="mr-1 hidden text-xs font-semibold text-[var(--muted)] sm:inline">
+                  Event {activeIndex + 1} of {events.length}
+                </span>
+                <span className="mr-1 text-xs font-semibold text-[var(--muted)] sm:hidden">
+                  {activeIndex + 1}/{events.length}
+                </span>
+                {events.map((event, index) => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => setActiveIndex(index)}
+                    aria-label={`Show event ${index + 1}`}
+                    aria-current={index === activeIndex ? "true" : undefined}
+                    className={`h-2.5 rounded-full transition-all ${
+                      index === activeIndex
+                        ? "w-8 bg-[var(--cool)]"
+                        : "w-2.5 bg-[var(--line)]"
+                    }`}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={goNext}
+                className="flex h-10 min-w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white px-3 text-xl font-semibold text-[var(--cool)] shadow-sm sm:hidden"
+                aria-label="Next event"
+              >
+                &#8250;
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {openEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setOpenEventIndex(null)}
+        >
+          <div
+            className={`relative grid max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-[2rem] bg-[var(--card)] shadow-2xl ${
+              openEvent.image_url
+                ? "md:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.8fr)]"
+                : ""
+            }`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {openEvent.image_url && (
+              <EventImagePanel
+                event={openEvent}
+                className="h-[58vh] min-h-80 md:h-[92vh]"
+              />
+            )}
+            {hasMultipleEvents && (
+              <>
+                <button
+                  type="button"
+                  onClick={goModalPrevious}
+                  className="absolute left-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-white/90 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
+                  aria-label="Previous event"
+                >
+                  &#8249;
+                </button>
+                <button
+                  type="button"
+                  onClick={goModalNext}
+                  className="absolute right-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-white/90 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
+                  aria-label="Next event"
+                >
+                  &#8250;
+                </button>
+              </>
+            )}
+
+            <div className="flex max-h-[34vh] flex-col gap-4 overflow-y-auto p-5 md:max-h-[92vh] md:p-7">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--chip)] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cool)]">
+                    Event
+                  </div>
+                  <h2 className="mt-3 text-2xl font-semibold leading-tight text-[var(--ink)]">
+                    {openEvent.title}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpenEventIndex(null)}
+                  className="rounded-full border border-[var(--line)] bg-[var(--chip)] px-3 py-1 text-sm font-semibold"
+                >
+                  Close
+                </button>
+              </div>
+
+              {renderEventBody(openEvent.body)}
+
+              {openEvent.link_label && openEvent.link_url && (
+                <a
+                  href={openEvent.link_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-fit items-center gap-2 rounded-xl bg-[var(--cool)] px-4 py-2 text-sm font-semibold text-white shadow-sm"
+                >
+                  {openEvent.link_label}
+                  <span aria-hidden="true">-&gt;</span>
+                </a>
+              )}
+
+              {hasMultipleEvents && (
+                <div className="mt-auto flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--chip)] p-2">
+                  <button
+                    type="button"
+                    onClick={goModalPrevious}
+                    className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
+                  >
+                    &#8249; Previous
+                  </button>
+                  <span className="text-xs font-semibold text-[var(--muted)]">
+                    Event {(openEventIndex ?? 0) + 1} of {events.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={goModalNext}
+                    className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
+                  >
+                    Next &#8250;
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function Home() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const activeRef = useRef(true);
@@ -228,6 +580,13 @@ export default function Home() {
     });
   }, []);
 
+  const loadEvents = useCallback(async () => {
+    const res = await fetch("/api/public/events", { cache: "no-store" });
+    if (!res.ok) return;
+    const json = await res.json().catch(() => ({}));
+    setEvents((json.events ?? []) as EventRow[]);
+  }, []);
+
   const loadPublicSettings = useCallback(async () => {
     const res = await fetch("/api/public/settings", { cache: "no-store" });
     if (!res.ok) return;
@@ -243,6 +602,7 @@ export default function Home() {
     const run = async () => {
       await loadSessions("initial");
       await loadBulletin();
+      await loadEvents();
       await loadPublicSettings();
     };
     void run();
@@ -250,7 +610,7 @@ export default function Home() {
     return () => {
       activeRef.current = false;
     };
-  }, [loadSessions, loadBulletin, loadPublicSettings]);
+  }, [loadSessions, loadBulletin, loadEvents, loadPublicSettings]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, SessionRow[]>();
@@ -348,6 +708,8 @@ export default function Home() {
             Useful info
           </button>
         </div>
+
+        <EventsBanner events={events} />
 
         {publicSettings.club_champs_public_enabled && (
           <section className="mb-8 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">

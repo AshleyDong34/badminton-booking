@@ -19,16 +19,21 @@ export default function AttendanceClient({
   sessionId,
   initialSignups,
 }: AttendanceClientProps) {
+  const [signups, setSignups] = useState<AttendanceSignup[]>(initialSignups);
   const [presentIds, setPresentIds] = useState<string[]>(
     initialSignups.filter((s) => s.attended).map((s) => s.id)
   );
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [addName, setAddName] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addStudentId, setAddStudentId] = useState("");
+  const [adding, setAdding] = useState(false);
 
   const presentSet = useMemo(() => new Set(presentIds), [presentIds]);
 
-  const pending = initialSignups.filter((s) => !presentSet.has(s.id));
-  const present = initialSignups.filter((s) => presentSet.has(s.id));
+  const pending = signups.filter((s) => !presentSet.has(s.id));
+  const present = signups.filter((s) => presentSet.has(s.id));
 
   const updateAttendance = async (id: string, attended: boolean) => {
     setError(null);
@@ -78,8 +83,93 @@ export default function AttendanceClient({
     }
   };
 
+  const addAttendee = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setAdding(true);
+
+    try {
+      const res = await fetch(`/api/admin/sessions/${sessionId}/attendance/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: addName,
+          email: addEmail,
+          student_id: addStudentId,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(json.error || "Failed to add attendee.");
+        return;
+      }
+
+      const attendee = json.attendee as AttendanceSignup | undefined;
+      if (!attendee) {
+        setError("Failed to add attendee.");
+        return;
+      }
+
+      setSignups((prev) => [...prev, attendee].sort((a, b) => a.name.localeCompare(b.name)));
+      if (attendee.attended) {
+        setPresentIds((prev) => (prev.includes(attendee.id) ? prev : [...prev, attendee.id]));
+      }
+      setAddName("");
+      setAddEmail("");
+      setAddStudentId("");
+    } finally {
+      setAdding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <form
+        onSubmit={addAttendee}
+        className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm"
+      >
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[180px] flex-1">
+            <label className="block text-sm font-medium">Name</label>
+            <input
+              type="text"
+              value={addName}
+              onChange={(e) => setAddName(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2 text-sm"
+              required
+            />
+          </div>
+          <div className="min-w-[220px] flex-1">
+            <label className="block text-sm font-medium">Email</label>
+            <input
+              type="email"
+              value={addEmail}
+              onChange={(e) => setAddEmail(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2 text-sm"
+              required
+            />
+          </div>
+          <div className="min-w-[140px] flex-1">
+            <label className="block text-sm font-medium">Student ID</label>
+            <input
+              type="text"
+              value={addStudentId}
+              onChange={(e) => setAddStudentId(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2 text-sm"
+              placeholder="Optional"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={adding}
+            className="rounded-full bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
+          >
+            {adding ? "Adding..." : "Add attendee"}
+          </button>
+        </div>
+      </form>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Attendance</h2>

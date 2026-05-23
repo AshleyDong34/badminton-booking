@@ -9,6 +9,7 @@ This is a simple handover for anyone joining the badminton website project.
 3. `architecture/system-overview.md` for how requests flow through the app
 4. `business-rules.md` for logic and edge cases
 5. `runbooks/deploy-and-rollback.md` for safe release steps
+6. `events-table.sql` for the Supabase table used by public homepage events
 
 ## Important Rule
 

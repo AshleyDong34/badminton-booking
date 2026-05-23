@@ -23,13 +23,16 @@ export async function POST(
   const supabase = supabaseServer();
 
   // Delete signup row (must belong to session)
-  const { error: delErr } = await supabase
+  const { data: deleted, error: delErr } = await supabase
     .from("signups")
     .delete()
     .eq("id", signupId)
-    .eq("session_id", sessionId);
+    .eq("session_id", sessionId)
+    .select("id")
+    .maybeSingle();
 
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+  if (!deleted) return NextResponse.json({ error: "Signup not found" }, { status: 404 });
 
   // Auto-promote earliest waitlisted if there is now capacity
   const { data: session, error: sErr } = await supabase

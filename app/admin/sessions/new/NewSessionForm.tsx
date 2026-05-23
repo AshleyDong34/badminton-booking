@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -38,18 +38,24 @@ function addMinutes(date: string, time: string, minsToAdd: number) {
 }
 
 /* ---------- Name generation helpers (mirror server) ---------- */
-function formatTime(d: Date) {
-  let h = d.getHours();
-  const m = d.getMinutes();
+function formatTimeFromDateTime(value: string) {
+  const time = value.split("T")[1];
+  if (!time) return "";
+
+  const [hh, mm] = time.split(":").map(Number);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return "";
+
+  let h = hh;
+  const m = mm;
   const ampm = h >= 12 ? "pm" : "am";
   h = h % 12;
   if (h === 0) h = 12;
   return m === 0 ? `${h}${ampm}` : `${h}:${String(m).padStart(2, "0")}${ampm}`;
 }
 
-function autoSessionName(location: string, startLocal: Date, endLocal: Date) {
-  const startT = formatTime(startLocal);
-  const endT = formatTime(endLocal);
+function autoSessionName(location: string, startLocal: string, endLocal: string) {
+  const startT = formatTimeFromDateTime(startLocal);
+  const endT = formatTimeFromDateTime(endLocal);
   return `${location} at ${startT}-${endT}`;
 }
 /* ------------------------------------------------------------ */
@@ -101,16 +107,18 @@ export default function NewSessionForm({
   const [capacity, setCapacity] = useState(2);
   const [allowNameOnly, setAllowNameOnly] = useState(defaultAllowNameOnly);
 
-  // Keep end synced unless manually overridden
-  useEffect(() => {
-    if (endManual) return;
-    const out = addMinutes(date, startTime, durationMin);
-    setEndDate(out.date);
-    setEndTime(out.time);
-  }, [date, startTime, durationMin, endManual]);
+  const autoEnd = useMemo(
+    () => addMinutes(date, startTime, durationMin),
+    [date, startTime, durationMin]
+  );
+  const effectiveEndDate = endManual ? endDate : autoEnd.date;
+  const effectiveEndTime = endManual ? endTime : autoEnd.time;
 
   const start = useMemo(() => toDT(date, startTime), [date, startTime]);
-  const end = useMemo(() => toDT(endDate, endTime), [endDate, endTime]);
+  const end = useMemo(
+    () => toDT(effectiveEndDate, effectiveEndTime),
+    [effectiveEndDate, effectiveEndTime]
+  );
 
   // Live preview of what the auto-generated name will look like
   const previewName = useMemo(() => {
@@ -120,7 +128,7 @@ export default function NewSessionForm({
     if (isNaN(startLocal.getTime()) || isNaN(endLocal.getTime())) return "";
     if (!(endLocal > startLocal)) return "";
 
-    return autoSessionName(location, startLocal, endLocal);
+    return autoSessionName(location, start, end);
   }, [location, start, end]);
 
   return (
@@ -227,8 +235,9 @@ export default function NewSessionForm({
             type="date"
             required
             className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
-            value={endDate}
+            value={effectiveEndDate}
             onChange={(e) => {
+              if (!endManual) setEndTime(autoEnd.time);
               setEndDate(e.target.value);
               setEndManual(true);
             }}
@@ -241,8 +250,9 @@ export default function NewSessionForm({
             type="time"
             required
             className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
-            value={endTime}
+            value={effectiveEndTime}
             onChange={(e) => {
+              if (!endManual) setEndDate(autoEnd.date);
               setEndTime(e.target.value);
               setEndManual(true);
             }}
