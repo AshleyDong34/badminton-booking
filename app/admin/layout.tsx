@@ -13,6 +13,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/sessions", label: "Sessions" },
   { href: "/admin/events", label: "Events" },
+  { href: "/admin/noticeboard", label: "Noticeboard" },
   { href: "/admin/club-champs", label: "Club champs" },
   { href: "/admin/settings", label: "Settings" },
   { href: "/admin/whitelist", label: "Membership list" },

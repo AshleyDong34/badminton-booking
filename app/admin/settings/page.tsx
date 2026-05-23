@@ -10,8 +10,6 @@ type SettingsRow = {
   allow_name_only?: boolean; // <-- add this column in settings to persist
   booking_window_days?: number | null;
   sessions_public_enabled?: boolean | null;
-  club_rules?: string | null;
-  useful_info?: string | null;
 };
 
 export default async function SettingsPage() {
@@ -31,8 +29,6 @@ export default async function SettingsPage() {
     allow_name_only: false,
     booking_window_days: 7,
     sessions_public_enabled: true,
-    club_rules: "",
-    useful_info: "",
   };
 
   return (
@@ -128,36 +124,6 @@ export default async function SettingsPage() {
             </span>
           </span>
         </label>
-
-        <div className="space-y-2">
-          <label className="block text-sm font-medium">Club rules (bulletin)</label>
-          <textarea
-            name="club_rules"
-            rows={6}
-            defaultValue={s.club_rules ?? ""}
-            className="w-full rounded-xl border border-[var(--line)] bg-white p-3 text-sm"
-            placeholder="- Bring a racket\n- Wear court shoes\n- Arrive 10 minutes early\nMore info: https://eubcbadminton.co.uk"
-          />
-          <p className="text-xs text-[var(--muted)]">
-            Supports bullet lines starting with <code>-</code> and links like
-            <code> [text](https://...)</code>.
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <label className="block text-sm font-medium">Useful information (bulletin)</label>
-          <textarea
-            name="useful_info"
-            rows={6}
-            defaultValue={s.useful_info ?? ""}
-            className="w-full rounded-xl border border-[var(--line)] bg-white p-3 text-sm"
-            placeholder="- Parking is limited\n- Bring a water bottle\nContact: committee@eubcbadminton.co.uk"
-          />
-          <p className="text-xs text-[var(--muted)]">
-            Supports bullet lines starting with <code>-</code> and links like
-            <code> [text](https://...)</code>.
-          </p>
-        </div>
 
         <button className="rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm">
           Save settings

@@ -24,3 +24,33 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes court-update-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  18% {
+    transform: rotate(-1.2deg) translateY(-1px);
+  }
+  36% {
+    transform: rotate(1deg) translateY(0);
+  }
+  54% {
+    transform: rotate(-0.8deg) translateY(-1px);
+  }
+  72% {
+    transform: rotate(0.7deg) translateY(0);
+  }
+}
+
+.court-update-alert {
+  animation: court-update-wiggle 1.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .court-update-alert {
+    animation: none;
+  }
+}

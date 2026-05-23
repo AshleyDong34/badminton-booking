@@ -6,7 +6,7 @@ Next.js app for EUBC badminton session booking, waitlists, admin operations, and
 
 ### Public site
 
-- `/`: Shows event cards, upcoming sessions grouped by day, booking counts, waitlist counts, refresh button, and bulletin popups (Club rules + Useful info).
+- `/`: Shows noticeboard buttons, event cards, upcoming sessions grouped by day, booking counts, waitlist counts, refresh button, and notice popups.
 - `/sessions/[id]`: Booking form with live availability, membership/taster checks, waitlist fallback, and confirmation email trigger.
 - `/cancel?token=...`: Cancels a booking from email link and auto-promotes next waitlisted player when applicable.
 - `/club-champs`, `/club-champs/pairings`, `/club-champs/pools`, `/club-champs/knockout`: Public tournament views (only visible when enabled in settings).
@@ -17,9 +17,10 @@ Next.js app for EUBC badminton session booking, waitlists, admin operations, and
 - `/admin`: Dashboard with session capacity and waitlist overview.
 - `/admin/sessions`: Create/manage sessions, split upcoming/past sessions, export attendance for selected past sessions.
 - `/admin/events`: Create, edit, hide, and delete public homepage event cards.
+- `/admin/noticeboard`: Edit public noticeboard buttons, descriptions, and popup content.
 - `/admin/sessions/[id]`: Move people between signed up/waitlist, remove signups.
 - `/admin/sessions/[id]/attendance`: Mark attendance per player.
-- `/admin/settings`: Weekly quota, same-day multi-booking, booking window, public visibility toggles, bulletin content.
+- `/admin/settings`: Weekly quota, same-day multi-booking, booking window, public visibility toggles.
 - `/admin/whitelist`: Upload membership list via CSV/XLSX (email/student id).
 - `/admin/first-time`: Manage first-time (taster) records.
 - `/admin/admins`: Invite/remove admins.

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { Space_Grotesk, Sora } from "next/font/google";
 
@@ -26,8 +33,15 @@ type SessionRow = {
 };
 
 type BulletinContent = {
+  club_rules_label: string;
+  club_rules_description: string;
   club_rules: string;
+  useful_info_label: string;
+  useful_info_description: string;
   useful_info: string;
+  court_updates_label: string;
+  court_updates_description: string;
+  court_updates: string;
 };
 
 type EventRow = {
@@ -46,6 +60,46 @@ type PublicSettings = {
   club_champs_public_enabled: boolean;
   sessions_public_enabled: boolean;
 };
+
+type BulletinKey = "rules" | "info" | "court";
+
+const COURT_UPDATE_SEEN_STORAGE_KEY = "eubc_court_update_seen";
+const COURT_UPDATE_SEEN_EVENT = "eubc:court-update-seen";
+
+function courtUpdateStorageValue(text: string) {
+  const normalized = text.trim();
+  if (!normalized) return "";
+
+  let hash = 2166136261;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash ^= normalized.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return `court-update:${normalized.length}:${hash >>> 0}`;
+}
+
+function getCourtUpdateSeenSnapshot() {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(COURT_UPDATE_SEEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function subscribeToCourtUpdateSeen(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+
+  const listener = () => onStoreChange();
+  window.addEventListener("storage", listener);
+  window.addEventListener(COURT_UPDATE_SEEN_EVENT, listener);
+
+  return () => {
+    window.removeEventListener("storage", listener);
+    window.removeEventListener(COURT_UPDATE_SEEN_EVENT, listener);
+  };
+}
 
 function dateKey(iso: string) {
   const d = new Date(iso);
@@ -68,10 +122,10 @@ function formatDate(iso: string) {
   });
 }
 
-function linkify(text: string) {
+function renderInlineMarkdown(text: string) {
   const nodes: React.ReactNode[] = [];
   const regex =
-    /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/[^\s]+?)(?=[).,!?]?\s|$)/g;
+    /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*\n]+)\*|_([^_\n]+)_|(https?:\/\/[^\s]+?)(?=[).,!?]?\s|$)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -79,19 +133,43 @@ function linkify(text: string) {
     if (match.index > lastIndex) {
       nodes.push(text.slice(lastIndex, match.index));
     }
-    const label = match[1] ?? match[3];
-    const url = match[2] ?? match[3];
-    nodes.push(
-      <a
-        key={`${url}-${match.index}`}
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        className="text-[var(--cool)] underline"
-      >
-        {label}
-      </a>
-    );
+    if (match[1] && match[2]) {
+      nodes.push(
+        <a
+          key={`${match[2]}-${match.index}`}
+          href={match[2]}
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-[var(--cool)] underline"
+        >
+          {match[1]}
+        </a>
+      );
+    } else if (match[3] || match[4]) {
+      nodes.push(
+        <strong key={`strong-${match.index}`} className="font-bold">
+          {match[3] ?? match[4]}
+        </strong>
+      );
+    } else if (match[5] || match[6]) {
+      nodes.push(
+        <em key={`em-${match.index}`} className="italic">
+          {match[5] ?? match[6]}
+        </em>
+      );
+    } else if (match[7]) {
+      nodes.push(
+        <a
+          key={`${match[7]}-${match.index}`}
+          href={match[7]}
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-[var(--cool)] underline"
+        >
+          {match[7]}
+        </a>
+      );
+    }
     lastIndex = regex.lastIndex;
   }
 
@@ -105,20 +183,29 @@ function linkify(text: string) {
 function renderBulletin(text: string) {
   const lines = text.split(/\r?\n/);
   const blocks: React.ReactNode[] = [];
-  let list: string[] = [];
+  let list: { type: "ordered" | "unordered"; item: string }[] = [];
 
   const flushList = (keyPrefix: string) => {
     if (list.length === 0) return;
     const items = list.map((item, index) => (
       <li key={`${keyPrefix}-${index}`} className="leading-relaxed">
-        {linkify(item)}
+        {renderInlineMarkdown(item.item)}
       </li>
     ));
-    blocks.push(
-      <ul key={`${keyPrefix}-list`} className="list-disc space-y-1 pl-5">
-        {items}
-      </ul>
-    );
+    const listType = list[0]?.type ?? "unordered";
+    if (listType === "ordered") {
+      blocks.push(
+        <ol key={`${keyPrefix}-list`} className="list-decimal space-y-1 pl-5">
+          {items}
+        </ol>
+      );
+    } else {
+      blocks.push(
+        <ul key={`${keyPrefix}-list`} className="list-disc space-y-1 pl-5">
+          {items}
+        </ul>
+      );
+    }
     list = [];
   };
 
@@ -129,13 +216,38 @@ function renderBulletin(text: string) {
       return;
     }
     if (/^[-*]\s+/.test(trimmed)) {
-      list.push(trimmed.replace(/^[-*]\s+/, ""));
+      if (list.length > 0 && list[0]?.type !== "unordered") {
+        flushList(`mixed-${index}`);
+      }
+      list.push({
+        type: "unordered",
+        item: trimmed.replace(/^[-*]\s+/, ""),
+      });
+      return;
+    }
+    if (/^\d+[.)]\s+/.test(trimmed)) {
+      if (list.length > 0 && list[0]?.type !== "ordered") {
+        flushList(`mixed-${index}`);
+      }
+      list.push({
+        type: "ordered",
+        item: trimmed.replace(/^\d+[.)]\s+/, ""),
+      });
       return;
     }
     flushList(`para-${index}`);
+    if (/^#{1,3}\s+/.test(trimmed)) {
+      const heading = trimmed.replace(/^#{1,3}\s+/, "");
+      blocks.push(
+        <h4 key={`h-${index}`} className="pt-1 text-base font-bold">
+          {renderInlineMarkdown(heading)}
+        </h4>
+      );
+      return;
+    }
     blocks.push(
       <p key={`p-${index}`} className="leading-relaxed">
-        {linkify(trimmed)}
+        {renderInlineMarkdown(trimmed)}
       </p>
     );
   });
@@ -156,7 +268,7 @@ function renderEventBody(text: string | null) {
   return (
     <div className="space-y-2 text-sm leading-relaxed text-[var(--muted)]">
       {lines.map((line, index) => (
-        <p key={`${line}-${index}`}>{linkify(line)}</p>
+        <p key={`${line}-${index}`}>{renderInlineMarkdown(line)}</p>
       ))}
     </div>
   );
@@ -191,8 +303,8 @@ function SessionCard({ session }: { session: SessionRow }) {
     : null;
 
   return (
-    <article className="group relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/85 p-4 shadow-[0_18px_45px_rgba(15,26,18,0.08)] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(15,26,18,0.12)] sm:p-5">
-      <div className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-[#b7d7c2] opacity-35 blur-2xl" />
+    <article className="group relative overflow-hidden rounded-[1.75rem] border border-white/80 bg-white p-4 shadow-[0_10px_28px_rgba(15,26,18,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(15,26,18,0.11)] sm:p-5">
+      <div className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-[#b7d7c2] opacity-20" />
       <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -374,9 +486,6 @@ function EventsBanner({ events }: { events: EventRow[] }) {
               aria-label={`Open ${activeEvent.title}`}
             >
               <div className="min-h-0 space-y-3 overflow-hidden">
-                <div className="inline-flex rounded-full border border-[#c9d8d0] bg-white/80 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[var(--cool)] shadow-sm">
-                  Featured event
-                </div>
                 <h2 className={`${sora.className} text-3xl font-bold leading-tight text-[var(--ink)]`}>
                   {activeEvent.title}
                 </h2>
@@ -495,6 +604,15 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             }`}
             onClick={(event) => event.stopPropagation()}
           >
+            <button
+              type="button"
+              onClick={() => setOpenEventIndex(null)}
+              className="absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/95 text-2xl font-bold leading-none text-[var(--ink)] shadow-lg transition hover:scale-105 hover:bg-white"
+              aria-label="Close event"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+
             {openEvent.image_url && (
               <EventImagePanel
                 event={openEvent}
@@ -523,23 +641,11 @@ function EventsBanner({ events }: { events: EventRow[] }) {
               </>
             )}
 
-            <div className="flex max-h-[36vh] flex-col gap-4 overflow-y-auto p-4 sm:p-5 md:max-h-[92vh] md:p-7">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--chip)] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--cool)]">
-                    Event
-                  </div>
-                  <h2 className="mt-2 text-xl font-semibold leading-tight text-[var(--ink)] sm:text-2xl">
-                    {openEvent.title}
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setOpenEventIndex(null)}
-                  className="shrink-0 rounded-full border border-[var(--line)] bg-[var(--chip)] px-3 py-1 text-sm font-semibold"
-                >
-                  Close
-                </button>
+            <div className="flex max-h-[36vh] flex-col gap-4 overflow-y-auto p-4 pt-5 sm:p-5 sm:pt-6 md:max-h-[92vh] md:p-7">
+              <div className="min-w-0 pr-12">
+                <h2 className="text-xl font-semibold leading-tight text-[var(--ink)] sm:text-2xl">
+                  {openEvent.title}
+                </h2>
               </div>
 
               <div className="text-sm">{renderEventBody(openEvent.body)}</div>
@@ -595,10 +701,22 @@ export default function Home() {
   const activeRef = useRef(true);
   const sessionRequestRef = useRef(0);
   const [bulletin, setBulletin] = useState<BulletinContent>({
+    club_rules_label: "Club Rules",
+    club_rules_description: "Court Rules and Player Attitude",
     club_rules: "",
+    useful_info_label: "Useful info",
+    useful_info_description: "Links for EUBC",
     useful_info: "",
+    court_updates_label: "Court updates",
+    court_updates_description: "No sudden updates",
+    court_updates: "",
   });
-  const [openBulletin, setOpenBulletin] = useState<null | "rules" | "info">(null);
+  const [openBulletin, setOpenBulletin] = useState<null | BulletinKey>(null);
+  const seenCourtUpdateKey = useSyncExternalStore(
+    subscribeToCourtUpdateSeen,
+    getCourtUpdateSeenSnapshot,
+    () => null
+  );
   const [publicSettings, setPublicSettings] = useState<PublicSettings>({
     club_champs_public_enabled: false,
     sessions_public_enabled: true,
@@ -642,8 +760,17 @@ export default function Home() {
     if (!res.ok) return;
     const json = await res.json().catch(() => ({}));
     setBulletin({
+      club_rules_label: json.club_rules_label ?? "Club Rules",
+      club_rules_description:
+        json.club_rules_description ?? "Court Rules and Player Attitude",
       club_rules: json.club_rules ?? "",
+      useful_info_label: json.useful_info_label ?? "Useful info",
+      useful_info_description: json.useful_info_description ?? "Links for EUBC",
       useful_info: json.useful_info ?? "",
+      court_updates_label: json.court_updates_label ?? "Court updates",
+      court_updates_description:
+        json.court_updates_description ?? "No sudden updates",
+      court_updates: json.court_updates ?? "",
     });
   }, []);
 
@@ -679,6 +806,39 @@ export default function Home() {
     };
   }, [loadSessions, loadBulletin, loadEvents, loadPublicSettings]);
 
+  const courtUpdateText = bulletin.court_updates.trim();
+  const courtUpdateKey = useMemo(
+    () => courtUpdateStorageValue(courtUpdateText),
+    [courtUpdateText]
+  );
+  const hasCourtUpdate = courtUpdateText.length > 0;
+  const isCourtUpdateUrgent =
+    hasCourtUpdate && seenCourtUpdateKey !== courtUpdateKey;
+  const rawCourtUpdateDescription = bulletin.court_updates_description.trim();
+  const hasCustomCourtUpdateDescription =
+    rawCourtUpdateDescription.length > 0 &&
+    rawCourtUpdateDescription.toLowerCase() !== "no sudden updates";
+  const courtUpdateDescription = hasCourtUpdate
+    ? hasCustomCourtUpdateDescription
+      ? rawCourtUpdateDescription
+      : "Last-minute update posted"
+    : "No sudden updates";
+
+  const openCourtUpdates = useCallback(() => {
+    if (courtUpdateKey) {
+      try {
+        window.localStorage.setItem(
+          COURT_UPDATE_SEEN_STORAGE_KEY,
+          courtUpdateKey
+        );
+        window.dispatchEvent(new Event(COURT_UPDATE_SEEN_EVENT));
+      } catch {
+        // Some browsers can block localStorage; the modal should still open.
+      }
+    }
+    setOpenBulletin("court");
+  }, [courtUpdateKey]);
+
   const grouped = useMemo(() => {
     const map = new Map<string, SessionRow[]>();
 
@@ -692,6 +852,19 @@ export default function Home() {
     const keys = Array.from(map.keys()).sort();
     return keys.map((k) => ({ key: k, sessions: map.get(k)! }));
   }, [sessions]);
+
+  const openBulletinTitle =
+    openBulletin === "rules"
+      ? bulletin.club_rules_label
+      : openBulletin === "info"
+        ? bulletin.useful_info_label
+        : bulletin.court_updates_label;
+  const openBulletinBody =
+    openBulletin === "rules"
+      ? bulletin.club_rules
+      : openBulletin === "info"
+        ? bulletin.useful_info
+        : courtUpdateText || "No sudden updates right now.";
 
   return (
     <div
@@ -796,9 +969,11 @@ export default function Home() {
                 !
               </span>
               <span>
-                <span className="block text-sm font-bold">Club Rules</span>
+                <span className="block text-sm font-bold">
+                  {bulletin.club_rules_label}
+                </span>
                 <span className="block text-xs text-[var(--muted)]">
-                  Court Rules and Player Attitude
+                  {bulletin.club_rules_description}
                 </span>
               </span>
             </button>
@@ -811,25 +986,39 @@ export default function Home() {
                 i
               </span>
               <span>
-                <span className="block text-sm font-bold">Useful info</span>
+                <span className="block text-sm font-bold">
+                  {bulletin.useful_info_label}
+                </span>
                 <span className="block text-xs text-[var(--muted)]">
-                  Links for EUBC
+                  {bulletin.useful_info_description}
                 </span>
               </span>
             </button>
             <button
               type="button"
-              disabled
-              className="group flex min-h-14 cursor-not-allowed items-center gap-3 rounded-full border border-dashed border-white/90 bg-white/55 px-4 py-2.5 text-left opacity-85 shadow-sm backdrop-blur"
-              title="Court updates will be added later"
+              onClick={openCourtUpdates}
+              className={`group relative flex min-h-14 items-center gap-3 rounded-full px-4 py-2.5 text-left backdrop-blur transition hover:-translate-y-0.5 hover:bg-white ${
+                isCourtUpdateUrgent
+                  ? "court-update-alert border border-[#e3a33e]/70 bg-[#fff2cb] shadow-[0_14px_32px_rgba(214,108,69,0.22)] ring-2 ring-[#f0be65]/35"
+                  : "border border-white/80 bg-white/85 shadow-md"
+              }`}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--ok)] text-base font-bold text-white shadow-sm">
+              {isCourtUpdateUrgent && (
+                <span className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_rgba(220,103,66,0.16)]" />
+              )}
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold text-white shadow-sm ${
+                  isCourtUpdateUrgent ? "bg-[var(--accent)]" : "bg-[var(--ok)]"
+                }`}
+              >
                 *
               </span>
               <span>
-                <span className="block text-sm font-bold">Court updates</span>
+                <span className="block text-sm font-bold">
+                  {bulletin.court_updates_label}
+                </span>
                 <span className="block text-xs text-[var(--muted)]">
-                  Coming soon
+                  {courtUpdateDescription}
                 </span>
               </span>
             </button>
@@ -875,15 +1064,15 @@ export default function Home() {
           </div>
 
           {loading ? (
-            <div className="rounded-[2rem] border border-white/80 bg-white/75 p-8 shadow-sm backdrop-blur">
+            <div className="rounded-[2rem] border border-white/80 bg-white p-8 shadow-sm">
               Loading sessions...
             </div>
           ) : !publicSettings.sessions_public_enabled ? (
-            <div className="rounded-[2rem] border border-white/80 bg-white/75 p-8 shadow-sm backdrop-blur">
+            <div className="rounded-[2rem] border border-white/80 bg-white p-8 shadow-sm">
               Session booking is currently hidden by the committee.
             </div>
           ) : sessions.length === 0 ? (
-            <div className="rounded-[2rem] border border-white/80 bg-white/75 p-8 shadow-sm backdrop-blur">
+            <div className="rounded-[2rem] border border-white/80 bg-white p-8 shadow-sm">
               No sessions yet.
             </div>
           ) : (
@@ -926,7 +1115,6 @@ export default function Home() {
             className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-[0_30px_90px_rgba(0,0,0,0.22)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="h-2 bg-gradient-to-r from-[var(--accent)] via-[#e5ba62] to-[var(--cool)]" />
             <div className="p-6 sm:p-7">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -934,7 +1122,7 @@ export default function Home() {
                   Committee note
                 </p>
                 <h3 className={`${sora.className} mt-2 text-2xl font-bold`}>
-                  {openBulletin === "rules" ? "Club Rules" : "Useful information"}
+                  {openBulletinTitle}
                 </h3>
                 <p className="mt-1 text-sm text-[var(--muted)]">
                   Updated by the committee.
@@ -948,9 +1136,7 @@ export default function Home() {
               </button>
             </div>
             <div className="mt-5 max-h-[60vh] overflow-y-auto rounded-3xl border border-[var(--line)] bg-[var(--chip)] p-5 text-sm text-[var(--ink)]">
-              {openBulletin === "rules"
-                ? renderBulletin(bulletin.club_rules)
-                : renderBulletin(bulletin.useful_info)}
+              {renderBulletin(openBulletinBody)}
             </div>
             </div>
           </div>
