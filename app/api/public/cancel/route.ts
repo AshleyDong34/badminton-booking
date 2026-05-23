@@ -6,6 +6,33 @@ import { buildPromotionEmail } from "@/lib/email-templates";
 
 export const runtime = "nodejs";
 
+export async function GET(req: NextRequest) {
+  const token = req.nextUrl.searchParams.get("token") ?? "";
+
+  if (!token) {
+    return NextResponse.json({ status: "invalid" }, { status: 200 });
+  }
+
+  const db = supabaseServer();
+  const { data: signup, error } = await db
+    .from("signups")
+    .select("id,status")
+    .eq("cancel_token", token)
+    .maybeSingle();
+
+  if (error || !signup) {
+    return NextResponse.json({ status: "invalid" }, { status: 200 });
+  }
+
+  const isCancellable =
+    signup.status === "signed_up" || signup.status === "waiting_list";
+
+  return NextResponse.json(
+    { status: isCancellable ? "ready" : "invalid" },
+    { status: 200 }
+  );
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const token = typeof body.token === "string" ? body.token : "";

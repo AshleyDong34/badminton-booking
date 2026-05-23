@@ -8,6 +8,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Space_Grotesk, Sora } from "next/font/google";
 
@@ -180,7 +181,7 @@ function renderInlineMarkdown(text: string) {
   return nodes;
 }
 
-function renderBulletin(text: string) {
+function renderRichTextBlocks(text: string) {
   const lines = text.split(/\r?\n/);
   const blocks: React.ReactNode[] = [];
   let list: { type: "ordered" | "unordered"; item: string }[] = [];
@@ -254,22 +255,22 @@ function renderBulletin(text: string) {
 
   flushList("tail");
 
+  return blocks;
+}
+
+function renderBulletin(text: string) {
+  const blocks = renderRichTextBlocks(text);
   return blocks.length ? blocks : <p>No bulletin posted yet.</p>;
 }
 
 function renderEventBody(text: string | null) {
-  const lines = (text ?? "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const blocks = renderRichTextBlocks(text ?? "");
 
-  if (lines.length === 0) return null;
+  if (blocks.length === 0) return null;
 
   return (
-    <div className="space-y-2 text-sm leading-relaxed text-[var(--muted)]">
-      {lines.map((line, index) => (
-        <p key={`${line}-${index}`}>{renderInlineMarkdown(line)}</p>
-      ))}
+    <div className="space-y-3 text-[0.95rem] leading-7 text-[var(--muted)] sm:text-sm sm:leading-6">
+      {blocks}
     </div>
   );
 }
@@ -303,7 +304,7 @@ function SessionCard({ session }: { session: SessionRow }) {
     : null;
 
   return (
-    <article className="group relative overflow-hidden rounded-[1.75rem] border border-white/80 bg-white p-4 shadow-[0_10px_28px_rgba(15,26,18,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(15,26,18,0.11)] sm:p-5">
+    <article className="group relative overflow-hidden rounded-2xl border border-white/80 bg-white p-4 shadow-[0_10px_28px_rgba(15,26,18,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(15,26,18,0.11)] sm:p-5">
       <div className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-[#b7d7c2] opacity-20" />
       <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-3">
@@ -346,7 +347,7 @@ function SessionCard({ session }: { session: SessionRow }) {
           </div>
           <Link
             href={`/sessions/${session.id}`}
-            className={`w-full rounded-2xl px-5 py-3 text-center text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 sm:w-auto ${badgeClass}`}
+            className={`w-full rounded-xl px-5 py-3 text-center text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 sm:w-auto ${badgeClass}`}
           >
             {badgeText}
           </Link>
@@ -359,7 +360,7 @@ function SessionCard({ session }: { session: SessionRow }) {
 function EventImagePanel({
   event,
   className,
-  imageClassName = "rounded-2xl",
+  imageClassName = "rounded-xl",
 }: {
   event: EventRow;
   className: string;
@@ -440,7 +441,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             What is happening next
           </h2>
         </div>
-        <p className="max-w-sm text-sm text-[var(--muted)]">
+        <p className="max-w-sm text-sm leading-6 text-[var(--muted)]">
           Event cards and special announcements from the committee.
         </p>
       </div>
@@ -448,12 +449,12 @@ function EventsBanner({ events }: { events: EventRow[] }) {
       <div className="relative px-0 pt-5 sm:px-12">
         {hasMultipleEvents && (
           <>
-            <div className="absolute left-10 right-10 top-0 h-16 rounded-t-[2rem] border border-b-0 border-white/70 bg-white/45 shadow-sm sm:left-24 sm:right-24" />
-            <div className="absolute left-5 right-5 top-2 h-16 rounded-t-[2rem] border border-b-0 border-white/70 bg-white/70 shadow-sm sm:left-16 sm:right-16" />
+            <div className="absolute left-10 right-10 top-0 h-16 rounded-t-xl border border-b-0 border-white/70 bg-white/45 shadow-sm sm:left-24 sm:right-24" />
+            <div className="absolute left-5 right-5 top-2 h-16 rounded-t-xl border border-b-0 border-white/70 bg-white/70 shadow-sm sm:left-16 sm:right-16" />
           </>
         )}
 
-        <article className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-[#fbfaf2] shadow-[0_25px_70px_rgba(20,42,30,0.15)]">
+        <article className="relative overflow-hidden rounded-2xl border border-white/80 bg-[#fbfaf2] shadow-[0_25px_70px_rgba(20,42,30,0.15)]">
           <div className="pointer-events-none absolute -left-16 -top-20 h-44 w-44 rounded-full bg-[#c9e4cc] opacity-50 blur-3xl" />
           <div className="pointer-events-none absolute bottom-0 right-0 h-44 w-44 rounded-full bg-[#d7e6ff] opacity-60 blur-3xl" />
           <div
@@ -482,35 +483,33 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                   openEventAt(activeIndex);
                 }
               }}
-              className="flex min-h-0 cursor-pointer flex-col justify-between gap-5 overflow-hidden p-6 text-left sm:p-8"
+              className="flex min-h-0 cursor-pointer flex-col gap-4 overflow-hidden p-5 text-left sm:p-7"
               aria-label={`Open ${activeEvent.title}`}
             >
-              <div className="min-h-0 space-y-3 overflow-hidden">
-                <h2 className={`${sora.className} text-3xl font-bold leading-tight text-[var(--ink)]`}>
+              <div className="min-h-0 flex-1 space-y-3 overflow-hidden">
+                <h2 className={`${sora.className} text-2xl font-bold leading-tight text-[var(--ink)] sm:text-3xl`}>
                   {activeEvent.title}
                 </h2>
-                <div className="max-h-36 overflow-y-auto pr-1 md:max-h-32">
+                <div className="max-h-48 overflow-y-auto pr-1 md:max-h-44">
                   {body}
                 </div>
               </div>
 
-              <div className="flex items-center">
-                {hasLink ? (
+              {hasLink && (
+                <div className="shrink-0 pt-1">
                   <a
                     href={activeEvent.link_url!}
                     onClick={(event) => event.stopPropagation()}
                     onKeyDown={(event) => event.stopPropagation()}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex w-fit items-center gap-2 rounded-2xl bg-[var(--cool)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+                    className="inline-flex w-fit items-center gap-2 rounded-xl bg-[var(--cool)] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 sm:text-sm"
                   >
                     {activeEvent.link_label}
                     <span aria-hidden="true">-&gt;</span>
                   </a>
-                ) : (
-                  <span />
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {hasImage && !imageFirst && (
@@ -531,7 +530,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             <button
               type="button"
               onClick={goPrevious}
-              className="absolute left-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/80 bg-white/95 text-3xl font-semibold leading-none text-[var(--cool)] shadow-xl ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[#f3f8f4] sm:flex"
+              className="absolute left-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-white/80 bg-white/95 text-3xl font-semibold leading-none text-[var(--cool)] shadow-xl ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[#f3f8f4] sm:flex"
               aria-label="Previous event"
             >
               &#8249;
@@ -539,7 +538,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             <button
               type="button"
               onClick={goNext}
-              className="absolute right-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/80 bg-white/95 text-3xl font-semibold leading-none text-[var(--cool)] shadow-xl ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[#f3f8f4] sm:flex"
+              className="absolute right-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-white/80 bg-white/95 text-3xl font-semibold leading-none text-[var(--cool)] shadow-xl ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[#f3f8f4] sm:flex"
               aria-label="Next event"
             >
               &#8250;
@@ -549,12 +548,12 @@ function EventsBanner({ events }: { events: EventRow[] }) {
               <button
                 type="button"
                 onClick={goPrevious}
-                className="flex h-10 min-w-10 items-center justify-center rounded-full border border-white/80 bg-white px-3 text-xl font-semibold text-[var(--cool)] shadow-md sm:hidden"
+                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-white/80 bg-white px-3 text-xl font-semibold text-[var(--cool)] shadow-md sm:hidden"
                 aria-label="Previous event"
               >
                 &#8249;
               </button>
-              <div className="flex items-center gap-2 rounded-full border border-white/80 bg-white px-3 py-2 shadow-lg">
+              <div className="flex items-center gap-2 rounded-xl border border-white/80 bg-white px-3 py-2 shadow-lg">
                 <span className="mr-1 hidden text-xs font-semibold text-[var(--muted)] sm:inline">
                   Event {activeIndex + 1} of {events.length}
                 </span>
@@ -579,7 +578,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
               <button
                 type="button"
                 onClick={goNext}
-                className="flex h-10 min-w-10 items-center justify-center rounded-full border border-white/80 bg-white px-3 text-xl font-semibold text-[var(--cool)] shadow-md sm:hidden"
+                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-white/80 bg-white px-3 text-xl font-semibold text-[var(--cool)] shadow-md sm:hidden"
                 aria-label="Next event"
               >
                 &#8250;
@@ -597,7 +596,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
           onClick={() => setOpenEventIndex(null)}
         >
           <div
-            className={`relative grid max-h-[94vh] w-full max-w-5xl overflow-hidden rounded-[1.75rem] bg-[var(--card)] shadow-2xl sm:rounded-[2rem] ${
+            className={`relative grid max-h-[94vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-[var(--card)] shadow-2xl ${
               openEvent.image_url
                 ? "grid-rows-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1.18fr)_minmax(300px,0.82fr)] md:grid-rows-1"
                 : ""
@@ -607,7 +606,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             <button
               type="button"
               onClick={() => setOpenEventIndex(null)}
-              className="absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/95 text-2xl font-bold leading-none text-[var(--ink)] shadow-lg transition hover:scale-105 hover:bg-white"
+              className="absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-xl border border-white/80 bg-white/95 text-2xl font-bold leading-none text-[var(--ink)] shadow-lg transition hover:scale-105 hover:bg-white"
               aria-label="Close event"
             >
               <span aria-hidden="true">&times;</span>
@@ -616,8 +615,8 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             {openEvent.image_url && (
               <EventImagePanel
                 event={openEvent}
-                className="min-h-0 h-[58vh] max-h-[62vh] md:h-[92vh] md:max-h-none"
-                imageClassName="rounded-xl sm:rounded-2xl"
+                className="min-h-0 h-[54vh] max-h-[58vh] md:h-[92vh] md:max-h-none"
+                imageClassName="rounded-xl"
               />
             )}
             {hasMultipleEvents && (
@@ -625,7 +624,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                 <button
                   type="button"
                   onClick={goModalPrevious}
-                  className="absolute left-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-white/90 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
+                  className="absolute left-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-white/50 bg-white/90 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
                   aria-label="Previous event"
                 >
                   &#8249;
@@ -633,7 +632,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                 <button
                   type="button"
                   onClick={goModalNext}
-                  className="absolute right-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-white/90 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
+                  className="absolute right-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-white/50 bg-white/90 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
                   aria-label="Next event"
                 >
                   &#8250;
@@ -641,21 +640,27 @@ function EventsBanner({ events }: { events: EventRow[] }) {
               </>
             )}
 
-            <div className="flex max-h-[36vh] flex-col gap-4 overflow-y-auto p-4 pt-5 sm:p-5 sm:pt-6 md:max-h-[92vh] md:p-7">
+            <div
+              className={`flex min-h-0 flex-col gap-3 overflow-hidden p-4 pt-5 sm:p-5 sm:pt-6 md:max-h-[92vh] md:p-7 ${
+                openEvent.image_url ? "max-h-[42vh]" : "max-h-[82vh]"
+              }`}
+            >
               <div className="min-w-0 pr-12">
                 <h2 className="text-xl font-semibold leading-tight text-[var(--ink)] sm:text-2xl">
                   {openEvent.title}
                 </h2>
               </div>
 
-              <div className="text-sm">{renderEventBody(openEvent.body)}</div>
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                {renderEventBody(openEvent.body)}
+              </div>
 
               {openEvent.link_label && openEvent.link_url && (
                 <a
                   href={openEvent.link_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex w-fit items-center gap-2 rounded-xl bg-[var(--cool)] px-4 py-2 text-sm font-semibold text-white shadow-sm"
+                  className="inline-flex w-fit shrink-0 items-center gap-2 rounded-xl bg-[var(--cool)] px-3.5 py-2 text-xs font-semibold text-white shadow-sm sm:text-sm"
                 >
                   {openEvent.link_label}
                   <span aria-hidden="true">-&gt;</span>
@@ -663,11 +668,11 @@ function EventsBanner({ events }: { events: EventRow[] }) {
               )}
 
               {hasMultipleEvents && (
-                <div className="mt-auto grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border border-[var(--line)] bg-[var(--chip)] p-2">
+                <div className="mt-auto grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--chip)] p-2">
                   <button
                     type="button"
                     onClick={goModalPrevious}
-                    className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
+                    className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
                   >
                     <span className="hidden sm:inline">&#8249; Previous</span>
                     <span className="sm:hidden">&#8249;</span>
@@ -678,7 +683,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                   <button
                     type="button"
                     onClick={goModalNext}
-                    className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
+                    className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
                   >
                     <span className="hidden sm:inline">Next &#8250;</span>
                     <span className="sm:hidden">&#8250;</span>
@@ -872,7 +877,7 @@ export default function Home() {
       style={
         {
           "--ink": "#101913",
-          "--muted": "#60706a",
+          "--muted": "#475850",
           "--paper": "#edf3ee",
           "--card": "#ffffff",
           "--line": "#cfddd4",
@@ -896,8 +901,15 @@ export default function Home() {
       <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-6 sm:px-8 lg:px-10">
         <nav className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--ok)] text-lg font-bold text-white shadow-lg">
-              E
+            <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/80 bg-white shadow-lg">
+              <Image
+                src="/icon.png"
+                alt="EUBC logo"
+                fill
+                sizes="48px"
+                className="object-cover"
+                priority
+              />
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--cool)]">
@@ -914,20 +926,20 @@ export default function Home() {
               type="button"
               onClick={() => loadSessions("refresh")}
               disabled={loading || refreshing}
-              className="rounded-full border border-white/80 bg-white/75 px-4 py-2 text-sm font-semibold shadow-sm backdrop-blur transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl border border-white/80 bg-white/75 px-4 py-2 text-sm font-semibold shadow-sm backdrop-blur transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
             <Link
               href="/signin"
-              className="rounded-full bg-[var(--cool)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+              className="rounded-xl bg-[var(--cool)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
             >
               Admin sign in
             </Link>
           </div>
         </nav>
 
-        <header className="relative mb-8 overflow-hidden rounded-[1.75rem] border border-white/75 bg-white/72 p-6 shadow-[0_18px_55px_rgba(18,42,28,0.12)] backdrop-blur-xl sm:rounded-[2rem] sm:p-7 lg:p-8">
+        <header className="relative mb-8 overflow-hidden rounded-2xl border border-white/75 bg-white/72 p-6 shadow-[0_18px_55px_rgba(18,42,28,0.12)] backdrop-blur-xl sm:p-7 lg:p-8">
           <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#9dc7f2] opacity-40 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-28 left-16 h-72 w-72 rounded-full bg-[#f2c16d] opacity-35 blur-3xl" />
           <div className="relative max-w-3xl space-y-4">
@@ -963,16 +975,16 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setOpenBulletin("rules")}
-              className="group flex min-h-14 items-center gap-3 rounded-full border border-white/80 bg-white/85 px-4 py-2.5 text-left shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+              className="group flex min-h-14 items-center gap-3 rounded-xl border border-white/80 bg-white/85 px-4 py-2.5 text-left shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-base font-bold text-white shadow-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-base font-bold text-white shadow-sm">
                 !
               </span>
               <span>
                 <span className="block text-sm font-bold">
                   {bulletin.club_rules_label}
                 </span>
-                <span className="block text-xs text-[var(--muted)]">
+                <span className="block text-[13px] leading-5 text-[var(--muted)]">
                   {bulletin.club_rules_description}
                 </span>
               </span>
@@ -980,16 +992,16 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setOpenBulletin("info")}
-              className="group flex min-h-14 items-center gap-3 rounded-full border border-white/80 bg-white/85 px-4 py-2.5 text-left shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+              className="group flex min-h-14 items-center gap-3 rounded-xl border border-white/80 bg-white/85 px-4 py-2.5 text-left shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--cool)] text-base font-bold text-white shadow-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--cool)] text-base font-bold text-white shadow-sm">
                 i
               </span>
               <span>
                 <span className="block text-sm font-bold">
                   {bulletin.useful_info_label}
                 </span>
-                <span className="block text-xs text-[var(--muted)]">
+                <span className="block text-[13px] leading-5 text-[var(--muted)]">
                   {bulletin.useful_info_description}
                 </span>
               </span>
@@ -997,7 +1009,7 @@ export default function Home() {
             <button
               type="button"
               onClick={openCourtUpdates}
-              className={`group relative flex min-h-14 items-center gap-3 rounded-full px-4 py-2.5 text-left backdrop-blur transition hover:-translate-y-0.5 hover:bg-white ${
+              className={`group relative flex min-h-14 items-center gap-3 rounded-xl px-4 py-2.5 text-left backdrop-blur transition hover:-translate-y-0.5 hover:bg-white ${
                 isCourtUpdateUrgent
                   ? "court-update-alert border border-[#e3a33e]/70 bg-[#fff2cb] shadow-[0_14px_32px_rgba(214,108,69,0.22)] ring-2 ring-[#f0be65]/35"
                   : "border border-white/80 bg-white/85 shadow-md"
@@ -1007,7 +1019,7 @@ export default function Home() {
                 <span className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_rgba(220,103,66,0.16)]" />
               )}
               <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold text-white shadow-sm ${
+                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white shadow-sm ${
                   isCourtUpdateUrgent ? "bg-[var(--accent)]" : "bg-[var(--ok)]"
                 }`}
               >
@@ -1017,7 +1029,7 @@ export default function Home() {
                 <span className="block text-sm font-bold">
                   {bulletin.court_updates_label}
                 </span>
-                <span className="block text-xs text-[var(--muted)]">
+                <span className="block text-[13px] leading-5 text-[var(--muted)]">
                   {courtUpdateDescription}
                 </span>
               </span>
@@ -1028,22 +1040,23 @@ export default function Home() {
         <EventsBanner events={events} />
 
         {publicSettings.club_champs_public_enabled && (
-          <section className="mb-12 overflow-hidden rounded-[2rem] border border-white/80 bg-[#11241a] p-6 text-white shadow-[0_20px_60px_rgba(18,42,28,0.16)] sm:p-7">
+          <section className="relative mb-12 overflow-hidden rounded-2xl border border-[#c5dfcc] bg-[linear-gradient(135deg,#e8f6eb_0%,#c5e5cd_48%,#93cba6_100%)] p-6 text-[#0b2719] shadow-[0_18px_50px_rgba(37,86,56,0.16)] sm:p-7">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,rgba(255,255,255,0.48),transparent_30%),radial-gradient(circle_at_92%_8%,rgba(255,255,255,0.28),transparent_26%)]" />
             <div className="flex flex-wrap items-center justify-between gap-5">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-white/55">
+              <div className="relative">
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#315b43]">
                   Tournament mode
                 </p>
                 <h2 className={`${sora.className} mt-2 text-3xl font-bold`}>
                   Club champs live hub
                 </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#315b43]">
                   Follow tournament progress, results, and updates from the committee.
                 </p>
               </div>
               <Link
                 href="/club-champs"
-                className="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-[var(--ink)] shadow-sm transition hover:-translate-y-0.5"
+                className="relative rounded-xl border border-[#6ea981]/40 bg-white/85 px-5 py-3 text-sm font-bold text-[#0b3a25] shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
               >
                 Open Club champs
               </Link>
@@ -1064,15 +1077,15 @@ export default function Home() {
           </div>
 
           {loading ? (
-            <div className="rounded-[2rem] border border-white/80 bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-white/80 bg-white p-8 shadow-sm">
               Loading sessions...
             </div>
           ) : !publicSettings.sessions_public_enabled ? (
-            <div className="rounded-[2rem] border border-white/80 bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-white/80 bg-white p-8 shadow-sm">
               Session booking is currently hidden by the committee.
             </div>
           ) : sessions.length === 0 ? (
-            <div className="rounded-[2rem] border border-white/80 bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-white/80 bg-white p-8 shadow-sm">
               No sessions yet.
             </div>
           ) : (
@@ -1112,7 +1125,7 @@ export default function Home() {
           onClick={() => setOpenBulletin(null)}
         >
           <div
-            className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-[0_30px_90px_rgba(0,0,0,0.22)]"
+            className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[0_30px_90px_rgba(0,0,0,0.22)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="p-6 sm:p-7">
@@ -1129,13 +1142,13 @@ export default function Home() {
                 </p>
               </div>
               <button
-                className="rounded-full border border-[var(--line)] bg-[var(--chip)] px-4 py-2 text-sm font-semibold transition hover:bg-white"
+                className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-2 text-sm font-semibold transition hover:bg-white"
                 onClick={() => setOpenBulletin(null)}
               >
                 Close
               </button>
             </div>
-            <div className="mt-5 max-h-[60vh] overflow-y-auto rounded-3xl border border-[var(--line)] bg-[var(--chip)] p-5 text-sm text-[var(--ink)]">
+            <div className="mt-5 max-h-[60vh] space-y-3 overflow-y-auto rounded-xl border border-[var(--line)] bg-[var(--chip)] p-5 text-sm leading-6 text-[var(--ink)]">
               {renderBulletin(openBulletinBody)}
             </div>
             </div>

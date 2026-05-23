@@ -7,17 +7,19 @@ type NoticeboardTextEditorProps = {
   defaultValue: string;
   placeholder: string;
   rows?: number;
+  helpText?: string;
 };
 
 function cleanSelection(text: string, fallback: string) {
   return text.length > 0 ? text : fallback;
 }
 
-export function NoticeboardTextEditor({
+export function RichTextEditor({
   name,
   defaultValue,
   placeholder,
   rows = 7,
+  helpText = "Formatting supported: bold, italic, links, headings, bullet lists, numbered lists, and line breaks.",
 }: NoticeboardTextEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -42,6 +44,10 @@ export function NoticeboardTextEditor({
       const content = cleanSelection(selected, fallback);
       return `${before}${content}${after}`;
     });
+  };
+
+  const insertText = (text: string) => {
+    replaceSelection((selected) => (selected ? `${selected}${text}` : text));
   };
 
   const formatLines = (
@@ -121,6 +127,20 @@ export function NoticeboardTextEditor({
         >
           Heading
         </button>
+        <button
+          type="button"
+          onClick={() => insertText("\n")}
+          className="rounded-xl bg-white px-3 py-1.5 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5"
+        >
+          New line
+        </button>
+        <button
+          type="button"
+          onClick={() => insertText("\n\n")}
+          className="rounded-xl bg-white px-3 py-1.5 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5"
+        >
+          Paragraph gap
+        </button>
       </div>
 
       <textarea
@@ -131,6 +151,9 @@ export function NoticeboardTextEditor({
         className="w-full rounded-xl border border-[var(--line)] bg-white p-3 text-sm"
         placeholder={placeholder}
       />
+      <p className="text-xs leading-5 text-[var(--muted)]">{helpText}</p>
     </div>
   );
 }
+
+export const NoticeboardTextEditor = RichTextEditor;

@@ -16,16 +16,16 @@ const sectionItems = [
 ];
 
 const themeVars: CSSProperties = {
-  ["--ink" as string]: "#0c1f30",
-  ["--muted" as string]: "#4f6273",
-  ["--paper" as string]: "#e9f0ea",
+  ["--ink" as string]: "#081811",
+  ["--muted" as string]: "#40584c",
+  ["--paper" as string]: "#edf5ee",
   ["--card" as string]: "#ffffff",
-  ["--line" as string]: "#b5c9be",
-  ["--accent" as string]: "#d24a3d",
-  ["--ok" as string]: "#168557",
+  ["--line" as string]: "#bdd8c6",
+  ["--accent" as string]: "#d46b3f",
+  ["--ok" as string]: "#0f7a4d",
   ["--wait" as string]: "#df8ea0",
-  ["--cool" as string]: "#154c86",
-  ["--chip" as string]: "#e8f0f8",
+  ["--cool" as string]: "#1d6b45",
+  ["--chip" as string]: "#eef8f1",
 };
 
 export const dynamic = "force-dynamic";
@@ -88,10 +88,11 @@ export default async function ClubChampsPublicLayout({
         <div className="pointer-events-none absolute right-0 top-12 -z-10 h-56 w-56 rounded-full bg-[#8fb2d9] opacity-35 blur-3xl" />
         <div className="pointer-events-none absolute right-24 top-48 -z-10 h-44 w-44 rounded-full bg-[#e6b67f] opacity-28 blur-3xl" />
 
-        <header className="mb-6 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <header className="relative mb-6 overflow-hidden rounded-2xl border border-[#c5dfcc] bg-[linear-gradient(135deg,#e8f6eb_0%,#c5e5cd_48%,#93cba6_100%)] p-5 text-[#0b2719] shadow-[0_18px_50px_rgba(37,86,56,0.16)] sm:p-6">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,rgba(255,255,255,0.5),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(255,255,255,0.26),transparent_26%)]" />
+          <div className="relative flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--muted)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#315b43]">
                 EUBC Club Champs
               </p>
               <h1 className="text-2xl font-semibold sm:text-3xl">
@@ -100,12 +101,12 @@ export default async function ClubChampsPublicLayout({
             </div>
             <Link
               href="/"
-              className="rounded-full border border-[var(--cool)]/25 bg-[var(--card)] px-4 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:bg-[var(--chip)]"
+              className="rounded-xl border border-[#6ea981]/40 bg-white/85 px-4 py-2 text-sm font-semibold text-[#0b3a25] shadow-sm transition hover:bg-white"
             >
               Back to sessions
             </Link>
           </div>
-          <p className="max-w-3xl text-sm text-[var(--muted)] sm:text-base">
+          <p className="relative mt-3 max-w-3xl text-sm text-[#315b43] sm:text-base">
             Follow pairings, pool-stage results, and knockout progress.
           </p>
         </header>
@@ -132,7 +133,7 @@ export default async function ClubChampsPublicLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-xl border border-[var(--cool)]/20 bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:translate-y-[-1px] hover:bg-[var(--chip)]"
+                className="rounded-xl border border-[var(--cool)]/20 bg-[linear-gradient(135deg,#ffffff_0%,#eef8f1_50%,#d8eadf_100%)] px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:translate-y-[-1px] hover:bg-[var(--chip)]"
               >
                 {item.label}
               </Link>

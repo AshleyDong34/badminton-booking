@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase-server";
+import { RichTextEditor } from "../noticeboard/NoticeboardTextEditor";
 import EventImageInput from "./EventImageInput";
 
 export const dynamic = "force-dynamic";
@@ -46,12 +47,12 @@ function EventFields({ event }: { event?: EventRow }) {
 
       <div>
         <label className="block text-sm font-medium">Description</label>
-        <textarea
+        <RichTextEditor
           name="body"
-          rows={4}
           defaultValue={event?.body ?? ""}
-          className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-3 text-sm"
+          rows={6}
           placeholder="Short event details to show on the public homepage."
+          helpText="This appears on the event card. Use new lines, bold text, links, or bullet points for readable updates."
         />
       </div>
 

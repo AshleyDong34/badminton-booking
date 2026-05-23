@@ -33,7 +33,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       style={
         {
           "--ink": "#14202b",
-          "--muted": "#5f6c7b",
+          "--muted": "#4b5866",
           "--paper": "#f6f1e9",
           "--card": "#ffffff",
           "--line": "#e6ddd1",

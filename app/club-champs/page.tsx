@@ -74,7 +74,7 @@ function EventStatusCard({
         );
 
   return (
-    <article className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+    <article className="space-y-3 rounded-xl border border-[var(--line)] bg-[linear-gradient(145deg,#ffffff_0%,#f5fbf7_48%,#e2f1e7_100%)] p-5 shadow-sm">
       <h2 className="text-lg font-semibold text-[var(--cool)]">{EVENT_LABEL[event]}</h2>
 
       <div className="rounded-xl border border-[var(--cool)]/20 bg-[var(--chip)] px-3 py-2 text-sm">
@@ -154,7 +154,7 @@ export default async function PublicClubChampsPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+      <section className="rounded-xl border border-[var(--line)] bg-[linear-gradient(145deg,#ffffff_0%,#f5fbf7_48%,#e2f1e7_100%)] p-5 shadow-sm">
         <h2 className="text-xl font-semibold text-[var(--cool)]">Overview</h2>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Live tournament status for both events. Open each section for full
@@ -164,7 +164,7 @@ export default async function PublicClubChampsPage() {
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <Link
             href="/club-champs/pairings"
-            className="rounded-xl border border-[var(--cool)]/20 bg-[#eaf2fb] px-4 py-3 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:translate-y-[-1px]"
+            className="rounded-xl border border-[var(--cool)]/20 bg-[#eaf5ee] px-4 py-3 text-sm font-semibold text-[var(--cool)] shadow-sm transition hover:translate-y-[-1px]"
           >
             Pairings
           </Link>

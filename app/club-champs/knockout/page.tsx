@@ -176,7 +176,7 @@ function EventBracket({
 
   if (eventRows.length === 0) {
     return (
-      <section className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+      <section className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
         <h2 className="text-lg font-semibold">{EVENT_LABEL[event]}</h2>
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--muted)]">
           No updates yet.
@@ -195,13 +195,13 @@ function EventBracket({
     null;
 
   return (
-    <section className="space-y-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+    <section className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-[var(--cool)]">{EVENT_LABEL[event]}</h2>
         <div className="text-sm">
           {finalWinnerId ? (
             <span className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-              ✓ Winner: {pairNames(pairById.get(finalWinnerId))}
+              âœ“ Winner: {pairNames(pairById.get(finalWinnerId))}
             </span>
           ) : (
             <span className="text-[var(--muted)]">Winner not decided yet</span>
@@ -284,14 +284,14 @@ function EventBracket({
                           >
                             <span>{pairALabel}</span>
                             {pairAIsWinner ? (
-                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300 bg-emerald-100 text-[11px] leading-none text-emerald-700">
-                                ✓
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-100 text-[11px] leading-none text-emerald-700">
+                                âœ“
                               </span>
                             ) : null}
                           </div>
                           {pairA && starts && (
                             <span
-                              className={`rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)] ${
+                              className={`rounded-xl bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)] ${
                                 pairAIsLoser ? "opacity-50" : ""
                               }`}
                             >
@@ -311,14 +311,14 @@ function EventBracket({
                           >
                             <span>{pairBLabel}</span>
                             {pairBIsWinner ? (
-                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300 bg-emerald-100 text-[11px] leading-none text-emerald-700">
-                                ✓
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-100 text-[11px] leading-none text-emerald-700">
+                                âœ“
                               </span>
                             ) : null}
                           </div>
                           {pairB && starts && (
                             <span
-                              className={`rounded-full bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)] ${
+                              className={`rounded-xl bg-[var(--chip)] px-2 py-0.5 text-[11px] text-[var(--muted)] ${
                                 pairBIsLoser ? "opacity-50" : ""
                               }`}
                             >
@@ -375,7 +375,7 @@ export default async function PublicClubChampsKnockoutPage() {
   const pairsOnlyPublic = Boolean(settingsData?.club_champs_pairs_only_public);
   if (pairsOnlyPublic) {
     return (
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
         <h1 className="text-xl font-semibold text-[var(--cool)]">Knockout bracket</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Knockout updates are temporarily hidden while the committee prepares updates.
@@ -395,7 +395,7 @@ export default async function PublicClubChampsKnockoutPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
         <h1 className="text-xl font-semibold text-[var(--cool)]">Knockout bracket</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Live tournament bracket and results.

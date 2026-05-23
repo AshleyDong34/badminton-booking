@@ -30,7 +30,7 @@ function PairingsSection({ event, rows }: { event: EventType; rows: PairRow[] })
   const eventRows = [...rows].filter((row) => row.event === event).sort(sortPairs);
 
   return (
-    <section className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+    <section className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
       <div>
         <h2 className="text-lg font-semibold text-[var(--cool)]">{EVENT_LABEL[event]}</h2>
         <p className="text-sm text-[var(--muted)]">
@@ -87,7 +87,7 @@ export default async function PublicClubChampsPairingsPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
         <h1 className="text-xl font-semibold text-[var(--cool)]">Pairings</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Published pair entries for Club Champs events.

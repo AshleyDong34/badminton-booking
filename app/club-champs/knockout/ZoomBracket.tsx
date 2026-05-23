@@ -75,25 +75,25 @@ export default function ZoomBracket({
           <button
             type="button"
             onClick={() => setZoom((current) => clamp(current - 0.1, MIN_ZOOM, MAX_ZOOM))}
-            className="h-8 min-w-8 rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-xs font-semibold text-[var(--cool)]"
+            className="h-8 min-w-8 rounded-xl border border-[var(--line)] bg-white px-2 py-1 text-xs font-semibold text-[var(--cool)]"
           >
             -
           </button>
           <button
             type="button"
             onClick={() => setZoom(fitZoom)}
-            className="h-8 rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-xs font-semibold text-[var(--cool)]"
+            className="h-8 rounded-xl border border-[var(--line)] bg-white px-2 py-1 text-xs font-semibold text-[var(--cool)]"
           >
             Fit
           </button>
           <button
             type="button"
             onClick={() => setZoom((current) => clamp(current + 0.1, MIN_ZOOM, MAX_ZOOM))}
-            className="h-8 min-w-8 rounded-lg border border-[var(--line)] bg-white px-2 py-1 text-xs font-semibold text-[var(--cool)]"
+            className="h-8 min-w-8 rounded-xl border border-[var(--line)] bg-white px-2 py-1 text-xs font-semibold text-[var(--cool)]"
           >
             +
           </button>
-          <span className="ml-1 rounded-lg border border-[var(--line)] bg-[var(--chip)] px-2 py-1 text-xs font-semibold text-[var(--muted)]">
+          <span className="ml-1 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-2 py-1 text-xs font-semibold text-[var(--muted)]">
             {Math.round(zoom * 100)}%
           </span>
         </div>

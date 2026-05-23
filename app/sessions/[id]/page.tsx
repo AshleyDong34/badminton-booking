@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -244,9 +244,21 @@ export default function SessionBookingPage() {
       setName("");
       setStudentId("");
       setEmail("");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const maybeError = err as {
+        message?: string;
+        details?: string;
+        hint?: string;
+        code?: string;
+      };
       const raw =
-        (err?.message || err?.details || err?.hint || err?.code || "").toLowerCase();
+        (
+          maybeError.message ||
+          maybeError.details ||
+          maybeError.hint ||
+          maybeError.code ||
+          ""
+        ).toLowerCase();
       setMessage(`Could not add signup. (${raw || "unexpected"})`);
     } finally {
       setSubmitting(false);
@@ -260,7 +272,7 @@ export default function SessionBookingPage() {
         style={
           {
             "--ink": "#14202b",
-            "--muted": "#5f6c7b",
+            "--muted": "#4b5866",
             "--paper": "#f6f1e9",
             "--card": "#ffffff",
             "--line": "#e6ddd1",
@@ -284,7 +296,7 @@ export default function SessionBookingPage() {
         style={
           {
             "--ink": "#14202b",
-            "--muted": "#5f6c7b",
+            "--muted": "#4b5866",
             "--paper": "#f6f1e9",
             "--card": "#ffffff",
             "--line": "#e6ddd1",
@@ -315,7 +327,7 @@ export default function SessionBookingPage() {
       style={
         {
           "--ink": "#14202b",
-          "--muted": "#5f6c7b",
+          "--muted": "#4b5866",
           "--paper": "#f6f1e9",
           "--card": "#ffffff",
           "--line": "#e6ddd1",
@@ -339,7 +351,7 @@ export default function SessionBookingPage() {
             type="button"
             onClick={() => loadSession("refresh")}
             disabled={refreshing}
-            className="rounded-full border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-xs font-medium text-[var(--muted)] shadow-sm transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-xl border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-xs font-medium text-[var(--muted)] shadow-sm transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
@@ -391,6 +403,10 @@ export default function SessionBookingPage() {
             <h2 className="text-base font-semibold sm:text-lg">Book your spot</h2>
             <p className="text-xs text-[var(--muted)] sm:text-sm">
               Enter your details below. You will get a confirmation email with a cancel link.
+            </p>
+            <p className="rounded-xl border border-[#f0d28b] bg-[#fff7d8] px-4 py-3 text-sm font-bold text-[#6d4b18]">
+              After booking, check your junk/spam folder, especially if you use
+              your university Outlook email.
             </p>
           </div>
           {!allowNameOnly && (
@@ -484,9 +500,20 @@ export default function SessionBookingPage() {
               <p className="mt-3 text-sm text-[var(--muted)]">
                 A confirmation email has been sent to{" "}
                 <span className="font-medium text-[var(--ink)]">{result.email}</span> with your
-                cancellation link. If you can't make it, please cancel using that link so someone
+                cancellation link. If you can&apos;t make it, please cancel using that link so someone
                 else can take the spot.
               </p>
+              <div className="mt-5 rounded-xl border-2 border-[#d66c45] bg-[#fff1df] p-4 text-[#4b2414] shadow-sm">
+                <p className="text-base font-extrabold uppercase tracking-wide">
+                  Important: check junk mail
+                </p>
+                <p className="mt-2 text-sm font-bold leading-6">
+                  If you are using a school/university Outlook account, the
+                  confirmation email may go to Junk Email. Please check junk,
+                  mark it as not junk, and move it back to your inbox so future
+                  booking and cancellation emails are easier to find.
+                </p>
+              </div>
               <div className="mt-5 flex justify-end gap-3">
                 <button
                   className="rounded-xl border border-[var(--line)] px-4 py-2 text-sm"
@@ -502,4 +529,3 @@ export default function SessionBookingPage() {
     </div>
   );
 }
-

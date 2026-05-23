@@ -181,7 +181,7 @@ function PoolResultsSection({
 
   if (eventMatches.length === 0) {
     return (
-      <section className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+      <section className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-[var(--cool)]">{EVENT_LABEL[event]}</h2>
         <p className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm text-[var(--muted)]">
           No updates yet.
@@ -198,7 +198,7 @@ function PoolResultsSection({
   });
 
   return (
-    <section className="space-y-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+    <section className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
       <div>
         <h2 className="text-lg font-semibold">{EVENT_LABEL[event]}</h2>
         <p className="text-sm text-[var(--muted)]">
@@ -268,7 +268,7 @@ function PoolResultsSection({
                 {poolMatches.map((match) => (
                   <div
                     key={match.id}
-                    className={`rounded-lg border px-3 py-2 text-sm ${
+                    className={`rounded-xl border px-3 py-2 text-sm ${
                       match.pair_a_score != null && match.pair_b_score != null
                         ? "border-[var(--line)] bg-white"
                         : match.is_playing
@@ -281,7 +281,7 @@ function PoolResultsSection({
                     <div className="mb-2 flex items-center justify-between gap-2 text-xs text-[var(--muted)]">
                       <span>Match {match.match_order}</span>
                       <span
-                        className={`rounded-full px-2 py-0.5 font-semibold ${
+                        className={`rounded-xl px-2 py-0.5 font-semibold ${
                           match.pair_a_score != null && match.pair_b_score != null
                             ? "bg-emerald-100 text-emerald-700"
                             : match.is_playing
@@ -308,7 +308,7 @@ function PoolResultsSection({
                         <div className="space-y-1">
                           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
                             <span className="min-w-0 truncate text-[13px] sm:text-sm">{pairShortLabel(pairA)}</span>
-                            <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                            <span className="rounded-xl bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
                               {startLabel(starts?.pairAStart)}
                             </span>
                             <span className="w-6 text-right font-semibold">
@@ -317,7 +317,7 @@ function PoolResultsSection({
                           </div>
                           <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
                             <span className="min-w-0 truncate text-[13px] sm:text-sm">{pairShortLabel(pairB)}</span>
-                            <span className="rounded-full bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
+                            <span className="rounded-xl bg-[var(--chip)] px-2 py-0.5 text-xs text-[var(--muted)]">
                               {startLabel(starts?.pairBStart)}
                             </span>
                             <span className="w-6 text-right font-semibold">
@@ -359,7 +359,7 @@ export default async function PublicClubChampsPoolsPage() {
   const pairsOnlyPublic = Boolean(settingsData?.club_champs_pairs_only_public);
   if (pairsOnlyPublic) {
     return (
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
         <h1 className="text-xl font-semibold text-[var(--cool)]">Pool results</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Pool updates are temporarily hidden while the committee prepares updates.
@@ -381,7 +381,7 @@ export default async function PublicClubChampsPoolsPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm">
         <h1 className="text-xl font-semibold text-[var(--cool)]">Pool results</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Current pool standings and submitted match scores.

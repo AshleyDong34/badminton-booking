@@ -56,10 +56,10 @@ export default function LiveAutoRefresh({ intervalMs = 15000 }: { intervalMs?: n
   return (
     <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-xs text-[var(--muted)]">
       <span className="inline-flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full bg-[var(--ok)]" />
+        <span className="h-2 w-2 rounded-xl bg-[var(--ok)]" />
         Live updates every {Math.round(intervalMs / 1000)}s while tab is visible
       </span>
-      <span className="rounded-full border border-[var(--line)] bg-white px-2 py-0.5">
+      <span className="rounded-xl border border-[var(--line)] bg-white px-2 py-0.5">
         Last refresh: {refreshedAt}
       </span>
     </div>
