@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getBaseUrl } from "@/lib/base-url";
 import { sendEmail } from "@/lib/email";
-import { buildPromotionEmail } from "@/lib/email-templates";
+import { buildCancellationEmail, buildPromotionEmail } from "@/lib/email-templates";
 
 export const runtime = "nodejs";
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   const { data: signup, error: signupErr } = await db
     .from("signups")
-    .select("id,session_id,name,email,cancel_token")
+    .select("id,session_id,status,name,email,cancel_token")
     .eq("cancel_token", token)
     .single();
 
@@ -53,14 +53,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: "invalid" }, { status: 200 });
   }
 
-  const { data: waitlistCandidate } = await db
-    .from("signups")
-    .select("id,name,email,status,cancel_token")
-    .eq("session_id", signup.session_id)
-    .eq("status", "waiting_list")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data: session } = await db
+    .from("sessions")
+    .select("name,starts_at,ends_at,notes")
+    .eq("id", signup.session_id)
+    .single();
+
+  const { data: waitlistCandidate } =
+    signup.status === "signed_up"
+      ? await db
+          .from("signups")
+          .select("id,name,email,status,cancel_token")
+          .eq("session_id", signup.session_id)
+          .eq("status", "waiting_list")
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
 
   const { data, error } = await db.rpc("cancel_signup_by_token", {
     p_token: token,
@@ -77,6 +86,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: "invalid" }, { status: 200 });
   }
 
+  if (session && signup.email) {
+    try {
+      const { subject, text, html } = buildCancellationEmail({
+        name: signup.name ?? "",
+        session,
+        previousStatus: signup.status as "signed_up" | "waiting_list",
+        source: "user_cancelled",
+      });
+      await sendEmail({
+        to: signup.email,
+        subject,
+        text,
+        html,
+      });
+    } catch {
+      // Best-effort email; do not fail cancellation.
+    }
+  }
+
   let promoted = false;
   if (waitlistCandidate?.id) {
     const { data: promotedRow } = await db
@@ -87,12 +115,6 @@ export async function POST(req: NextRequest) {
 
     if (promotedRow?.status === "signed_up") {
       promoted = true;
-
-      const { data: session } = await db
-        .from("sessions")
-        .select("name,starts_at,ends_at,notes")
-        .eq("id", signup.session_id)
-        .single();
 
       if (session && waitlistCandidate.email && waitlistCandidate.cancel_token) {
         const baseUrl = getBaseUrl(req);

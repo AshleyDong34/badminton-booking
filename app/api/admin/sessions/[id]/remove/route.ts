@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { requireAdmin } from "@/lib/adminGuard";
 import { getBaseUrl } from "@/lib/base-url";
+import { sendEmail } from "@/lib/email";
+import { buildCancellationEmail, buildPromotionEmail } from "@/lib/email-templates";
+
+export const runtime = "nodejs";
 
 export async function POST(
   req: NextRequest,
@@ -28,7 +32,7 @@ export async function POST(
     .delete()
     .eq("id", signupId)
     .eq("session_id", sessionId)
-    .select("id")
+    .select("id,status,name,email")
     .maybeSingle();
 
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
@@ -37,33 +41,80 @@ export async function POST(
   // Auto-promote earliest waitlisted if there is now capacity
   const { data: session, error: sErr } = await supabase
     .from("sessions")
-    .select("capacity")
+    .select("capacity,name,starts_at,ends_at,notes")
     .eq("id", sessionId)
     .single();
 
   if (!sErr && session) {
-    const { count: signedUpCount } = await supabase
-      .from("signups")
-      .select("*", { count: "exact", head: true })
-      .eq("session_id", sessionId)
-      .eq("status", "signed_up");
+    if (deleted.email) {
+      try {
+        const { subject, text, html } = buildCancellationEmail({
+          name: deleted.name ?? "",
+          session,
+          previousStatus: deleted.status as "signed_up" | "waiting_list",
+          source: "admin_removed",
+        });
+        await sendEmail({
+          to: deleted.email,
+          subject,
+          text,
+          html,
+        });
+      } catch {
+        // Best-effort email; do not fail the admin removal.
+      }
+    }
 
-    if ((signedUpCount ?? 0) < session.capacity) {
-      const { data: nextWaiter } = await supabase
+    if (deleted.status === "signed_up") {
+      const { count: signedUpCount } = await supabase
         .from("signups")
-        .select("id")
+        .select("*", { count: "exact", head: true })
         .eq("session_id", sessionId)
-        .eq("status", "waiting_list")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        .eq("status", "signed_up");
 
-      if (nextWaiter?.id) {
-        await supabase
+      if ((signedUpCount ?? 0) < session.capacity) {
+        const { data: nextWaiter } = await supabase
           .from("signups")
-          .update({ status: "signed_up" })
-          .eq("id", nextWaiter.id)
-          .eq("session_id", sessionId);
+          .select("id,name,email,cancel_token")
+          .eq("session_id", sessionId)
+          .eq("status", "waiting_list")
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (nextWaiter?.id) {
+          const { data: promoted } = await supabase
+            .from("signups")
+            .update({ status: "signed_up" })
+            .eq("id", nextWaiter.id)
+            .eq("session_id", sessionId)
+            .select("id,name,email,cancel_token,status")
+            .maybeSingle();
+
+          if (
+            promoted?.status === "signed_up" &&
+            promoted.email &&
+            promoted.cancel_token
+          ) {
+            try {
+              const baseUrl = getBaseUrl(req);
+              const cancelUrl = `${baseUrl}/cancel?token=${promoted.cancel_token}`;
+              const { subject, text, html } = buildPromotionEmail({
+                name: promoted.name ?? "",
+                session,
+                cancelUrl,
+              });
+              await sendEmail({
+                to: promoted.email,
+                subject,
+                text,
+                html,
+              });
+            } catch {
+              // Best-effort email; do not fail the admin removal.
+            }
+          }
+        }
       }
     }
   }

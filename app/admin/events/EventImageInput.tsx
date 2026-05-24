@@ -45,7 +45,7 @@ export default function EventImageInput({
     <div className="space-y-3">
       <div className="grid gap-3 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium">Upload image</label>
+          <label className="block text-sm font-medium">Image (optional)</label>
           <div
             role="button"
             tabIndex={0}
@@ -66,7 +66,7 @@ export default function EventImageInput({
                 className="max-h-48 w-full rounded-lg object-cover"
               />
             ) : (
-              <span>{pasteHint}</span>
+              <span>{pasteHint} Leave this empty for a text-only event.</span>
             )}
           </div>
           <input
@@ -121,4 +121,3 @@ export default function EventImageInput({
     </div>
   );
 }
-

@@ -258,9 +258,9 @@ function renderRichTextBlocks(text: string) {
   return blocks;
 }
 
-function renderBulletin(text: string) {
+function renderNoticeboardBody(text: string) {
   const blocks = renderRichTextBlocks(text);
-  return blocks.length ? blocks : <p>No bulletin posted yet.</p>;
+  return blocks.length ? blocks : <p>No notice posted yet.</p>;
 }
 
 function renderEventBody(text: string | null) {
@@ -269,7 +269,7 @@ function renderEventBody(text: string | null) {
   if (blocks.length === 0) return null;
 
   return (
-    <div className="space-y-3 text-[0.95rem] leading-7 text-[var(--muted)] sm:text-sm sm:leading-6">
+    <div className="space-y-2 text-[0.92rem] leading-6 text-[var(--muted)] sm:text-sm">
       {blocks}
     </div>
   );
@@ -281,7 +281,7 @@ function SessionCard({ session }: { session: SessionRow }) {
   const isFull = signedUp >= session.capacity;
   const badgeText = isFull ? "Join waitlist" : "Join signup";
   const badgeClass = isFull
-    ? "bg-[#f3c0a2] text-[#321a11]"
+    ? "bg-[var(--wait)] text-[#3a1b0e]"
     : "bg-[var(--ok)] text-white";
   const progress =
     session.capacity > 0
@@ -304,10 +304,10 @@ function SessionCard({ session }: { session: SessionRow }) {
     : null;
 
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-white/80 bg-white p-4 shadow-[0_10px_28px_rgba(15,26,18,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(15,26,18,0.11)] sm:p-5">
+    <article className="group relative overflow-hidden rounded-2xl border border-[#dfe9e2] bg-[var(--card)] p-3.5 shadow-[0_8px_20px_rgba(15,26,18,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,26,18,0.09)] sm:p-5">
       <div className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-[#b7d7c2] opacity-20" />
-      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 space-y-3">
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+        <div className="min-w-0 space-y-2.5 sm:space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-[var(--line)] bg-[var(--chip)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--cool)]">
               {startTime && endTime ? `${startTime}-${endTime}` : "Session"}
@@ -319,7 +319,7 @@ function SessionCard({ session }: { session: SessionRow }) {
             ) : null}
           </div>
           <div>
-            <h3 className="text-xl font-semibold leading-tight text-[var(--ink)]">
+            <h3 className="text-lg font-semibold leading-tight text-[var(--ink)] sm:text-xl">
               {session.name}
             </h3>
             <p className="mt-1 text-sm text-[var(--muted)]">
@@ -330,7 +330,7 @@ function SessionCard({ session }: { session: SessionRow }) {
           </div>
         </div>
 
-        <div className="flex min-w-[11rem] flex-col gap-3 sm:items-end">
+        <div className="flex min-w-[11rem] flex-col gap-2.5 sm:items-end sm:gap-3">
           <div className="w-full space-y-2 sm:w-44">
             <div className="flex items-center justify-between text-xs font-semibold text-[var(--muted)]">
               <span>{signedUp}/{session.capacity} booked</span>
@@ -339,7 +339,7 @@ function SessionCard({ session }: { session: SessionRow }) {
             <div className="h-2 overflow-hidden rounded-full bg-[#dde8df]">
               <div
                 className={`h-full rounded-full ${
-                  isFull ? "bg-[#d66c45]" : "bg-[var(--ok)]"
+                  isFull ? "bg-[var(--accent)]" : "bg-[var(--ok)]"
                 }`}
                 style={{ width: `${progress}%` }}
               />
@@ -347,7 +347,7 @@ function SessionCard({ session }: { session: SessionRow }) {
           </div>
           <Link
             href={`/sessions/${session.id}`}
-            className={`w-full rounded-xl px-5 py-3 text-center text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 sm:w-auto ${badgeClass}`}
+            className={`w-full rounded-xl px-5 py-2.5 text-center text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 sm:w-auto sm:py-3 ${badgeClass}`}
           >
             {badgeText}
           </Link>
@@ -369,14 +369,14 @@ function EventImagePanel({
   if (!event.image_url) return null;
 
   return (
-    <div className={`relative overflow-hidden bg-[#dfe8e8] ${className}`}>
+    <div className={`relative overflow-hidden bg-[#e2ece6] ${className}`}>
       <img
         src={event.image_url}
         alt=""
         aria-hidden="true"
         className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-xl"
       />
-      <div className="absolute inset-0 bg-gradient-to-br from-white/55 via-white/30 to-[#dce8ef]/45" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-white/30 to-[#dbeaf1]/45" />
       <div className="absolute inset-2 z-10 flex items-center justify-center sm:inset-3">
         <img
           src={event.image_url}
@@ -391,6 +391,9 @@ function EventImagePanel({
 function EventsBanner({ events }: { events: EventRow[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [openEventIndex, setOpenEventIndex] = useState<number | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const suppressOpenAfterSwipeRef = useRef(false);
 
   if (events.length === 0) return null;
 
@@ -416,6 +419,48 @@ function EventsBanner({ events }: { events: EventRow[] }) {
     setOpenEventIndex(index);
   };
 
+  const openActiveEvent = () => {
+    if (suppressOpenAfterSwipeRef.current) return;
+    openEventAt(activeIndex);
+  };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    touchStartXRef.current = touch.clientX;
+    touchStartYRef.current = touch.clientY;
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
+    const touch = event.changedTouches[0];
+    const startX = touchStartXRef.current;
+    const startY = touchStartYRef.current;
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+
+    if (!touch || startX === null || startY === null || !hasMultipleEvents) {
+      return;
+    }
+
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    const isSwipe =
+      Math.abs(deltaX) > 48 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25;
+
+    if (!isSwipe) return;
+
+    suppressOpenAfterSwipeRef.current = true;
+    if (deltaX < 0) {
+      goNext();
+    } else {
+      goPrevious();
+    }
+
+    window.setTimeout(() => {
+      suppressOpenAfterSwipeRef.current = false;
+    }, 250);
+  };
+
   const goModalPrevious = () => {
     const current = openEventIndex ?? activeIndex;
     const next = current === 0 ? events.length - 1 : current - 1;
@@ -431,8 +476,8 @@ function EventsBanner({ events }: { events: EventRow[] }) {
   };
 
   return (
-    <section id="events" className="relative mb-12 scroll-mt-6">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <section id="events" className="relative mb-9 scroll-mt-6 sm:mb-12">
+      <div className="mb-3 sm:mb-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--cool)]">
             Events
@@ -441,32 +486,35 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             What is happening next
           </h2>
         </div>
-        <p className="max-w-sm text-sm leading-6 text-[var(--muted)]">
-          Event cards and special announcements from the committee.
-        </p>
       </div>
 
-      <div className="relative px-0 pt-5 sm:px-12">
+      <div className="relative px-0 pt-4 sm:px-12 sm:pt-5">
         {hasMultipleEvents && (
           <>
-            <div className="absolute left-10 right-10 top-0 h-16 rounded-t-xl border border-b-0 border-white/70 bg-white/45 shadow-sm sm:left-24 sm:right-24" />
-            <div className="absolute left-5 right-5 top-2 h-16 rounded-t-xl border border-b-0 border-white/70 bg-white/70 shadow-sm sm:left-16 sm:right-16" />
+            <div className="absolute left-10 right-10 top-0 h-16 rounded-t-xl border border-b-0 border-[#dfe9e2] bg-white/55 shadow-sm sm:left-24 sm:right-24" />
+            <div className="absolute left-5 right-5 top-2 h-16 rounded-t-xl border border-b-0 border-[#dfe9e2] bg-white/75 shadow-sm sm:left-16 sm:right-16" />
           </>
         )}
 
-        <article className="relative overflow-hidden rounded-2xl border border-white/80 bg-[#fbfaf2] shadow-[0_25px_70px_rgba(20,42,30,0.15)]">
+        <article
+          className="relative overflow-hidden rounded-2xl border border-[#dfe9e2] bg-[var(--card)] shadow-[0_14px_38px_rgba(20,42,30,0.09)] [touch-action:pan-y]"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           <div className="pointer-events-none absolute -left-16 -top-20 h-44 w-44 rounded-full bg-[#c9e4cc] opacity-50 blur-3xl" />
           <div className="pointer-events-none absolute bottom-0 right-0 h-44 w-44 rounded-full bg-[#d7e6ff] opacity-60 blur-3xl" />
           <div
-            className={`relative grid h-[30rem] md:h-[22rem] ${
-              hasImage ? "md:grid-cols-[minmax(0,1fr)_minmax(280px,0.88fr)]" : ""
+            className={`relative grid ${
+              hasImage
+                ? "min-h-[19rem] md:h-[21rem] md:grid-cols-[minmax(0,1.18fr)_minmax(240px,0.74fr)]"
+                : "min-h-[10rem]"
             }`}
           >
             {hasImage && imageFirst && (
               <button
                 type="button"
-                onClick={() => openEventAt(activeIndex)}
-                className="block h-44 w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none md:order-first md:h-full"
+                onClick={openActiveEvent}
+                className="block h-28 w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none md:order-first md:h-full"
                 aria-label={`Open ${activeEvent.title}`}
               >
                 <EventImagePanel event={activeEvent} className="h-full" />
@@ -476,21 +524,27 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             <div
               role="button"
               tabIndex={0}
-              onClick={() => openEventAt(activeIndex)}
+              onClick={openActiveEvent}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   openEventAt(activeIndex);
                 }
               }}
-              className="flex min-h-0 cursor-pointer flex-col gap-4 overflow-hidden p-5 text-left sm:p-7"
+              className="flex min-h-0 cursor-pointer flex-col gap-2.5 overflow-hidden p-4 text-left sm:p-6"
               aria-label={`Open ${activeEvent.title}`}
             >
-              <div className="min-h-0 flex-1 space-y-3 overflow-hidden">
-                <h2 className={`${sora.className} text-2xl font-bold leading-tight text-[var(--ink)] sm:text-3xl`}>
+              <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
+                <h2 className={`${sora.className} text-[1.65rem] font-bold leading-tight text-[var(--ink)] sm:text-3xl`}>
                   {activeEvent.title}
                 </h2>
-                <div className="max-h-48 overflow-y-auto pr-1 md:max-h-44">
+                <div
+                  className={
+                    hasImage
+                      ? "max-h-32 overflow-y-auto pr-1 sm:max-h-40 md:max-h-44"
+                      : "overflow-visible pr-0"
+                  }
+                >
                   {body}
                 </div>
               </div>
@@ -515,8 +569,8 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             {hasImage && !imageFirst && (
               <button
                 type="button"
-                onClick={() => openEventAt(activeIndex)}
-                className="block h-44 w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none md:h-full"
+                onClick={openActiveEvent}
+                className="block h-28 w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none md:h-full"
                 aria-label={`Open ${activeEvent.title}`}
               >
                 <EventImagePanel event={activeEvent} className="h-full" />
@@ -530,7 +584,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             <button
               type="button"
               onClick={goPrevious}
-              className="absolute left-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-white/80 bg-white/95 text-3xl font-semibold leading-none text-[var(--cool)] shadow-xl ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[#f3f8f4] sm:flex"
+              className="absolute left-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-[#dfe9e2] bg-[var(--card)] text-3xl font-semibold leading-none text-[var(--cool)] shadow-md ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[#f3f8f4] sm:flex"
               aria-label="Previous event"
             >
               &#8249;
@@ -538,7 +592,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             <button
               type="button"
               onClick={goNext}
-              className="absolute right-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-white/80 bg-white/95 text-3xl font-semibold leading-none text-[var(--cool)] shadow-xl ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[#f3f8f4] sm:flex"
+              className="absolute right-1 top-[calc(50%-1.5rem)] hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-[#dfe9e2] bg-[var(--card)] text-3xl font-semibold leading-none text-[var(--cool)] shadow-md ring-4 ring-[var(--paper)] transition hover:scale-105 hover:bg-[#f3f8f4] sm:flex"
               aria-label="Next event"
             >
               &#8250;
@@ -548,12 +602,12 @@ function EventsBanner({ events }: { events: EventRow[] }) {
               <button
                 type="button"
                 onClick={goPrevious}
-                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-white/80 bg-white px-3 text-xl font-semibold text-[var(--cool)] shadow-md sm:hidden"
+                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-[#dfe9e2] bg-[var(--card)] px-3 text-xl font-semibold text-[var(--cool)] shadow-sm sm:hidden"
                 aria-label="Previous event"
               >
                 &#8249;
               </button>
-              <div className="flex items-center gap-2 rounded-xl border border-white/80 bg-white px-3 py-2 shadow-lg">
+              <div className="flex items-center gap-2 rounded-xl border border-[#dfe9e2] bg-[var(--card)] px-3 py-2 shadow-sm">
                 <span className="mr-1 hidden text-xs font-semibold text-[var(--muted)] sm:inline">
                   Event {activeIndex + 1} of {events.length}
                 </span>
@@ -578,7 +632,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
               <button
                 type="button"
                 onClick={goNext}
-                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-white/80 bg-white px-3 text-xl font-semibold text-[var(--cool)] shadow-md sm:hidden"
+                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-[#dfe9e2] bg-[var(--card)] px-3 text-xl font-semibold text-[var(--cool)] shadow-sm sm:hidden"
                 aria-label="Next event"
               >
                 &#8250;
@@ -590,15 +644,15 @@ function EventsBanner({ events }: { events: EventRow[] }) {
 
       {openEvent && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-6"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/65 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-6 md:flex md:items-center md:justify-center"
           role="dialog"
           aria-modal="true"
           onClick={() => setOpenEventIndex(null)}
         >
           <div
-            className={`relative grid max-h-[94vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-[var(--card)] shadow-2xl ${
+            className={`relative mx-auto w-full max-w-5xl overflow-hidden rounded-2xl bg-[var(--card)] shadow-2xl md:max-h-[94vh] ${
               openEvent.image_url
-                ? "grid-rows-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1.18fr)_minmax(300px,0.82fr)] md:grid-rows-1"
+                ? "md:grid md:grid-cols-[minmax(0,1.18fr)_minmax(300px,0.82fr)]"
                 : ""
             }`}
             onClick={(event) => event.stopPropagation()}
@@ -606,25 +660,34 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             <button
               type="button"
               onClick={() => setOpenEventIndex(null)}
-              className="absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-xl border border-white/80 bg-white/95 text-2xl font-bold leading-none text-[var(--ink)] shadow-lg transition hover:scale-105 hover:bg-white"
+              className="fixed right-4 top-4 z-30 flex h-11 w-11 items-center justify-center rounded-xl border border-[#dfe9e2] bg-[var(--card)] text-2xl font-bold leading-none text-[var(--ink)] shadow-lg transition hover:scale-105 hover:bg-white md:absolute md:right-3 md:top-3"
               aria-label="Close event"
             >
               <span aria-hidden="true">&times;</span>
             </button>
 
             {openEvent.image_url && (
-              <EventImagePanel
-                event={openEvent}
-                className="min-h-0 h-[54vh] max-h-[58vh] md:h-[92vh] md:max-h-none"
-                imageClassName="rounded-xl"
-              />
+              <>
+                <div className="bg-[#e2ece6] md:hidden">
+                  <img
+                    src={openEvent.image_url}
+                    alt={openEvent.image_alt || ""}
+                    className="block h-auto w-full object-contain"
+                  />
+                </div>
+                <EventImagePanel
+                  event={openEvent}
+                  className="hidden min-h-0 md:block md:h-[92vh] md:max-h-none"
+                  imageClassName="rounded-xl"
+                />
+              </>
             )}
             {hasMultipleEvents && (
               <>
                 <button
                   type="button"
                   onClick={goModalPrevious}
-                  className="absolute left-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-white/50 bg-white/90 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
+                  className="absolute left-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-[#dfe9e2] bg-[var(--card)] text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
                   aria-label="Previous event"
                 >
                   &#8249;
@@ -632,7 +695,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                 <button
                   type="button"
                   onClick={goModalNext}
-                  className="absolute right-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-white/50 bg-white/90 text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
+                  className="absolute right-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-[#dfe9e2] bg-[var(--card)] text-3xl font-semibold leading-none text-[var(--cool)] shadow-lg transition hover:scale-105 md:flex"
                   aria-label="Next event"
                 >
                   &#8250;
@@ -641,9 +704,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
             )}
 
             <div
-              className={`flex min-h-0 flex-col gap-3 overflow-hidden p-4 pt-5 sm:p-5 sm:pt-6 md:max-h-[92vh] md:p-7 ${
-                openEvent.image_url ? "max-h-[42vh]" : "max-h-[82vh]"
-              }`}
+              className="flex min-h-0 flex-col gap-3 p-4 pt-5 sm:p-5 sm:pt-6 md:max-h-[92vh] md:overflow-hidden md:p-7"
             >
               <div className="min-w-0 pr-12">
                 <h2 className="text-xl font-semibold leading-tight text-[var(--ink)] sm:text-2xl">
@@ -651,7 +712,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                 </h2>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="min-h-0 flex-1 pr-1 md:overflow-y-auto">
                 {renderEventBody(openEvent.body)}
               </div>
 
@@ -672,7 +733,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                   <button
                     type="button"
                     onClick={goModalPrevious}
-                    className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
+                    className="rounded-md bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
                   >
                     <span className="hidden sm:inline">&#8249; Previous</span>
                     <span className="sm:hidden">&#8249;</span>
@@ -683,7 +744,7 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                   <button
                     type="button"
                     onClick={goModalNext}
-                    className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
+                    className="rounded-md bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--cool)] shadow-sm"
                   >
                     <span className="hidden sm:inline">Next &#8250;</span>
                     <span className="sm:hidden">&#8250;</span>
@@ -705,6 +766,8 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const activeRef = useRef(true);
   const sessionRequestRef = useRef(0);
+  const [isSessionsSectionVisible, setIsSessionsSectionVisible] =
+    useState(false);
   const [bulletin, setBulletin] = useState<BulletinContent>({
     club_rules_label: "Club Rules",
     club_rules_description: "Court Rules and Player Attitude",
@@ -811,6 +874,24 @@ export default function Home() {
     };
   }, [loadSessions, loadBulletin, loadEvents, loadPublicSettings]);
 
+  useEffect(() => {
+    const sessionsSection = document.getElementById("sessions");
+    if (!sessionsSection) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsSessionsSectionVisible(Boolean(entry?.isIntersecting));
+      },
+      {
+        threshold: 0.02,
+      }
+    );
+
+    observer.observe(sessionsSection);
+
+    return () => observer.disconnect();
+  }, []);
+
   const courtUpdateText = bulletin.court_updates.trim();
   const courtUpdateKey = useMemo(
     () => courtUpdateStorageValue(courtUpdateText),
@@ -876,115 +957,98 @@ export default function Home() {
       className={`${space.className} min-h-screen overflow-hidden bg-[var(--paper)] text-[var(--ink)]`}
       style={
         {
-          "--ink": "#101913",
-          "--muted": "#475850",
-          "--paper": "#edf3ee",
-          "--card": "#ffffff",
-          "--line": "#cfddd4",
-          "--accent": "#dc6742",
-          "--ok": "#1d8b5b",
-          "--wait": "#f3c0a2",
-          "--cool": "#214f73",
-          "--chip": "#edf6f0",
+          "--ink": "#0d1b14",
+          "--muted": "#3f5048",
+          "--paper": "#eef5ef",
+          "--card": "#fffdf8",
+          "--line": "#c9d8cf",
+          "--accent": "#d96b45",
+          "--ok": "#16613f",
+          "--wait": "#f2b892",
+          "--cool": "#1f567d",
+          "--chip": "#f2f8f3",
         } as React.CSSProperties
       }
     >
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,rgba(176,215,183,0.75),transparent_28%),radial-gradient(circle_at_88%_0%,rgba(180,205,235,0.62),transparent_30%),linear-gradient(135deg,#edf3ee_0%,#f7f0df_48%,#e8f1ec_100%)]" />
-        <div className="absolute left-1/2 top-0 h-full w-px bg-white/50" />
-        <div className="absolute left-[8%] top-0 h-full w-px bg-white/35" />
-        <div className="absolute right-[8%] top-0 h-full w-px bg-white/35" />
-        <div className="absolute inset-x-0 top-52 h-px bg-white/45" />
-        <div className="absolute inset-x-0 bottom-40 h-px bg-white/35" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(180,214,188,0.58),transparent_30%),radial-gradient(circle_at_90%_0%,rgba(185,211,232,0.42),transparent_30%),linear-gradient(135deg,#eef5ef_0%,#f7faf7_48%,#e8f2ec_100%)]" />
+        <div className="absolute left-1/2 top-0 h-full w-px bg-white/40" />
+        <div className="absolute left-[8%] top-0 h-full w-px bg-white/25" />
+        <div className="absolute right-[8%] top-0 h-full w-px bg-white/25" />
+        <div className="absolute inset-x-0 top-52 h-px bg-white/30" />
+        <div className="absolute inset-x-0 bottom-40 h-px bg-white/25" />
       </div>
 
-      <div className="relative mx-auto max-w-6xl px-5 pb-20 pt-6 sm:px-8 lg:px-10">
-        <nav className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-5 sm:px-8 sm:pb-20 sm:pt-6 lg:px-10">
+        <nav className="mb-4 flex items-center justify-end">
           <div className="flex items-center gap-3">
-            <div className="relative h-12 w-12 overflow-hidden rounded-xl border border-white/80 bg-white shadow-lg">
-              <Image
-                src="/icon.png"
-                alt="EUBC logo"
-                fill
-                sizes="48px"
-                className="object-cover"
-                priority
-              />
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--cool)]">
-                EUBC
-              </p>
-              <p className="text-sm font-semibold text-[var(--ink)]">
-                Badminton Club
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => loadSessions("refresh")}
               disabled={loading || refreshing}
-              className="rounded-xl border border-white/80 bg-white/75 px-4 py-2 text-sm font-semibold shadow-sm backdrop-blur transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg border border-[#dfe9e2] bg-[var(--card)]/85 px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3.5 sm:py-1.5 sm:text-sm"
             >
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
             <Link
               href="/signin"
-              className="rounded-xl bg-[var(--cool)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+              className="rounded-lg bg-[var(--ok)] px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 sm:px-3.5 sm:py-1.5 sm:text-sm"
             >
               Admin sign in
             </Link>
           </div>
         </nav>
 
-        <header className="relative mb-8 overflow-hidden rounded-2xl border border-white/75 bg-white/72 p-6 shadow-[0_18px_55px_rgba(18,42,28,0.12)] backdrop-blur-xl sm:p-7 lg:p-8">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#9dc7f2] opacity-40 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-16 h-72 w-72 rounded-full bg-[#f2c16d] opacity-35 blur-3xl" />
-          <div className="relative max-w-3xl space-y-4">
+        <header className="relative mb-7 overflow-hidden rounded-2xl border border-[#d7e5dd] bg-[var(--card)]/78 p-6 shadow-[0_14px_40px_rgba(18,42,28,0.09)] backdrop-blur-xl sm:mb-8 sm:p-7 lg:p-8">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#c4dcf2] opacity-35 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-16 h-72 w-72 rounded-full bg-[#cfe6d5] opacity-45 blur-3xl" />
+          <div className="relative flex items-center gap-4 sm:gap-5">
+            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-[#dfe9e2] bg-[var(--card)] shadow-lg sm:h-20 sm:w-20">
+              <Image
+                src="/icon.png"
+                alt="EUBC logo"
+                fill
+                sizes="(min-width: 640px) 80px, 64px"
+                className="object-cover"
+                priority
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--cool)]">
+                EUBC
+              </p>
               <h1
                 className={`${sora.className} text-4xl font-bold leading-[0.98] tracking-[-0.045em] text-[var(--ink)] sm:text-5xl lg:text-6xl`}
               >
-                EUBC Badminton Club
+                Badminton Club
               </h1>
-              <p className="max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
-                Book weekly sessions and check club notices. If a session is
-                full, join the waitlist and you will be promoted and notified
-                automatically when a space opens.
-              </p>
+            </div>
           </div>
         </header>
 
-        <section id="noticeboard" className="mb-10 scroll-mt-6">
-          <div className="mb-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(280px,0.9fr)] md:items-end">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--cool)]">
-                Noticeboard
-              </p>
-              <h2 className={`${sora.className} mt-1 text-2xl font-bold text-[var(--ink)]`}>
-                Club information
-              </h2>
-            </div>
-            <p className="text-sm leading-6 text-[var(--muted)] md:text-right">
-              Check these before booking. Last-minute court updates will appear
-              here when needed.
+        <section id="noticeboard" className="mb-8 scroll-mt-6 sm:mb-10">
+          <div className="mb-3">
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--cool)]">
+              Noticeboard
             </p>
+            <h2 className={`${sora.className} mt-1 text-2xl font-bold text-[var(--ink)]`}>
+              Club information
+            </h2>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-3">
             <button
               type="button"
               onClick={() => setOpenBulletin("rules")}
-              className="group flex min-h-14 items-center gap-3 rounded-xl border border-white/80 bg-white/85 px-4 py-2.5 text-left shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+              className="group flex min-h-10 items-center gap-2.5 rounded-xl border border-[#dfe9e2] bg-[var(--card)]/92 px-3 py-1.5 text-left shadow-[0_5px_16px_rgba(15,26,18,0.07)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white sm:rounded-full"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-base font-bold text-white shadow-sm">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-xs font-bold text-white shadow-sm">
                 !
               </span>
-              <span>
-                <span className="block text-sm font-bold">
+              <span className="min-w-0">
+                <span className="block text-[13px] font-bold leading-4">
                   {bulletin.club_rules_label}
                 </span>
-                <span className="block text-[13px] leading-5 text-[var(--muted)]">
+                <span className="block truncate text-xs leading-4 text-[var(--muted)]">
                   {bulletin.club_rules_description}
                 </span>
               </span>
@@ -992,16 +1056,16 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setOpenBulletin("info")}
-              className="group flex min-h-14 items-center gap-3 rounded-xl border border-white/80 bg-white/85 px-4 py-2.5 text-left shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+              className="group flex min-h-10 items-center gap-2.5 rounded-xl border border-[#dfe9e2] bg-[var(--card)]/92 px-3 py-1.5 text-left shadow-[0_5px_16px_rgba(15,26,18,0.07)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white sm:rounded-full"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--cool)] text-base font-bold text-white shadow-sm">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--cool)] text-xs font-bold text-white shadow-sm">
                 i
               </span>
-              <span>
-                <span className="block text-sm font-bold">
+              <span className="min-w-0">
+                <span className="block text-[13px] font-bold leading-4">
                   {bulletin.useful_info_label}
                 </span>
-                <span className="block text-[13px] leading-5 text-[var(--muted)]">
+                <span className="block truncate text-xs leading-4 text-[var(--muted)]">
                   {bulletin.useful_info_description}
                 </span>
               </span>
@@ -1009,27 +1073,27 @@ export default function Home() {
             <button
               type="button"
               onClick={openCourtUpdates}
-              className={`group relative flex min-h-14 items-center gap-3 rounded-xl px-4 py-2.5 text-left backdrop-blur transition hover:-translate-y-0.5 hover:bg-white ${
+              className={`group relative flex min-h-10 items-center gap-2.5 rounded-xl px-3 py-1.5 text-left backdrop-blur transition hover:-translate-y-0.5 hover:bg-white sm:rounded-full ${
                 isCourtUpdateUrgent
-                  ? "court-update-alert border border-[#e3a33e]/70 bg-[#fff2cb] shadow-[0_14px_32px_rgba(214,108,69,0.22)] ring-2 ring-[#f0be65]/35"
-                  : "border border-white/80 bg-white/85 shadow-md"
+                  ? "court-update-alert border border-[#e3a33e]/70 bg-[#fff2cb] shadow-[0_10px_24px_rgba(214,108,69,0.18)] ring-2 ring-[#f0be65]/35"
+                  : "border border-[#dfe9e2] bg-[var(--card)]/92 shadow-[0_5px_16px_rgba(15,26,18,0.07)]"
               }`}
             >
               {isCourtUpdateUrgent && (
                 <span className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_rgba(220,103,66,0.16)]" />
               )}
               <span
-                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white shadow-sm ${
+                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm ${
                   isCourtUpdateUrgent ? "bg-[var(--accent)]" : "bg-[var(--ok)]"
                 }`}
               >
                 *
               </span>
-              <span>
-                <span className="block text-sm font-bold">
+              <span className="min-w-0">
+                <span className="block text-[13px] font-bold leading-4">
                   {bulletin.court_updates_label}
                 </span>
-                <span className="block text-[13px] leading-5 text-[var(--muted)]">
+                <span className="block truncate text-xs leading-4 text-[var(--muted)]">
                   {courtUpdateDescription}
                 </span>
               </span>
@@ -1040,23 +1104,23 @@ export default function Home() {
         <EventsBanner events={events} />
 
         {publicSettings.club_champs_public_enabled && (
-          <section className="relative mb-12 overflow-hidden rounded-2xl border border-[#c5dfcc] bg-[linear-gradient(135deg,#e8f6eb_0%,#c5e5cd_48%,#93cba6_100%)] p-6 text-[#0b2719] shadow-[0_18px_50px_rgba(37,86,56,0.16)] sm:p-7">
+          <section className="relative mb-10 overflow-hidden rounded-2xl border border-[#c9d8cf] bg-[linear-gradient(135deg,#eaf6ee_0%,#cbe5d2_52%,#a8d1b5_100%)] p-6 text-[var(--ink)] shadow-[0_12px_34px_rgba(37,86,56,0.1)] sm:mb-12 sm:p-7">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_18%,rgba(255,255,255,0.48),transparent_30%),radial-gradient(circle_at_92%_8%,rgba(255,255,255,0.28),transparent_26%)]" />
             <div className="flex flex-wrap items-center justify-between gap-5">
               <div className="relative">
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#315b43]">
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#2f5a40]">
                   Tournament mode
                 </p>
                 <h2 className={`${sora.className} mt-2 text-3xl font-bold`}>
                   Club champs live hub
                 </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#315b43]">
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-[#3f5048]">
                   Follow tournament progress, results, and updates from the committee.
                 </p>
               </div>
               <Link
                 href="/club-champs"
-                className="relative rounded-xl border border-[#6ea981]/40 bg-white/85 px-5 py-3 text-sm font-bold text-[#0b3a25] shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+                className="relative rounded-xl border border-[#76aa82]/45 bg-[var(--card)]/88 px-5 py-3 text-sm font-bold text-[#0b3a25] shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
               >
                 Open Club champs
               </Link>
@@ -1065,7 +1129,7 @@ export default function Home() {
         )}
 
         <section id="sessions" className="scroll-mt-6">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4 sm:mb-6">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--cool)]">
                 Booking board
@@ -1073,28 +1137,33 @@ export default function Home() {
               <h2 className={`${sora.className} mt-1 text-3xl font-bold text-[var(--ink)]`}>
                 Weekly sessions
               </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
+                Book a weekly session below. If a session is full, join the
+                waitlist and you will be promoted and notified automatically
+                when a space opens.
+              </p>
             </div>
           </div>
 
           {loading ? (
-            <div className="rounded-2xl border border-white/80 bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-[#dfe9e2] bg-[var(--card)] p-8 shadow-sm">
               Loading sessions...
             </div>
           ) : !publicSettings.sessions_public_enabled ? (
-            <div className="rounded-2xl border border-white/80 bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-[#dfe9e2] bg-[var(--card)] p-8 shadow-sm">
               Session booking is currently hidden by the committee.
             </div>
           ) : sessions.length === 0 ? (
-            <div className="rounded-2xl border border-white/80 bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-[#dfe9e2] bg-[var(--card)] p-8 shadow-sm">
               No sessions yet.
             </div>
           ) : (
-            <div className="space-y-10">
+            <div className="space-y-8 sm:space-y-10">
               {grouped.map((group) => {
                 const first = group.sessions[0]?.starts_at;
                 if (!first) return null;
                 return (
-                  <section key={group.key} className="space-y-4">
+                  <section key={group.key} className="space-y-3 sm:space-y-4">
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="rounded-full bg-[var(--cool)] px-4 py-2 text-sm font-bold text-white shadow-sm">
                         {formatDay(first)}
@@ -1117,40 +1186,47 @@ export default function Home() {
         </section>
       </div>
 
+      {!isSessionsSectionVisible && (
+        <Link
+          href="#sessions"
+          className="fixed bottom-4 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/70 bg-[var(--ok)] px-4 py-2 text-sm font-bold text-white shadow-[0_10px_26px_rgba(22,97,63,0.22)] backdrop-blur transition hover:-translate-y-0.5 sm:hidden"
+        >
+          Book a session
+          <span aria-hidden="true">v</span>
+        </Link>
+      )}
+
       {openBulletin && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-3 py-3 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6"
           role="dialog"
           aria-modal="true"
           onClick={() => setOpenBulletin(null)}
         >
           <div
-            className="w-full max-w-2xl overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[0_30px_90px_rgba(0,0,0,0.22)]"
+            className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-[#dfe9e2] bg-[var(--card)] shadow-[0_22px_60px_rgba(0,0,0,0.18)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="p-6 sm:p-7">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-[var(--cool)]">
-                  Committee note
-                </p>
-                <h3 className={`${sora.className} mt-2 text-2xl font-bold`}>
-                  {openBulletinTitle}
-                </h3>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  Updated by the committee.
-                </p>
+            <div className="p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-[var(--cool)]">
+                    Committee note
+                  </p>
+                  <h3 className={`${sora.className} mt-2 text-2xl font-bold`}>
+                    {openBulletinTitle}
+                  </h3>
+                </div>
+                <button
+                  className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-2 text-sm font-semibold transition hover:bg-white"
+                  onClick={() => setOpenBulletin(null)}
+                >
+                  Close
+                </button>
               </div>
-              <button
-                className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-2 text-sm font-semibold transition hover:bg-white"
-                onClick={() => setOpenBulletin(null)}
-              >
-                Close
-              </button>
-            </div>
-            <div className="mt-5 max-h-[60vh] space-y-3 overflow-y-auto rounded-xl border border-[var(--line)] bg-[var(--chip)] p-5 text-sm leading-6 text-[var(--ink)]">
-              {renderBulletin(openBulletinBody)}
-            </div>
+              <div className="mt-4 max-h-[68vh] space-y-3 overflow-y-auto rounded-xl border border-[var(--line)] bg-white/70 p-4 text-base leading-7 text-[#17231c] sm:p-5">
+                {renderNoticeboardBody(openBulletinBody)}
+              </div>
             </div>
           </div>
         </div>

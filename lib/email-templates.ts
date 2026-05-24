@@ -127,3 +127,51 @@ export function buildPromotionEmail(args: {
 
   return { subject, text, html };
 }
+
+export function buildCancellationEmail(args: {
+  name: string;
+  session: SessionDetails;
+  previousStatus?: SignupStatus;
+  source: "user_cancelled" | "admin_removed";
+}) {
+  const when = formatSessionTime(args.session);
+  const wasWaitlist = args.previousStatus === "waiting_list";
+  const subject = wasWaitlist
+    ? `Waitlist removed: ${args.session.name}`
+    : `Booking cancelled: ${args.session.name}`;
+  const actionLine =
+    args.source === "admin_removed"
+      ? wasWaitlist
+        ? "You have been removed from the waitlist for this session by the committee."
+        : "Your booking for this session has been removed by the committee."
+      : wasWaitlist
+        ? "You have cancelled your waitlist place for this session."
+        : "Your booking for this session has been cancelled.";
+
+  const text = [
+    `Hi ${args.name || "there"},`,
+    "",
+    actionLine,
+    "",
+    `Session: ${args.session.name}`,
+    `When: ${when}`,
+    args.session.notes ? `Notes: ${args.session.notes}` : "",
+    "",
+    "If this does not look right, please contact the committee.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+      <p>Hi ${args.name || "there"},</p>
+      <p>${actionLine}</p>
+      <p><strong>Session:</strong> ${args.session.name}<br/>
+      <strong>When:</strong> ${when}</p>
+      ${args.session.notes ? `<p><strong>Notes:</strong> ${args.session.notes}</p>` : ""}
+      <p>If this does not look right, please contact the committee.</p>
+    </div>
+  `;
+
+  return { subject, text, html };
+}
