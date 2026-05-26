@@ -12,8 +12,10 @@ const space = Space_Grotesk({
 const navItems = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/sessions", label: "Sessions" },
+  { href: "/admin/team-attendance", label: "Team attendance" },
   { href: "/admin/events", label: "Events" },
   { href: "/admin/noticeboard", label: "Noticeboard" },
+  { href: "/admin/feedback", label: "Feedback" },
   { href: "/admin/club-champs", label: "Club champs" },
   { href: "/admin/settings", label: "Settings" },
   { href: "/admin/whitelist", label: "Membership list" },

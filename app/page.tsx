@@ -63,6 +63,7 @@ type PublicSettings = {
 };
 
 type BulletinKey = "rules" | "info" | "court";
+type EventImageOrientation = "portrait" | "landscape";
 
 const COURT_UPDATE_SEEN_STORAGE_KEY = "eubc_court_update_seen";
 const COURT_UPDATE_SEEN_EVENT = "eubc:court-update-seen";
@@ -275,6 +276,13 @@ function renderEventBody(text: string | null) {
   );
 }
 
+function isLongEventBody(text: string | null) {
+  const trimmed = (text ?? "").trim();
+  if (!trimmed) return false;
+  const lineCount = trimmed.split(/\r?\n/).filter(Boolean).length;
+  return trimmed.length > 180 || lineCount > 4;
+}
+
 function SessionCard({ session }: { session: SessionRow }) {
   const signedUp = session.signed_up_count ?? 0;
   const waitlist = session.waitlist_count ?? 0;
@@ -361,10 +369,12 @@ function EventImagePanel({
   event,
   className,
   imageClassName = "rounded-xl",
+  onOrientationChange,
 }: {
   event: EventRow;
   className: string;
   imageClassName?: string;
+  onOrientationChange?: (orientation: EventImageOrientation) => void;
 }) {
   if (!event.image_url) return null;
 
@@ -381,6 +391,13 @@ function EventImagePanel({
         <img
           src={event.image_url}
           alt={event.image_alt || ""}
+          onLoad={(loadEvent) => {
+            const image = loadEvent.currentTarget;
+            if (!image.naturalWidth || !image.naturalHeight) return;
+            onOrientationChange?.(
+              image.naturalHeight > image.naturalWidth ? "portrait" : "landscape"
+            );
+          }}
           className={`h-auto max-h-full w-auto max-w-full object-contain shadow-sm ${imageClassName}`}
         />
       </div>
@@ -391,6 +408,9 @@ function EventImagePanel({
 function EventsBanner({ events }: { events: EventRow[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [openEventIndex, setOpenEventIndex] = useState<number | null>(null);
+  const [imageOrientations, setImageOrientations] = useState<
+    Record<string, EventImageOrientation>
+  >({});
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const suppressOpenAfterSwipeRef = useRef(false);
@@ -402,6 +422,12 @@ function EventsBanner({ events }: { events: EventRow[] }) {
   const hasLink = activeEvent.link_label && activeEvent.link_url;
   const hasImage = Boolean(activeEvent.image_url);
   const imageFirst = hasImage && activeEvent.image_side === "left";
+  const activeImageOrientation = activeEvent
+    ? imageOrientations[activeEvent.id]
+    : undefined;
+  const isLandscapePreview =
+    hasImage && activeImageOrientation === "landscape";
+  const hasLongBody = isLongEventBody(activeEvent.body);
   const hasMultipleEvents = events.length > 1;
   const openEvent =
     openEventIndex === null ? null : events[openEventIndex] ?? null;
@@ -417,6 +443,17 @@ function EventsBanner({ events }: { events: EventRow[] }) {
   const openEventAt = (index: number) => {
     setActiveIndex(index);
     setOpenEventIndex(index);
+  };
+
+  const rememberImageOrientation = (
+    eventId: string,
+    orientation: EventImageOrientation
+  ) => {
+    setImageOrientations((current) =>
+      current[eventId] === orientation
+        ? current
+        : { ...current, [eventId]: orientation }
+    );
   };
 
   const openActiveEvent = () => {
@@ -506,18 +543,28 @@ function EventsBanner({ events }: { events: EventRow[] }) {
           <div
             className={`relative grid ${
               hasImage
-                ? "min-h-[19rem] md:h-[21rem] md:grid-cols-[minmax(0,1.18fr)_minmax(240px,0.74fr)]"
-                : "min-h-[10rem]"
+                ? isLandscapePreview
+                  ? "min-h-[21rem] md:h-[27rem]"
+                  : "min-h-[19rem] grid-cols-[minmax(0,1fr)_minmax(120px,0.68fr)] sm:grid-cols-[minmax(0,1.08fr)_minmax(180px,0.72fr)] md:h-[23rem] md:grid-cols-[minmax(0,1.18fr)_minmax(260px,0.74fr)]"
+                : "min-h-[12rem]"
             }`}
           >
             {hasImage && imageFirst && (
               <button
                 type="button"
                 onClick={openActiveEvent}
-                className="block h-28 w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none md:order-first md:h-full"
+                className={`block w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none ${
+                  isLandscapePreview ? "h-40 md:h-48" : "h-full min-h-[19rem]"
+                }`}
                 aria-label={`Open ${activeEvent.title}`}
               >
-                <EventImagePanel event={activeEvent} className="h-full" />
+                <EventImagePanel
+                  event={activeEvent}
+                  className="h-full"
+                  onOrientationChange={(orientation) =>
+                    rememberImageOrientation(activeEvent.id, orientation)
+                  }
+                />
               </button>
             )}
 
@@ -538,14 +585,23 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                 <h2 className={`${sora.className} text-[1.65rem] font-bold leading-tight text-[var(--ink)] sm:text-3xl`}>
                   {activeEvent.title}
                 </h2>
-                <div
-                  className={
-                    hasImage
-                      ? "max-h-32 overflow-y-auto pr-1 sm:max-h-40 md:max-h-44"
-                      : "overflow-visible pr-0"
-                  }
-                >
-                  {body}
+                <div className="relative">
+                  <div
+                    className={
+                      hasLongBody
+                        ? "max-h-40 overflow-hidden pr-1 sm:max-h-44 md:max-h-52"
+                        : "overflow-hidden pr-0"
+                    }
+                  >
+                    {body}
+                  </div>
+                  {hasLongBody && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-[var(--card)] via-[var(--card)]/95 to-transparent pt-12">
+                      <span className="text-sm font-bold text-[var(--cool)]">
+                        Read more...
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -570,10 +626,18 @@ function EventsBanner({ events }: { events: EventRow[] }) {
               <button
                 type="button"
                 onClick={openActiveEvent}
-                className="block h-28 w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none md:h-full"
+                className={`block w-full overflow-hidden border-0 bg-transparent p-0 text-left leading-none ${
+                  isLandscapePreview ? "h-40 md:h-48" : "h-full min-h-[19rem]"
+                }`}
                 aria-label={`Open ${activeEvent.title}`}
               >
-                <EventImagePanel event={activeEvent} className="h-full" />
+                <EventImagePanel
+                  event={activeEvent}
+                  className="h-full"
+                  onOrientationChange={(orientation) =>
+                    rememberImageOrientation(activeEvent.id, orientation)
+                  }
+                />
               </button>
             )}
           </div>
@@ -672,6 +736,16 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                   <img
                     src={openEvent.image_url}
                     alt={openEvent.image_alt || ""}
+                    onLoad={(loadEvent) => {
+                      const image = loadEvent.currentTarget;
+                      if (!image.naturalWidth || !image.naturalHeight) return;
+                      rememberImageOrientation(
+                        openEvent.id,
+                        image.naturalHeight > image.naturalWidth
+                          ? "portrait"
+                          : "landscape"
+                      );
+                    }}
                     className="block h-auto w-full object-contain"
                   />
                 </div>
@@ -679,6 +753,9 @@ function EventsBanner({ events }: { events: EventRow[] }) {
                   event={openEvent}
                   className="hidden min-h-0 md:block md:h-[92vh] md:max-h-none"
                   imageClassName="rounded-xl"
+                  onOrientationChange={(orientation) =>
+                    rememberImageOrientation(openEvent.id, orientation)
+                  }
                 />
               </>
             )}
@@ -982,6 +1059,12 @@ export default function Home() {
       <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-5 sm:px-8 sm:pb-20 sm:pt-6 lg:px-10">
         <nav className="mb-4 flex items-center justify-end">
           <div className="flex items-center gap-3">
+            <Link
+              href="/feedback"
+              className="rounded-lg border border-[#dfe9e2] bg-[var(--card)]/85 px-3 py-1 text-xs font-semibold text-[var(--muted)] shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:text-[var(--ink)] sm:px-3.5 sm:py-1.5 sm:text-sm"
+            >
+              Feedback
+            </Link>
             <button
               type="button"
               onClick={() => loadSessions("refresh")}

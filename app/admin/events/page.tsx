@@ -112,15 +112,19 @@ function EventFields({ event }: { event?: EventRow }) {
         </div>
         <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-1">
           <label className="block text-sm font-medium">
-            Image side
+            Image placement preference
             <select
               name="image_side"
               defaultValue={event?.image_side ?? "right"}
               className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2"
             >
-              <option value="right">Right</option>
-              <option value="left">Left</option>
+              <option value="right">Right side / bottom</option>
+              <option value="left">Left side / top</option>
             </select>
+            <span className="mt-1 block text-xs leading-5 text-[var(--muted)]">
+              Portrait images use left/right. Landscape images are detected
+              automatically and use top/bottom.
+            </span>
           </label>
           <label className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm">
             <input
