@@ -4,23 +4,29 @@ import { Space_Grotesk } from "next/font/google";
 import { requireAdmin } from "@/lib/adminGuard";
 import AdminShell from "./AdminShell";
 
+type NavItem = {
+  href: string;
+  label: string;
+  section?: "system";
+};
+
 const space = Space_Grotesk({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
 
-const navItems = [
+const navItems: NavItem[] = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/sessions", label: "Sessions" },
+  { href: "/admin/club-champs", label: "Club champs" },
   { href: "/admin/team-attendance", label: "Team attendance" },
   { href: "/admin/events", label: "Events" },
   { href: "/admin/noticeboard", label: "Noticeboard" },
   { href: "/admin/feedback", label: "Feedback" },
-  { href: "/admin/club-champs", label: "Club champs" },
-  { href: "/admin/settings", label: "Settings" },
   { href: "/admin/whitelist", label: "Membership list" },
   { href: "/admin/first-time", label: "First-time bookings" },
-  { href: "/admin/admins", label: "Admins" },
+  { href: "/admin/settings", label: "Settings", section: "system" },
+  { href: "/admin/admins", label: "Admins", section: "system" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

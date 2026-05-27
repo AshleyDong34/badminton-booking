@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 type NavItem = {
   href: string;
   label: string;
+  section?: "system";
 };
 
 export default function AdminShell({
@@ -88,22 +89,32 @@ export default function AdminShell({
             Navigate
           </div>
           <nav className="flex flex-col gap-2">
-            {navItems.map((item) => {
+            {navItems.map((item, index) => {
               const active =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
+                pathname === item.href ||
+                (item.href !== "/admin" && pathname.startsWith(`${item.href}/`));
+              const previous = navItems[index - 1];
+              const startsSystemSection =
+                item.section === "system" && previous?.section !== "system";
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={closeMobileNav}
-                  className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-                    active
-                      ? "bg-[var(--chip)] text-[var(--ink)]"
-                      : "text-[var(--ink)] hover:bg-[var(--chip)]"
-                  }`}
-                >
-                  {item.label}
-                </Link>
+                <div key={item.href}>
+                  {startsSystemSection && (
+                    <div className="my-2 border-t border-[var(--line)] pt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+                      Admin
+                    </div>
+                  )}
+                  <Link
+                    href={item.href}
+                    onClick={closeMobileNav}
+                    className={`block rounded-xl px-3 py-2 text-sm font-medium transition ${
+                      active
+                        ? "bg-[var(--chip)] text-[var(--ink)]"
+                        : "text-[var(--ink)] hover:bg-[var(--chip)]"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                </div>
               );
             })}
           </nav>

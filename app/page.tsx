@@ -1029,6 +1029,12 @@ export default function Home() {
         ? bulletin.useful_info
         : courtUpdateText || "No sudden updates right now.";
 
+  function scrollToSessions() {
+    document
+      .getElementById("sessions")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <div
       className={`${space.className} min-h-screen overflow-hidden bg-[var(--paper)] text-[var(--ink)]`}
@@ -1270,13 +1276,14 @@ export default function Home() {
       </div>
 
       {!isSessionsSectionVisible && (
-        <Link
-          href="#sessions"
+        <button
+          type="button"
+          onClick={scrollToSessions}
           className="fixed bottom-4 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/70 bg-[var(--ok)] px-4 py-2 text-sm font-bold text-white shadow-[0_10px_26px_rgba(22,97,63,0.22)] backdrop-blur transition hover:-translate-y-0.5 sm:hidden"
         >
           Book a session
           <span aria-hidden="true">v</span>
-        </Link>
+        </button>
       )}
 
       {openBulletin && (
