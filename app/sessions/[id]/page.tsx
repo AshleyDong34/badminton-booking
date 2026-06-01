@@ -204,13 +204,13 @@ export default function SessionBookingPage() {
           setMessage("Student ID must be in the format s1234567.");
         }
         else if (raw.includes("membership required")) {
-          setMessage("Paid membership is required to book this session.");
+          setMessage("Paid EUBC club membership is required to book this session.");
         }
         else if (raw.includes("whitelisted")) {
           setMessage(
             allowNameOnly
               ? "Signup blocked by session rules."
-              : "Paid membership is required to book this session."
+              : "Paid EUBC club membership is required to book this session."
           );
         }
         else if (raw.includes("student_id required") || raw.includes("student id required"))
@@ -368,7 +368,7 @@ export default function SessionBookingPage() {
                     : "border-[#f2d3c7] bg-[#fff1ea] text-[#c9826c] font-semibold"
                 }`}
               >
-                {allowNameOnly ? "Membership not required" : "Membership required"}
+                {allowNameOnly ? "Club membership not required" : "Club membership required"}
               </span>
             </div>
             <p className="text-xs text-[var(--muted)] sm:text-sm">
@@ -421,8 +421,9 @@ export default function SessionBookingPage() {
               </button>
               {showRules && (
                 <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-xs text-[var(--muted)] sm:text-sm">
-                  This session requires paid membership. You get one taster session without
-                  membership; after that, you&apos;ll need membership to keep booking.
+                  This session requires paid EUBC club membership. You get one taster session
+                  without club membership; after that, you&apos;ll need club membership to keep
+                  booking.
                 </div>
               )}
             </div>
@@ -441,7 +442,8 @@ export default function SessionBookingPage() {
             </div>
             {allowNameOnly ? (
               <div className="sm:col-span-2 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-xs text-[var(--muted)] sm:text-sm">
-                No membership needed for this session. Only name and email are required.
+                EUBC club membership is not required for this session, but you still need the
+                required gym/Pleasance access to attend. Only name and email are required here.
               </div>
             ) : (
               <div>
