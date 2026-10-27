@@ -197,14 +197,17 @@ export default function SessionBookingPage() {
         const raw =
           (error.message || error.details || error.hint || error.code || "").toLowerCase();
         if (raw.includes("weekly limit")) setMessage("Weekly limit reached.");
-        else if (raw.includes("first_time_requires_student_id")) {
-          setMessage("First-time signup requires a student ID.");
-        }
         else if (raw.includes("invalid student_id") || raw.includes("invalid student id")) {
           setMessage("Student ID must be in the format s1234567.");
         }
         else if (raw.includes("membership required")) {
           setMessage("Paid EUBC club membership is required to book this session.");
+        }
+        else if (raw.includes("member identity mismatch")) {
+          setMessage("This student ID and email do not match the same member. Check them, or leave Student ID blank if you do not have one.");
+        }
+        else if (raw.includes("same-day booking not allowed")) {
+          setMessage("You can only book one session per day.");
         }
         else if (raw.includes("whitelisted")) {
           setMessage(
@@ -447,7 +450,7 @@ export default function SessionBookingPage() {
               </div>
             ) : (
               <div>
-                <label className="text-xs sm:text-sm">Student ID (required)</label>
+                <label className="text-xs sm:text-sm">Student ID (if you have one)</label>
                 <input
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value.toLowerCase())}
@@ -455,7 +458,7 @@ export default function SessionBookingPage() {
                   placeholder="s1234567"
                 />
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Leave blank only if you don&apos;t have one.
+                  Enter your student ID if you have one. Members without an ID can use their listed email; first-time tasters without an ID can use their email.
                 </p>
               </div>
             )}

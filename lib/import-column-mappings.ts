@@ -1,9 +1,11 @@
 export type MembershipImportColumns = {
+  name: string;
   email: string;
   studentId: string;
 };
 
 export const DEFAULT_MEMBERSHIP_IMPORT_COLUMNS: MembershipImportColumns = {
+  name: "name",
   email: "email",
   studentId: "student_id",
 };
@@ -53,6 +55,7 @@ function readString(value: unknown, fallback: string) {
 export function normalizeMembershipImportColumns(raw: unknown): MembershipImportColumns {
   const record = (raw ?? {}) as Record<string, unknown>;
   return {
+    name: readString(record.name, DEFAULT_MEMBERSHIP_IMPORT_COLUMNS.name),
     email: readString(record.email, DEFAULT_MEMBERSHIP_IMPORT_COLUMNS.email),
     studentId: readString(record.studentId, DEFAULT_MEMBERSHIP_IMPORT_COLUMNS.studentId),
   };

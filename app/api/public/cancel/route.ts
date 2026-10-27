@@ -3,6 +3,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { getBaseUrl } from "@/lib/base-url";
 import { sendEmail } from "@/lib/email";
 import { buildCancellationEmail, buildPromotionEmail } from "@/lib/email-templates";
+import { getBookingCredits } from "@/lib/booking-credits";
 
 export const runtime = "nodejs";
 
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   const { data: signup, error: signupErr } = await db
     .from("signups")
-    .select("id,session_id,status,name,email,cancel_token")
+    .select("id,session_id,status,name,email,student_id,cancel_token")
     .eq("cancel_token", token)
     .single();
 
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     signup.status === "signed_up"
       ? await db
           .from("signups")
-          .select("id,name,email,status,cancel_token")
+          .select("id,name,email,student_id,status,cancel_token")
           .eq("session_id", signup.session_id)
           .eq("status", "waiting_list")
           .order("created_at", { ascending: true })
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
         session,
         previousStatus: signup.status as "signed_up" | "waiting_list",
         source: "user_cancelled",
+        credits: await getBookingCredits(db, signup),
       });
       await sendEmail({
         to: signup.email,
@@ -125,6 +127,7 @@ export async function POST(req: NextRequest) {
             name: waitlistCandidate.name ?? "",
             session,
             cancelUrl,
+            credits: await getBookingCredits(db, { ...waitlistCandidate, session_id: signup.session_id }),
           });
           await sendEmail({
             to: waitlistCandidate.email,

@@ -1,6 +1,7 @@
 import "server-only";
 import { sendEmail } from "@/lib/email";
 import { buildPromotionEmail } from "@/lib/email-templates";
+import { getBookingCredits } from "@/lib/booking-credits";
 import { supabaseServer } from "@/lib/supabase-server";
 
 type Db = ReturnType<typeof supabaseServer>;
@@ -17,6 +18,7 @@ type WaitlistCandidate = {
   name: string | null;
   email: string | null;
   cancel_token: string | null;
+  student_id: string | null;
 };
 
 type PromotionResult = {
@@ -31,7 +33,7 @@ export async function getEarliestWaitlistCandidate(
 ): Promise<WaitlistCandidate | null> {
   const { data } = await db
     .from("signups")
-    .select("id,name,email,cancel_token")
+    .select("id,name,email,student_id,cancel_token")
     .eq("session_id", sessionId)
     .eq("status", "waiting_list")
     .order("created_at", { ascending: true })
@@ -58,7 +60,7 @@ export async function sendPromotionEmailIfPromoted({
 
   const { data: promotedRow } = await db
     .from("signups")
-    .select("status,email,cancel_token,name")
+    .select("status,email,cancel_token,name,student_id,session_id")
     .eq("id", candidate.id)
     .maybeSingle();
 
@@ -84,6 +86,11 @@ export async function sendPromotionEmailIfPromoted({
       name,
       session,
       cancelUrl,
+      credits: await getBookingCredits(db, {
+        email,
+        student_id: promotedRow.student_id ?? candidate.student_id,
+        session_id: promotedRow.session_id,
+      }),
     });
     await sendEmail({ to: email, subject, text, html });
     return { promoted: true, emailSent: true, emailError: null };

@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Keep Supabase migration automation disabled until it is intentionally enabled.
+/.github/workflows/supabase-migrations.yml
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

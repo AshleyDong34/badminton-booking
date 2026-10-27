@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/adminGuard";
 import { getBaseUrl } from "@/lib/base-url";
 import { sendEmail } from "@/lib/email";
 import { buildCancellationEmail } from "@/lib/email-templates";
+import { getBookingCredits } from "@/lib/booking-credits";
 import {
   getEarliestWaitlistCandidate,
   sendPromotionEmailIfPromoted,
@@ -32,7 +33,7 @@ export async function POST(
 
   const { data: signup, error: signupErr } = await supabase
     .from("signups")
-    .select("id,session_id,status,name,email,cancel_token")
+    .select("id,session_id,status,name,email,student_id,cancel_token")
     .eq("id", signupId)
     .eq("session_id", sessionId)
     .maybeSingle();
@@ -81,6 +82,7 @@ export async function POST(
           session,
           previousStatus: signup.status as "signed_up" | "waiting_list",
           source: "admin_removed",
+          credits: await getBookingCredits(supabase, signup),
         });
         await sendEmail({
           to: signup.email,
