@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getBaseUrl } from "@/lib/base-url";
 import { sendEmail } from "@/lib/email";
-import { buildCancellationEmail, buildPromotionEmail } from "@/lib/email-templates";
+import { buildCancellationEmail } from "@/lib/email-templates";
 import { getBookingCredits } from "@/lib/booking-credits";
+import { getWaitlistCandidates, sendPromotionEmailIfPromoted } from "@/lib/session-waitlist";
 
 export const runtime = "nodejs";
 
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   const { data: signup, error: signupErr } = await db
     .from("signups")
-    .select("id,session_id,status,name,email,student_id,cancel_token")
+    .select("id,session_id,status,name,email,student_id,created_at,cancel_token")
     .eq("cancel_token", token)
     .single();
 
@@ -60,17 +61,9 @@ export async function POST(req: NextRequest) {
     .eq("id", signup.session_id)
     .single();
 
-  const { data: waitlistCandidate } =
-    signup.status === "signed_up"
-      ? await db
-          .from("signups")
-          .select("id,name,email,student_id,status,cancel_token")
-          .eq("session_id", signup.session_id)
-          .eq("status", "waiting_list")
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle()
-      : { data: null };
+  const waitlistCandidates = signup.status === "signed_up"
+    ? await getWaitlistCandidates(db, signup.session_id)
+    : [];
 
   const { data, error } = await db.rpc("cancel_signup_by_token", {
     p_token: token,
@@ -89,11 +82,15 @@ export async function POST(req: NextRequest) {
 
   if (session && signup.email) {
     try {
+      const { data: spentCredit, error: spendError } = await db.from("booking_credit_spends")
+        .select("signup_id").eq("signup_id", signup.id).maybeSingle();
+      if (spendError) throw spendError;
       const { subject, text, html } = buildCancellationEmail({
         name: signup.name ?? "",
         session,
         previousStatus: signup.status as "signed_up" | "waiting_list",
         source: "user_cancelled",
+        creditReturned: !spentCredit,
         credits: await getBookingCredits(db, signup),
       });
       await sendEmail({
@@ -108,36 +105,14 @@ export async function POST(req: NextRequest) {
   }
 
   let promoted = false;
-  if (waitlistCandidate?.id) {
-    const { data: promotedRow } = await db
-      .from("signups")
-      .select("status")
-      .eq("id", waitlistCandidate.id)
-      .maybeSingle();
-
-    if (promotedRow?.status === "signed_up") {
-      promoted = true;
-
-      if (session && waitlistCandidate.email && waitlistCandidate.cancel_token) {
-        const baseUrl = getBaseUrl(req);
-        const cancelUrl = `${baseUrl}/cancel?token=${waitlistCandidate.cancel_token}`;
-
-        try {
-          const { subject, text, html } = buildPromotionEmail({
-            name: waitlistCandidate.name ?? "",
-            session,
-            cancelUrl,
-            credits: await getBookingCredits(db, { ...waitlistCandidate, session_id: signup.session_id }),
-          });
-          await sendEmail({
-            to: waitlistCandidate.email,
-            subject,
-            text,
-            html,
-          });
-        } catch {
-          // Best-effort email; do not fail cancellation.
-        }
+  if (session) {
+    for (const candidate of waitlistCandidates) {
+      const result = await sendPromotionEmailIfPromoted({
+        db, candidate, session, baseUrl: getBaseUrl(req),
+      });
+      if (result.promoted) {
+        promoted = true;
+        break;
       }
     }
   }

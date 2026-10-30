@@ -6,7 +6,7 @@ import { sendEmail } from "@/lib/email";
 import { buildCancellationEmail } from "@/lib/email-templates";
 import { getBookingCredits } from "@/lib/booking-credits";
 import {
-  getEarliestWaitlistCandidate,
+  getWaitlistCandidates,
   sendPromotionEmailIfPromoted,
 } from "@/lib/session-waitlist";
 
@@ -33,7 +33,7 @@ export async function POST(
 
   const { data: signup, error: signupErr } = await supabase
     .from("signups")
-    .select("id,session_id,status,name,email,student_id,cancel_token")
+    .select("id,session_id,status,name,email,student_id,created_at,cancel_token")
     .eq("id", signupId)
     .eq("session_id", sessionId)
     .maybeSingle();
@@ -47,10 +47,10 @@ export async function POST(
     .eq("id", sessionId)
     .single();
 
-  const waitlistCandidate =
+  const waitlistCandidates =
     signup.status === "signed_up"
-      ? await getEarliestWaitlistCandidate(supabase, sessionId)
-      : null;
+      ? await getWaitlistCandidates(supabase, sessionId)
+      : [];
 
   if (signup.cancel_token) {
     const { data, error } = await supabase.rpc("cancel_signup_by_token", {
@@ -77,11 +77,15 @@ export async function POST(
   if (!sErr && session) {
     if (signup.email) {
       try {
+        const { data: spentCredit, error: spendError } = await supabase.from("booking_credit_spends")
+          .select("signup_id").eq("signup_id", signup.id).maybeSingle();
+        if (spendError) throw spendError;
         const { subject, text, html } = buildCancellationEmail({
           name: signup.name ?? "",
           session,
           previousStatus: signup.status as "signed_up" | "waiting_list",
           source: "admin_removed",
+          creditReturned: !spentCredit,
           credits: await getBookingCredits(supabase, signup),
         });
         await sendEmail({
@@ -99,21 +103,20 @@ export async function POST(
       }
     }
 
-    const promotion = await sendPromotionEmailIfPromoted({
-      db: supabase,
-      candidate: waitlistCandidate,
-      session,
-      baseUrl,
-    });
-
-    if (promotion.promoted) {
-      messages.push(
-        promotion.emailSent
-          ? "Next waitlisted person was promoted and emailed."
-          : `Next waitlisted person was promoted, but email was not sent: ${
-              promotion.emailError ?? "unknown email error"
-            }`
-      );
+    for (const candidate of waitlistCandidates) {
+      const promotion = await sendPromotionEmailIfPromoted({
+        db: supabase, candidate, session, baseUrl,
+      });
+      if (promotion.promoted) {
+        messages.push(
+          promotion.emailSent
+            ? "Next eligible waitlisted person was promoted and emailed."
+            : `Next eligible waitlisted person was promoted, but email was not sent: ${
+                promotion.emailError ?? "unknown email error"
+              }`
+        );
+        break;
+      }
     }
   }
 

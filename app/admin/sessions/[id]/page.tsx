@@ -22,6 +22,8 @@ type SignupRow = {
   id: string;
   name: string;
   email: string;
+  student_id: string | null;
+  is_taster: boolean;
   status: "signed_up" | "waiting_list";
   created_at: string; // you confirmed this exists
 };
@@ -72,7 +74,7 @@ export default async function SessionDetail({
   // 2) Load all signups for this session (we will split by status in code)
   const { data: signups, error: signupsError } = await supabase
     .from("signups")
-    .select("id,name,email,status,created_at")
+    .select("id,name,email,student_id,is_taster,status,created_at")
     .eq("session_id", sessionId)
     .order("name", { ascending: true });
 
@@ -213,6 +215,8 @@ export default async function SessionDetail({
                     <div>
                       <div className="font-medium">{person.name}</div>
                       <div className="text-sm text-[var(--muted)]">{person.email}</div>
+                      {person.student_id && <div className="text-xs text-[var(--muted)]">Student ID: {person.student_id}</div>}
+                      {person.is_taster && <div className="text-xs font-semibold text-amber-800">First-time taster — check in person</div>}
                       <div className="text-xs text-[var(--muted)]">
                         Joined: {new Date(person.created_at).toLocaleString("en-GB")}
                       </div>
@@ -267,6 +271,8 @@ export default async function SessionDetail({
                     <div>
                       <div className="font-medium">{person.name}</div>
                       <div className="text-sm text-[var(--muted)]">{person.email}</div>
+                      {person.student_id && <div className="text-xs text-[var(--muted)]">Student ID: {person.student_id}</div>}
+                      {person.is_taster && <div className="text-xs font-semibold text-amber-800">First-time taster — check in person</div>}
                       <div className="text-xs text-[var(--muted)]">
                         Joined: {new Date(person.created_at).toLocaleString("en-GB")}
                       </div>

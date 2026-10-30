@@ -54,7 +54,7 @@ export default function WhitelistUploadForm({
       setImportMessage(
         result.mappingSaved === false
           ? `Processed ${result.idMembersProcessed ?? 0} rows with student IDs, but the column mapping could not be saved. Check the settings table.`
-          : `Processed ${result.idMembersProcessed ?? 0} rows with student IDs. Existing entries were kept; matching rows were added or updated.`
+          : `Processed ${result.idMembersProcessed ?? 0} unique student IDs: ${result.idMembersAdded ?? 0} added, ${result.idMembersUpdated ?? 0} already listed and updated. No duplicate members were created.`
       );
       router.refresh();
     } catch (error: unknown) {
@@ -173,9 +173,12 @@ export default function WhitelistUploadForm({
           </div>
           <div className="space-y-2">
             {review.map((entry) => (
-              <div key={entry.key} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-3 text-sm">
+              <div key={entry.key} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 text-sm ${entry.status === "needs_manual" || entry.status === "ambiguous" ? "border-amber-300 bg-amber-50" : "border-[var(--line)]"}`}>
                 <div>
-                  <div className="font-medium">{entry.name}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{entry.name}</span>
+                    {(entry.status === "needs_manual" || entry.status === "ambiguous") && <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">Manual review</span>}
+                  </div>
                   {entry.email && <div className="text-[var(--muted)]">{entry.email}</div>}
                   <div className="text-xs text-[var(--muted)]">
                     {entry.status === "listed" && "Already on the list by a unique name match."}

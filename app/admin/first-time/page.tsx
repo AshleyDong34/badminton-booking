@@ -12,6 +12,7 @@ type SearchParams = {
 
 type Row = {
   id: string;
+  name: string | null;
   email: string | null;
   student_id: string | null;
   created_at: string | null;
@@ -29,12 +30,12 @@ export default async function FirstTimePage({
   const db = supabaseServer();
   let query = db
     .from("first_time_signups")
-    .select("id,email,student_id,created_at")
+    .select("id,name,email,student_id,created_at")
     .order("email", { ascending: true, nullsFirst: false })
     .order("student_id", { ascending: true, nullsFirst: false });
 
   if (q) {
-    query = query.or(`email.ilike.%${q}%,student_id.ilike.%${q}%`);
+    query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%,student_id.ilike.%${q}%`);
   }
 
   const { data, error } = await query;
@@ -66,7 +67,7 @@ export default async function FirstTimePage({
             type="text"
             name="q"
             defaultValue={q}
-            placeholder="Search by email or student ID"
+            placeholder="Search by name, email or student ID"
             className="flex-1 min-w-[220px] rounded-xl border border-[var(--line)] bg-white p-2 text-sm"
           />
           <button className="rounded-xl border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-sm font-medium shadow-sm">
@@ -85,9 +86,18 @@ export default async function FirstTimePage({
         <form
           action="/api/admin/first-time/add"
           method="post"
-          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
+          className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
         >
           <input type="hidden" name="redirect" value={redirectPath} />
+          <div>
+            <label className="block text-xs font-medium text-[var(--muted)]">Name</label>
+            <input
+              name="name"
+              required
+              className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2 text-sm"
+              placeholder="Full name"
+            />
+          </div>
           <div>
             <label className="block text-xs font-medium text-[var(--muted)]">Email</label>
             <input
@@ -102,9 +112,8 @@ export default async function FirstTimePage({
             <label className="block text-xs font-medium text-[var(--muted)]">Student ID</label>
             <input
               name="student_id"
-              required
               className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white p-2 text-sm"
-              placeholder="s1234567"
+              placeholder="Optional"
             />
           </div>
           <button className="self-end rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm">
@@ -118,9 +127,10 @@ export default async function FirstTimePage({
       )}
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-sm overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead className="border-b border-[var(--line)] text-[var(--muted)]">
             <tr className="text-left">
+              <th className="py-3 px-4">Name</th>
               <th className="py-3 px-4">Email</th>
               <th className="py-3 px-4">Student ID</th>
               <th className="py-3 px-4">First booked</th>
@@ -133,6 +143,15 @@ export default async function FirstTimePage({
                 key={row.id}
                 className={index % 2 === 0 ? "bg-white" : "bg-[var(--chip)]"}
               >
+                <td className="py-3 px-4">
+                  {row.name || (
+                    <form action="/api/admin/first-time/name" method="post" className="flex min-w-[180px] gap-2">
+                      <input type="hidden" name="id" value={row.id} />
+                      <input name="name" required maxLength={160} aria-label="Name for existing first-time entry" placeholder="Add name" className="w-32 rounded-lg border border-[var(--line)] bg-white px-2 py-1" />
+                      <button className="rounded-lg border border-[var(--line)] px-2 py-1 font-medium">Save</button>
+                    </form>
+                  )}
+                </td>
                 <td className="py-3 px-4">{row.email ?? ""}</td>
                 <td className="py-3 px-4">{row.student_id ?? ""}</td>
                 <td className="py-3 px-4">

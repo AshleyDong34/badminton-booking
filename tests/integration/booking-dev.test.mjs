@@ -57,6 +57,9 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
     const tasterEmail = email("taster");
     const taster = await book(a, `TEST ${run} Taster`, id, tasterEmail);
     good(taster);
+    const firstTaster = good(await db.from("signups").select("is_taster,name").eq("email", tasterEmail).single());
+    assert.equal(firstTaster.is_taster, true);
+    assert.equal(good(await db.from("first_time_signups").select("name").eq("email", tasterEmail).single()).name, firstTaster.name);
     assert.match((await book(b, "Repeat", id, email("new-address"))).error?.message ?? "", /membership required/);
     assert.match((await book(b, "Repeat", `s8${id.slice(2)}`, tasterEmail)).error?.message ?? "", /membership required/);
     assert.equal((await credits(tasterEmail, id, a)).remaining_credits, 1);
@@ -70,10 +73,12 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
     const member = good(await db.from("student_whitelist").select("id").eq("student_id", id).single());
     created.members.push(member.id);
     assert.equal(good(await db.from("signups").select("id").eq("email", tasterEmail)).length, 1);
+    assert.equal(good(await db.from("signups").select("is_taster").eq("email", tasterEmail).single()).is_taster, true);
     const tasterSignup = good(await db.from("signups").select("created_at").eq("email", tasterEmail).single());
     assert.equal(good(await db.from("first_time_signups").select("id").eq("email", tasterEmail).eq("created_at", tasterSignup.created_at)).length, 1);
     assert.match((await book(sameDay, "Member", id, memberAddress)).error?.message ?? "", /same-day booking/);
     good(await book(c, "Member", id, memberAddress));
+    assert.equal(good(await db.from("signups").select("is_taster").eq("email", memberAddress).single()).is_taster, false);
     assert.equal((await credits(memberAddress, id, c)).remaining_credits, 0);
     assert.match((await book(a, "Member", id, memberAddress)).error?.message ?? "", /weekly limit/);
 
@@ -81,6 +86,7 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
     const noIdTasterEmail = email("no-id-taster");
     const noIdTaster = await book(a, "Email taster", null, noIdTasterEmail);
     good(noIdTaster);
+    assert.equal(good(await db.from("signups").select("is_taster").eq("email", noIdTasterEmail).single()).is_taster, true);
     assert.match((await book(b, "Repeat email taster", null, noIdTasterEmail)).error?.message ?? "", /membership required/);
     await cancel(noIdTaster);
     good(await book(b, "Email taster again", null, noIdTasterEmail));
@@ -135,6 +141,19 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
     assert.equal((await saveManualMember(db, { name: sharedName, email: sharedB, createSeparate: true })).status, 200);
     created.members.push(good(await db.from("student_whitelist").select("id").eq("email", sharedB).single()).id);
     assert.equal((await saveManualMember(db, { name: sharedName, email: email("shared-c") })).status, 409);
+
+    // Re-importing an ID row updates the same member rather than adding a duplicate.
+    const importId = `s7${id.slice(2)}`;
+    const importEmail = email("imported");
+    const importRow = { name: `TEST ${run} Imported`, student_id: importId, email: importEmail };
+    assert.equal(good(await db.rpc("upsert_membership_roster", { p_members: [importRow] })), 1);
+    const imported = good(await db.from("student_whitelist").select("id,name").eq("student_id", importId).single());
+    created.members.push(imported.id);
+    assert.equal(good(await db.rpc("upsert_membership_roster", { p_members: [{ ...importRow, name: `${importRow.name} updated` }] })), 1);
+    const importedAgain = good(await db.from("student_whitelist").select("id,name").eq("student_id", importId));
+    assert.equal(importedAgain.length, 1);
+    assert.equal(importedAgain[0].id, imported.id);
+    assert.equal(importedAgain[0].name, `${importRow.name} updated`);
   } finally {
     // Only exact synthetic records created by this run are removed.
     const addresses = [...new Set(created.emails)];
@@ -151,6 +170,114 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
     }
     if (created.sessions.length) assert.equal(good(await db.from("sessions").select("id").in("id", created.sessions)).length, 0);
     if (created.members.length) assert.equal(good(await db.from("student_whitelist").select("id").in("id", created.members)).length, 0);
+  }
+});
+
+test("development DB: cancelling or moving after session start keeps spent booking-week credits", async () => {
+  const address = email("spent-credit");
+  const studentId = `s6${id.slice(2)}`;
+  const sessionIds = [];
+  let memberId = null;
+  try {
+    assert.equal((await saveManualMember(db, { name: `TEST ${run} Spent`, studentId, email: address })).status, 200);
+    memberId = good(await db.from("student_whitelist").select("id").eq("student_id", studentId).single()).id;
+    const now = Date.now();
+    for (const offset of [-120000, -60000, 3600000]) {
+      const row = good(await db.from("sessions").insert({
+        name: `TEST ${run} credit ${offset}`,
+        capacity: 2,
+        starts_at: new Date(now + offset).toISOString(),
+        ends_at: new Date(now + offset + 7200000).toISOString(),
+        allow_name_only: false,
+      }).select("id").single());
+      sessionIds.push(row.id);
+    }
+    let bookedAt = null;
+    for (const [index, sessionId] of sessionIds.slice(0, 2).entries()) {
+      const result = good(await db.rpc("insert_signup_guarded", {
+        p_session_id: sessionId, p_name: `TEST ${run} Spent`, p_student_id: studentId, p_email: address,
+      }))[0];
+      const signup = good(await db.from("signups").select("created_at").eq("cancel_token", result.r_cancel_token).single());
+      bookedAt = signup.created_at;
+      if (index === 0) {
+        assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: result.r_cancel_token })), true);
+      } else {
+        const moved = good(await db.from("signups").update({ status: "waiting_list" }).eq("cancel_token", result.r_cancel_token).select("id").single());
+        const rePromotion = await db.from("signups").update({ status: "signed_up" }).eq("id", moved.id);
+        assert.match(rePromotion.error?.message ?? "", /weekly limit reached/);
+        assert.equal(good(await db.from("signups").select("status").eq("id", moved.id).single()).status, "waiting_list");
+      }
+      const balance = good(await db.rpc("get_booking_credits", {
+        p_email: address, p_student_id: studentId, p_session_id: sessionId, p_booked_at: bookedAt,
+      }))[0];
+      assert.equal(balance.used_credits, index + 1);
+      assert.equal(balance.remaining_credits, 1 - index);
+    }
+    assert.equal(good(await db.from("booking_credit_spends").select("signup_id").eq("email", address)).length, 2);
+    const third = await db.rpc("insert_signup_guarded", {
+      p_session_id: sessionIds[2], p_name: `TEST ${run} Spent`, p_student_id: studentId, p_email: address,
+    });
+    assert.match(third.error?.message ?? "", /weekly limit reached/);
+  } finally {
+    good(await db.from("signups").delete().eq("email", address));
+    good(await db.from("booking_credit_spends").delete().eq("email", address));
+    if (memberId) good(await db.from("student_whitelist").delete().eq("id", memberId));
+    if (sessionIds.length) good(await db.from("sessions").delete().in("id", sessionIds));
+    assert.equal(good(await db.from("booking_credit_spends").select("signup_id").eq("email", address)).length, 0);
+  }
+});
+
+test("development DB: waitlist promotion skips a person who used their last credit", async () => {
+  const address = {
+    blocker: email("promotion-blocker"),
+    exhausted: email("promotion-exhausted"),
+    eligible: email("promotion-eligible"),
+  };
+  const student = {
+    blocker: `s5${id.slice(2)}`,
+    exhausted: `s4${id.slice(2)}`,
+    eligible: `s3${id.slice(2)}`,
+  };
+  const memberIds = [];
+  const sessionIds = [];
+  try {
+    for (const label of Object.keys(address)) {
+      assert.equal((await saveManualMember(db, {
+        name: `TEST ${run} ${label}`, studentId: student[label], email: address[label],
+      })).status, 200);
+      memberIds.push(good(await db.from("student_whitelist").select("id").eq("student_id", student[label]).single()).id);
+    }
+    for (const [index, starts_at] of ["2027-03-15T18:00:00Z", "2027-03-16T18:00:00Z", "2027-03-17T18:00:00Z"].entries()) {
+      sessionIds.push(good(await db.from("sessions").insert({
+        name: `TEST ${run} promotion ${index}`, capacity: index === 0 ? 1 : 4,
+        starts_at, ends_at: new Date(Date.parse(starts_at) + 3600000).toISOString(), allow_name_only: false,
+      }).select("id").single()).id);
+    }
+    const [waitSession, otherA, otherB] = sessionIds;
+    const insert = async (sessionId, label) => good(await db.rpc("insert_signup_guarded", {
+      p_session_id: sessionId, p_name: `TEST ${run} ${label}`,
+      p_student_id: student[label], p_email: address[label],
+    }))[0];
+    const blocker = await insert(waitSession, "blocker");
+    assert.equal(blocker.r_status, "signed_up");
+    assert.equal((await insert(waitSession, "exhausted")).r_status, "waiting_list");
+    assert.equal((await insert(waitSession, "eligible")).r_status, "waiting_list");
+    await insert(otherA, "exhausted");
+    await insert(otherB, "exhausted");
+    const firstWaitlist = good(await db.from("signups").select("id").eq("session_id", waitSession).eq("email", address.exhausted).single());
+    const forced = await db.from("signups").update({ status: "signed_up" }).eq("id", firstWaitlist.id);
+    assert.match(forced.error?.message ?? "", /weekly limit reached/);
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: blocker.r_cancel_token })), true);
+    const remaining = good(await db.from("signups").select("email,status").eq("session_id", waitSession));
+    assert.equal(remaining.find(row => row.email === address.exhausted)?.status, "waiting_list");
+    assert.equal(remaining.find(row => row.email === address.eligible)?.status, "signed_up");
+    assert.equal((await credits(address.eligible, student.eligible, waitSession)).remaining_credits, 1);
+  } finally {
+    good(await db.from("signups").delete().in("email", Object.values(address)));
+    good(await db.from("booking_credit_spends").delete().in("email", Object.values(address)));
+    if (memberIds.length) good(await db.from("student_whitelist").delete().in("id", memberIds));
+    if (sessionIds.length) good(await db.from("sessions").delete().in("id", sessionIds));
+    assert.equal(good(await db.from("signups").select("id").in("email", Object.values(address))).length, 0);
   }
 });
 

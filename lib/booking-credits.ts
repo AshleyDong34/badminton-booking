@@ -6,14 +6,16 @@ type Db = ReturnType<typeof supabaseServer>;
 
 export async function getBookingCredits(
   db: Db,
-  signup: { email: string | null; student_id?: string | null; session_id: string }
+  signup: { email: string | null; student_id?: string | null; session_id: string; created_at?: string | null }
 ): Promise<WeeklyCredits | null> {
   if (!signup.email) return null;
-  const { data, error } = await db.rpc("get_booking_credits", {
+  const args: Record<string, string | null> = {
     p_email: signup.email,
     p_student_id: signup.student_id ?? null,
     p_session_id: signup.session_id,
-  });
+  };
+  if (signup.created_at) args.p_booked_at = signup.created_at;
+  const { data, error } = await db.rpc("get_booking_credits", args);
   if (error) {
     console.error("Could not read weekly booking credits:", error.message);
     return null;

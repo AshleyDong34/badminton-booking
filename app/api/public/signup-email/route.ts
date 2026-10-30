@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const db = supabaseServer();
   const { data: signup, error: signupErr } = await db
     .from("signups")
-    .select("id,session_id,status,name,email,student_id,created_at,cancel_token")
+    .select("id,session_id,status,name,email,student_id,is_taster,created_at,cancel_token")
     .eq("cancel_token", cancelToken)
     .single();
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const { data: session, error: sessionErr } = await db
     .from("sessions")
-    .select("name,starts_at,ends_at,notes,allow_name_only")
+    .select("name,starts_at,ends_at,notes")
     .eq("id", signup.session_id)
     .single();
 
@@ -39,14 +39,6 @@ export async function POST(req: NextRequest) {
   const baseUrl = getBaseUrl(req);
   const cancelUrl = `${baseUrl}/cancel?token=${signup.cancel_token}`;
 
-  const { data: taster } = session.allow_name_only
-    ? { data: null }
-    : await db.from("first_time_signups")
-        .select("id")
-        .eq("email", signup.email.trim().toLowerCase())
-        .eq("created_at", signup.created_at)
-        .maybeSingle();
-  const isFirstTimeTaster = Boolean(taster);
   const credits = await getBookingCredits(db, signup);
 
   const { subject, text, html } = buildSignupEmail({
@@ -55,7 +47,7 @@ export async function POST(req: NextRequest) {
     status: signup.status as "signed_up" | "waiting_list",
     session,
     cancelUrl,
-    isFirstTimeTaster,
+    isFirstTimeTaster: signup.is_taster,
     credits,
   });
 

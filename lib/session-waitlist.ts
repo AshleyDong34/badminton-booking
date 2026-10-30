@@ -19,6 +19,7 @@ type WaitlistCandidate = {
   email: string | null;
   cancel_token: string | null;
   student_id: string | null;
+  created_at: string;
 };
 
 type PromotionResult = {
@@ -27,20 +28,25 @@ type PromotionResult = {
   emailError: string | null;
 };
 
-export async function getEarliestWaitlistCandidate(
+export async function getWaitlistCandidates(
   db: Db,
   sessionId: string
-): Promise<WaitlistCandidate | null> {
-  const { data } = await db
-    .from("signups")
-    .select("id,name,email,student_id,cancel_token")
-    .eq("session_id", sessionId)
-    .eq("status", "waiting_list")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  return (data as WaitlistCandidate | null) ?? null;
+): Promise<WaitlistCandidate[]> {
+  const candidates: WaitlistCandidate[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db
+      .from("signups")
+      .select("id,name,email,student_id,created_at,cancel_token")
+      .eq("session_id", sessionId)
+      .eq("status", "waiting_list")
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + 999);
+    if (error) throw new Error(`Could not read waitlist: ${error.message}`);
+    candidates.push(...((data ?? []) as WaitlistCandidate[]));
+    if (!data || data.length < 1000) break;
+  }
+  return candidates;
 }
 
 export async function sendPromotionEmailIfPromoted({
@@ -60,7 +66,7 @@ export async function sendPromotionEmailIfPromoted({
 
   const { data: promotedRow } = await db
     .from("signups")
-    .select("status,email,cancel_token,name,student_id,session_id")
+    .select("status,email,cancel_token,name,student_id,session_id,created_at")
     .eq("id", candidate.id)
     .maybeSingle();
 
@@ -90,6 +96,7 @@ export async function sendPromotionEmailIfPromoted({
         email,
         student_id: promotedRow.student_id ?? candidate.student_id,
         session_id: promotedRow.session_id,
+        created_at: promotedRow.created_at,
       }),
     });
     await sendEmail({ to: email, subject, text, html });
@@ -121,23 +128,33 @@ export async function promoteEarliestWaitlistIntoSpaces({
   const emailErrors: string[] = [];
 
   for (let index = 0; index < spaces; index += 1) {
-    const candidate = await getEarliestWaitlistCandidate(db, sessionId);
-    if (!candidate?.id) break;
-
-    const { data: promoted } = await db
-      .from("signups")
-      .update({ status: "signed_up" })
-      .eq("id", candidate.id)
-      .eq("session_id", sessionId)
-      .eq("status", "waiting_list")
-      .select("id")
-      .maybeSingle();
-
-    if (!promoted?.id) continue;
+    const candidates = await getWaitlistCandidates(db, sessionId);
+    let selected: WaitlistCandidate | null = null;
+    for (const candidate of candidates) {
+      const credits = await getBookingCredits(db, { ...candidate, session_id: sessionId });
+      if (!credits || credits.remainingCredits <= 0) continue;
+      const { data: promoted, error } = await db
+        .from("signups")
+        .update({ status: "signed_up" })
+        .eq("id", candidate.id)
+        .eq("session_id", sessionId)
+        .eq("status", "waiting_list")
+        .select("id")
+        .maybeSingle();
+      if (error) {
+        if (!/weekly limit reached/i.test(error.message)) emailErrors.push(error.message);
+        continue;
+      }
+      if (promoted?.id) {
+        selected = candidate;
+        break;
+      }
+    }
+    if (!selected) break;
 
     const result = await sendPromotionEmailIfPromoted({
       db,
-      candidate,
+      candidate: selected,
       session,
       baseUrl,
     });

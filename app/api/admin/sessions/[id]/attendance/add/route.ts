@@ -9,6 +9,7 @@ type SignupRow = {
   name: string;
   email: string;
   student_id: string | null;
+  is_taster: boolean;
   attended: boolean | null;
 };
 
@@ -92,7 +93,7 @@ export async function POST(
       attended: true,
       cancel_token: crypto.randomUUID(),
     })
-    .select("id,name,email,student_id,attended")
+    .select("id,name,email,student_id,is_taster,attended")
     .single<SignupRow>();
 
   if (error || !signup) {
@@ -108,6 +109,7 @@ export async function POST(
       name: signup.name,
       email: signup.email,
       student_id: signup.student_id,
+      is_taster: signup.is_taster,
       attended: Boolean(signup.attended),
     },
   });

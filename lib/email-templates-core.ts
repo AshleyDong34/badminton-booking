@@ -9,14 +9,13 @@ type SignupStatus = "signed_up" | "waiting_list";
 
 export type WeeklyCredits = { weeklyQuota: number; usedCredits: number; remainingCredits: number };
 
-function creditMessage(credits: WeeklyCredits | null | undefined, waitlisted = false) {
+function creditMessage(credits: WeeklyCredits | null | undefined) {
   if (!credits) return "";
-  const count = `Weekly booking credits: ${credits.usedCredits} of ${credits.weeklyQuota} used, ${credits.remainingCredits} remaining. Credits reset Monday (UK time).`;
-  const waitlist = waitlisted ? " Your waitlist place does not use a credit until you are promoted." : "";
+  const count = `Weekly booking credits for the week you booked: ${credits.usedCredits} of ${credits.weeklyQuota} reserved or spent, ${credits.remainingCredits} available. Booking weeks reset Monday (UK time).`;
   const exhausted = credits.remainingCredits === 0
-    ? " You have used all your booking credits for this week."
+    ? " You have no booking credits available for that booking week."
     : "";
-  return count + waitlist + exhausted;
+  return count + exhausted;
 }
 
 function formatSessionTime(session: SessionDetails) {
@@ -66,7 +65,10 @@ export function buildSignupEmail(args: {
   const firstTimeLine = args.isFirstTimeTaster
     ? "This was your first booking without membership (taster). Next time you will need paid membership to book regular member sessions."
     : "";
-  const creditsLine = creditMessage(args.credits, args.status === "waiting_list");
+  const creditActionLine = args.status === "signed_up"
+    ? "Your confirmed place reserves one weekly booking credit now. Cancel before the session starts to return it; once the session starts, it is spent."
+    : "Your waitlist place does not reserve a credit. One will be reserved if you are promoted to a confirmed place.";
+  const creditsLine = creditMessage(args.credits);
 
   const text = [
     `Hi ${args.name || "there"},`,
@@ -77,6 +79,7 @@ export function buildSignupEmail(args: {
     "",
     statusLine,
     firstTimeLine,
+    creditActionLine,
     creditsLine,
     "",
     "If you need to cancel, use this link:",
@@ -95,6 +98,7 @@ export function buildSignupEmail(args: {
       ${args.session.notes ? `<p><strong>Notes:</strong> ${args.session.notes}</p>` : ""}
       <p>${statusLine}</p>
       ${args.isFirstTimeTaster ? `<p><strong>First-time booking:</strong> This was your taster booking without membership. Next time you will need paid membership to book regular member sessions.</p>` : ""}
+      <p>${creditActionLine}</p>
       ${creditsLine ? `<p>${creditsLine}</p>` : ""}
       <p>If you need to cancel, use this link:<br/>
       <a href="${args.cancelUrl}">${args.cancelUrl}</a></p>
@@ -114,6 +118,7 @@ export function buildPromotionEmail(args: {
   const when = formatSessionTime(args.session);
   const subject = `You are in: ${args.session.name}`;
   const creditsLine = creditMessage(args.credits);
+  const creditActionLine = "One weekly booking credit is now reserved for your confirmed place. Cancel before the session starts to return it; once the session starts, it is spent.";
 
   const text = [
     `Hi ${args.name || "there"},`,
@@ -122,6 +127,7 @@ export function buildPromotionEmail(args: {
     "",
     `When: ${when}`,
     args.session.notes ? `Notes: ${args.session.notes}` : "",
+    creditActionLine,
     creditsLine,
     "",
     "If you need to cancel, use this link:",
@@ -137,6 +143,7 @@ export function buildPromotionEmail(args: {
       <p><strong>Session:</strong> ${args.session.name}<br/>
       <strong>When:</strong> ${when}</p>
       ${args.session.notes ? `<p><strong>Notes:</strong> ${args.session.notes}</p>` : ""}
+      <p>${creditActionLine}</p>
       ${creditsLine ? `<p>${creditsLine}</p>` : ""}
       <p>If you need to cancel, use this link:<br/>
       <a href="${args.cancelUrl}">${args.cancelUrl}</a></p>
@@ -151,6 +158,7 @@ export function buildCancellationEmail(args: {
   session: SessionDetails;
   previousStatus?: SignupStatus;
   source: "user_cancelled" | "admin_removed";
+  creditReturned?: boolean;
   credits?: WeeklyCredits | null;
 }) {
   const when = formatSessionTime(args.session);
@@ -167,6 +175,11 @@ export function buildCancellationEmail(args: {
         ? "You have cancelled your waitlist place for this session."
         : "Your booking for this session has been cancelled.";
   const creditsLine = creditMessage(args.credits);
+  const creditActionLine = args.creditReturned === false
+    ? "The session had already started, so its booking credit remains spent and was not returned."
+    : wasWaitlist
+      ? "Your waitlist place did not reserve a booking credit."
+      : "The credit reserved for this booking has been returned to the week you booked.";
 
   const text = [
     `Hi ${args.name || "there"},`,
@@ -176,6 +189,7 @@ export function buildCancellationEmail(args: {
     `Session: ${args.session.name}`,
     `When: ${when}`,
     args.session.notes ? `Notes: ${args.session.notes}` : "",
+    creditActionLine,
     creditsLine,
     "",
     "If this does not look right, please contact the committee.",
@@ -190,6 +204,7 @@ export function buildCancellationEmail(args: {
       <p><strong>Session:</strong> ${args.session.name}<br/>
       <strong>When:</strong> ${when}</p>
       ${args.session.notes ? `<p><strong>Notes:</strong> ${args.session.notes}</p>` : ""}
+      <p>${creditActionLine}</p>
       ${creditsLine ? `<p>${creditsLine}</p>` : ""}
       <p>If this does not look right, please contact the committee.</p>
     </div>

@@ -12,17 +12,18 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData();
+  const name = String(form.get("name") ?? "").trim().replace(/\s+/g, " ");
   const emailRaw = String(form.get("email") ?? "").trim().toLowerCase();
   const studentIdRaw = String(form.get("student_id") ?? "").trim().toLowerCase();
   const redirect = String(form.get("redirect") ?? "/admin/first-time");
 
-  if (!emailRaw || !emailRaw.includes("@") || !studentIdRaw) {
+  if (!name || !emailRaw || !emailRaw.includes("@")) {
     return NextResponse.redirect(
-      new URL(`/admin/first-time?error=Missing+email+or+student+ID`, getBaseUrl(req))
+      new URL(`/admin/first-time?error=Name+and+email+are+required`, getBaseUrl(req))
     );
   }
 
-  if (!/^s\d{7}$/.test(studentIdRaw)) {
+  if (studentIdRaw && !/^s\d{7}$/.test(studentIdRaw)) {
     return NextResponse.redirect(
       new URL(`/admin/first-time?error=Student+ID+must+be+format+s1234567`, getBaseUrl(req))
     );
@@ -32,7 +33,8 @@ export async function POST(req: NextRequest) {
   const { data: existing, error: existsErr } = await db
     .from("first_time_signups")
     .select("id")
-    .or(`email.eq.${emailRaw},student_id.eq.${studentIdRaw}`)
+    .or(`email.eq.${emailRaw}${studentIdRaw ? `,student_id.eq.${studentIdRaw}` : ""}`)
+    .limit(1)
     .maybeSingle();
 
   if (existsErr) {
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   const { error } = await db
     .from("first_time_signups")
-    .insert({ email: emailRaw, student_id: studentIdRaw });
+    .insert({ name, email: emailRaw, student_id: studentIdRaw || null });
 
   if (error) {
     return NextResponse.redirect(

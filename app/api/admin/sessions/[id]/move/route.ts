@@ -58,7 +58,15 @@ export async function POST(
     .eq("id", signupId)
     .eq("session_id", sessionId);
 
-  if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+  if (upErr) {
+    if (/weekly limit reached/i.test(upErr.message)) {
+      const url = new URL(`/admin/sessions/${sessionId}`, getBaseUrl(req));
+      url.searchParams.set("capacityStatus", "error");
+      url.searchParams.set("capacityMessage", "This person has no booking credit available for the week they joined the waitlist.");
+      return NextResponse.redirect(url, { status: 303 });
+    }
+    return NextResponse.json({ error: upErr.message }, { status: 500 });
+  }
 
   return NextResponse.redirect(
     new URL(`/admin/sessions/${sessionId}`, getBaseUrl(req))

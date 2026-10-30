@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminGuard";
 import { supabaseServer } from "@/lib/supabase-server";
 import { DEFAULT_MEMBERSHIP_IMPORT_COLUMNS } from "@/lib/import-column-mappings";
-import { parseMembershipRoster, reviewNoIdMembers } from "@/lib/membership-roster";
+import { normalizeStudentId, parseMembershipRoster, reviewNoIdMembers } from "@/lib/membership-roster";
 
 export const runtime = "nodejs";
 const PAGE_SIZE = 1000;
@@ -31,7 +31,16 @@ export async function POST(req: NextRequest) {
   }
 
   const db = supabaseServer();
+  const existingIds = new Set<string>();
   if (roster.idMembers.length > 0) {
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await db.from("student_whitelist")
+        .select("student_id").not("student_id", "is", null)
+        .order("student_id").range(from, from + PAGE_SIZE - 1);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      for (const member of data ?? []) existingIds.add(normalizeStudentId(member.student_id));
+      if (!data || data.length < PAGE_SIZE) break;
+    }
     const { error } = await db.rpc("upsert_membership_roster", { p_members: roster.idMembers });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -43,6 +52,7 @@ export async function POST(req: NextRequest) {
         .from("student_whitelist")
         .select("name")
         .not("name", "is", null)
+        .order("id")
         .range(from, from + PAGE_SIZE - 1);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       existingNames.push(...(data ?? []).map((member) => member.name));
@@ -58,6 +68,8 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     idMembersProcessed: roster.idMembers.length,
+    idMembersAdded: roster.idMembers.filter((member) => !existingIds.has(member.student_id)).length,
+    idMembersUpdated: roster.idMembers.filter((member) => existingIds.has(member.student_id)).length,
     noIdReview: reviewNoIdMembers(roster.withoutStudentId, existingNames),
     mappingSaved: !mappingError,
   });

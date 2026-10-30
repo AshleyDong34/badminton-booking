@@ -7,6 +7,7 @@ export type AttendanceSignup = {
   name: string;
   email: string;
   student_id: string | null;
+  is_taster: boolean;
   attended: boolean;
 };
 
@@ -208,6 +209,7 @@ export default function AttendanceClient({
                           Student ID: {person.student_id}
                         </div>
                       ) : null}
+                      {person.is_taster && <div className="text-xs font-semibold text-amber-800">First-time taster — check in person</div>}
                     </div>
                     <button
                       type="button"
@@ -244,6 +246,7 @@ export default function AttendanceClient({
                           Student ID: {person.student_id}
                         </div>
                       ) : null}
+                      {person.is_taster && <div className="text-xs font-semibold text-amber-800">First-time taster — check in person</div>}
                     </div>
                     <button
                       type="button"

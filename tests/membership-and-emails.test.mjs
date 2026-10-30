@@ -52,17 +52,28 @@ test("roster import rejects conflicting duplicate IDs and invalid addresses", as
 const session = { name: "Monday Badminton", starts_at: "2026-11-02T18:00:00Z", ends_at: "2026-11-02T19:00:00Z", notes: null };
 test("booking and cancellation emails show remaining credits and exhaustion", () => {
   const first = buildSignupEmail({ name: "Alex", email: "alex@example.com", status: "signed_up", session, cancelUrl: "https://example.test/cancel", credits: { weeklyQuota: 2, usedCredits: 1, remainingCredits: 1 } });
-  assert.match(first.text, /1 of 2 used, 1 remaining/);
-  assert.match(first.html, /Credits reset Monday/);
+  assert.match(first.text, /1 of 2 reserved or spent, 1 available/);
+  assert.match(first.text, /confirmed place reserves one weekly booking credit/);
+  assert.match(first.html, /Booking weeks reset Monday/);
   const last = buildSignupEmail({ name: "Alex", email: "alex@example.com", status: "signed_up", session, cancelUrl: "https://example.test/cancel", credits: { weeklyQuota: 2, usedCredits: 2, remainingCredits: 0 } });
-  assert.match(last.text, /used all your booking credits/);
-  const cancelled = buildCancellationEmail({ name: "Alex", session, source: "user_cancelled", previousStatus: "signed_up", credits: { weeklyQuota: 2, usedCredits: 1, remainingCredits: 1 } });
-  assert.match(cancelled.text, /1 remaining/);
+  assert.match(last.text, /no booking credits available/);
+  const cancelled = buildCancellationEmail({ name: "Alex", session, source: "user_cancelled", previousStatus: "signed_up", creditReturned: true, credits: { weeklyQuota: 2, usedCredits: 1, remainingCredits: 1 } });
+  assert.match(cancelled.text, /returned to the week you booked/);
+  const afterStart = buildCancellationEmail({ name: "Alex", session, source: "admin_removed", previousStatus: "signed_up", creditReturned: false, credits: { weeklyQuota: 2, usedCredits: 1, remainingCredits: 1 } });
+  assert.match(afterStart.text, /remains spent and was not returned/);
+  const taster = buildSignupEmail({ name: "Alex", email: "alex@example.com", status: "signed_up", session, cancelUrl: "https://example.test/cancel", isFirstTimeTaster: true, credits: { weeklyQuota: 2, usedCredits: 1, remainingCredits: 1 } });
+  assert.match(taster.text, /first booking without membership/);
+  assert.match(taster.text, /reserves one weekly booking credit/);
 });
 
 test("waitlist email says no credit is used until promotion, then shows the new count", () => {
   const waitlist = buildSignupEmail({ name: "Pat", email: "pat@example.com", status: "waiting_list", session, cancelUrl: "https://example.test/cancel", credits: { weeklyQuota: 2, usedCredits: 1, remainingCredits: 1 } });
-  assert.match(waitlist.text, /waitlist place does not use a credit/);
+  assert.match(waitlist.text, /waitlist place does not reserve a credit/);
   const promoted = buildPromotionEmail({ name: "Pat", session, cancelUrl: "https://example.test/cancel", credits: { weeklyQuota: 2, usedCredits: 2, remainingCredits: 0 } });
-  assert.match(promoted.text, /2 of 2 used, 0 remaining/);
+  assert.match(promoted.text, /2 of 2 reserved or spent, 0 available/);
+  assert.match(promoted.text, /now reserved for your confirmed place/);
+  const removed = buildCancellationEmail({ name: "Pat", session, source: "admin_removed", previousStatus: "waiting_list", credits: { weeklyQuota: 2, usedCredits: 1, remainingCredits: 1 } });
+  assert.match(removed.text, /did not reserve a booking credit/);
+  const previouslyConfirmed = buildCancellationEmail({ name: "Pat", session, source: "admin_removed", previousStatus: "waiting_list", creditReturned: false, credits: { weeklyQuota: 2, usedCredits: 2, remainingCredits: 0 } });
+  assert.match(previouslyConfirmed.text, /remains spent and was not returned/);
 });
