@@ -92,11 +92,20 @@ test("public player list obeys the setting, excludes waitlist, and blocks direct
     const directRead = await anon.from("signups").select("*").eq("session_id", sessionId);
     assert.equal(directRead.data?.length ?? 0, 0, "Anonymous client must not see raw signups");
 
+    // Public booking uses the anonymous browser key; the read policy must not block its RPC.
+    const publicBooking = good(await anon.rpc("insert_signup_guarded", {
+      p_session_id: sessionId,
+      p_name: `TEST ${run} Browser booking`,
+      p_student_id: null,
+      p_email: `test-${run}-browser@example.invalid`,
+    }));
+    assert.equal(publicBooking[0].r_status, "waiting_list");
+
     good(await db.from("settings").update({ show_public_signup_names: true }).eq("id", 1));
     const visible = await getPublic();
     assert.equal(visible.session.show_public_signup_names, true);
     assert.deepEqual(visible.session.confirmed_names, [`TEST ${run} Confirmed`]);
-    assert.doesNotMatch(JSON.stringify(visible), /example\.invalid|cancel_token|student_id|Waiting/);
+    assert.doesNotMatch(JSON.stringify(visible), /example\.invalid|cancel_token|student_id|Waiting|Browser booking/);
 
     good(await db.from("signups").delete().eq("session_id", sessionId).eq("status", "signed_up"));
     const afterPromotion = await getPublic();
