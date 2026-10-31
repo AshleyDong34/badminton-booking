@@ -33,7 +33,7 @@ export async function POST(
 
   const { data: signup, error: signupErr } = await supabase
     .from("signups")
-    .select("id,session_id,status,name,email,student_id,created_at,cancel_token")
+    .select("id,session_id,status,name,email,student_id,created_at,cancel_token,is_taster")
     .eq("id", signupId)
     .eq("session_id", sessionId)
     .maybeSingle();
@@ -52,7 +52,9 @@ export async function POST(
       ? await getWaitlistCandidates(supabase, sessionId)
       : [];
 
-  if (signup.cancel_token) {
+  const sessionStarted = !!session?.starts_at && new Date(session.starts_at).getTime() <= Date.now();
+
+  if (signup.cancel_token && !sessionStarted) {
     const { data, error } = await supabase.rpc("cancel_signup_by_token", {
       p_token: signup.cancel_token,
     });
@@ -85,6 +87,7 @@ export async function POST(
           session,
           previousStatus: signup.status as "signed_up" | "waiting_list",
           source: "admin_removed",
+          isFirstTimeTaster: signup.is_taster,
           creditReturned: !spentCredit,
           credits: await getBookingCredits(supabase, signup),
         });

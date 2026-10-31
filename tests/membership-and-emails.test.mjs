@@ -63,7 +63,12 @@ test("booking and cancellation emails show remaining credits and exhaustion", ()
   assert.match(afterStart.text, /remains spent and was not returned/);
   const taster = buildSignupEmail({ name: "Alex", email: "alex@example.com", status: "signed_up", session, cancelUrl: "https://example.test/cancel", isFirstTimeTaster: true, credits: { weeklyQuota: 2, usedCredits: 1, remainingCredits: 1 } });
   assert.match(taster.text, /first booking without membership/);
-  assert.match(taster.text, /reserves one weekly booking credit/);
+  assert.doesNotMatch(taster.text, /credit/i);
+  assert.doesNotMatch(taster.html, /credit/i);
+  const tasterPromoted = buildPromotionEmail({ name: "Alex", session, cancelUrl: "https://example.test/cancel", isFirstTimeTaster: true, credits: { weeklyQuota: 2, usedCredits: 1, remainingCredits: 1 } });
+  assert.doesNotMatch(tasterPromoted.text, /credit/i);
+  const tasterCancelled = buildCancellationEmail({ name: "Alex", session, source: "user_cancelled", previousStatus: "signed_up", isFirstTimeTaster: true, creditReturned: true, credits: { weeklyQuota: 2, usedCredits: 0, remainingCredits: 2 } });
+  assert.doesNotMatch(tasterCancelled.text, /credit/i);
 });
 
 test("waitlist email says no credit is used until promotion, then shows the new count", () => {

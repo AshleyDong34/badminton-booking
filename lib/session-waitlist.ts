@@ -20,6 +20,7 @@ type WaitlistCandidate = {
   cancel_token: string | null;
   student_id: string | null;
   created_at: string;
+  is_taster: boolean;
 };
 
 type PromotionResult = {
@@ -36,7 +37,7 @@ export async function getWaitlistCandidates(
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db
       .from("signups")
-      .select("id,name,email,student_id,created_at,cancel_token")
+      .select("id,name,email,student_id,created_at,cancel_token,is_taster")
       .eq("session_id", sessionId)
       .eq("status", "waiting_list")
       .order("created_at", { ascending: true })
@@ -66,7 +67,7 @@ export async function sendPromotionEmailIfPromoted({
 
   const { data: promotedRow } = await db
     .from("signups")
-    .select("status,email,cancel_token,name,student_id,session_id,created_at")
+    .select("status,email,cancel_token,name,student_id,session_id,created_at,is_taster")
     .eq("id", candidate.id)
     .maybeSingle();
 
@@ -92,6 +93,7 @@ export async function sendPromotionEmailIfPromoted({
       name,
       session,
       cancelUrl,
+      isFirstTimeTaster: promotedRow.is_taster,
       credits: await getBookingCredits(db, {
         email,
         student_id: promotedRow.student_id ?? candidate.student_id,

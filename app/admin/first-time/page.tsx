@@ -15,6 +15,7 @@ type Row = {
   name: string | null;
   email: string | null;
   student_id: string | null;
+  member_precluded: boolean;
   created_at: string | null;
 };
 
@@ -30,7 +31,7 @@ export default async function FirstTimePage({
   const db = supabaseServer();
   let query = db
     .from("first_time_signups")
-    .select("id,name,email,student_id,created_at")
+    .select("id,name,email,student_id,member_precluded,created_at")
     .order("email", { ascending: true, nullsFirst: false })
     .order("student_id", { ascending: true, nullsFirst: false });
 
@@ -44,9 +45,9 @@ export default async function FirstTimePage({
   return (
     <div className="max-w-6xl space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">First-time bookings</h1>
+        <h1 className="text-2xl font-semibold">First-time booking eligibility</h1>
         <p className="text-sm text-[var(--muted)]">
-          People who used the one-time free booking before membership is required.
+          People who used a free taster or were added as members. Membership removes free-taster eligibility, even if it ends later.
         </p>
       </div>
 
@@ -133,7 +134,8 @@ export default async function FirstTimePage({
               <th className="py-3 px-4">Name</th>
               <th className="py-3 px-4">Email</th>
               <th className="py-3 px-4">Student ID</th>
-              <th className="py-3 px-4">First booked</th>
+              <th className="py-3 px-4">Eligibility</th>
+              <th className="py-3 px-4">Recorded</th>
               <th className="py-3 px-4">Actions</th>
             </tr>
           </thead>
@@ -154,19 +156,24 @@ export default async function FirstTimePage({
                 </td>
                 <td className="py-3 px-4">{row.email ?? ""}</td>
                 <td className="py-3 px-4">{row.student_id ?? ""}</td>
+                <td className="py-3 px-4">{row.member_precluded ? "Membership added" : "Taster record"}</td>
                 <td className="py-3 px-4">
                   {row.created_at
                     ? new Date(row.created_at).toLocaleString("en-GB")
                     : ""}
                 </td>
                 <td className="py-3 px-4">
-                  <form action="/api/admin/first-time/remove" method="post">
-                    <input type="hidden" name="id" value={row.id} />
-                    <input type="hidden" name="redirect" value={redirectPath} />
-                    <button className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm">
-                      Remove
-                    </button>
-                  </form>
+                  {row.member_precluded ? (
+                    <span className="text-xs text-[var(--muted)]">Membership history</span>
+                  ) : (
+                    <form action="/api/admin/first-time/remove" method="post">
+                      <input type="hidden" name="id" value={row.id} />
+                      <input type="hidden" name="redirect" value={redirectPath} />
+                      <button className="rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-xs font-medium shadow-sm">
+                        Remove
+                      </button>
+                    </form>
+                  )}
                 </td>
               </tr>
             ))}

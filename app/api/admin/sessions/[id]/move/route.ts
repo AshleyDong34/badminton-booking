@@ -28,7 +28,7 @@ export async function POST(
   const supabase = supabaseServer();
   const { data: signup, error: signupError } = await supabase
     .from("signups")
-    .select("id,session_id,status,name,email,student_id,created_at,cancel_token")
+    .select("id,session_id,status,name,email,student_id,created_at,cancel_token,is_taster")
     .eq("id", signupId)
     .eq("session_id", sessionId)
     .maybeSingle();

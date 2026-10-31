@@ -40,9 +40,11 @@ async function cancel(result) {
 
 test("development DB: roster identity, taster, same-day, weekly credits, cancellation", async () => {
   let originalSameDaySetting = null;
+  let originalQuota = null;
   try {
     const { data: settings } = await db.from("settings").select("weekly_quota,allow_same_day_multi").eq("id", 1).single();
-    assert.equal(settings.weekly_quota, 2, "test assumes the dev default quota of two");
+    originalQuota = settings.weekly_quota;
+    if (originalQuota !== 2) good(await db.from("settings").update({ weekly_quota: 2 }).eq("id", 1).select("id").single());
     originalSameDaySetting = settings.allow_same_day_multi;
     if (originalSameDaySetting) good(await db.from("settings").update({ allow_same_day_multi: false }).eq("id", 1).select("id").single());
     for (const [index, starts_at] of starts.entries()) {
@@ -75,7 +77,9 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
     assert.equal(good(await db.from("signups").select("id").eq("email", tasterEmail)).length, 1);
     assert.equal(good(await db.from("signups").select("is_taster").eq("email", tasterEmail).single()).is_taster, true);
     const tasterSignup = good(await db.from("signups").select("created_at").eq("email", tasterEmail).single());
-    assert.equal(good(await db.from("first_time_signups").select("id").eq("email", tasterEmail).eq("created_at", tasterSignup.created_at)).length, 1);
+    const memberHistory = good(await db.from("first_time_signups").select("id,member_precluded,created_at").eq("student_id", id).single());
+    assert.equal(memberHistory.member_precluded, true);
+    assert.equal(memberHistory.created_at, tasterSignup.created_at);
     assert.match((await book(sameDay, "Member", id, memberAddress)).error?.message ?? "", /same-day booking/);
     good(await book(c, "Member", id, memberAddress));
     assert.equal(good(await db.from("signups").select("is_taster").eq("email", memberAddress).single()).is_taster, false);
@@ -161,6 +165,7 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
       good(await db.from("signups").delete().in("email", addresses));
       good(await db.from("first_time_signups").delete().in("email", addresses));
     }
+    good(await db.from("first_time_signups").delete().like("name", `TEST ${run}%`));
     if (created.members.length) good(await db.from("student_whitelist").delete().in("id", created.members));
     if (created.sessions.length) good(await db.from("sessions").delete().in("id", created.sessions));
     if (originalSameDaySetting !== null) {
@@ -168,6 +173,7 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
       const restored = good(await db.from("settings").select("allow_same_day_multi").eq("id", 1).single());
       assert.equal(restored.allow_same_day_multi, originalSameDaySetting);
     }
+    if (originalQuota !== null && originalQuota !== 2) good(await db.from("settings").update({ weekly_quota: originalQuota }).eq("id", 1));
     if (created.sessions.length) assert.equal(good(await db.from("sessions").select("id").in("id", created.sessions)).length, 0);
     if (created.members.length) assert.equal(good(await db.from("student_whitelist").select("id").in("id", created.members)).length, 0);
   }
@@ -178,7 +184,10 @@ test("development DB: cancelling or moving after session start keeps spent booki
   const studentId = `s6${id.slice(2)}`;
   const sessionIds = [];
   let memberId = null;
+  let originalQuota = null;
   try {
+    originalQuota = good(await db.from("settings").select("weekly_quota").eq("id", 1).single()).weekly_quota;
+    if (originalQuota !== 2) good(await db.from("settings").update({ weekly_quota: 2 }).eq("id", 1));
     assert.equal((await saveManualMember(db, { name: `TEST ${run} Spent`, studentId, email: address })).status, 200);
     memberId = good(await db.from("student_whitelist").select("id").eq("student_id", studentId).single()).id;
     const now = Date.now();
@@ -200,7 +209,9 @@ test("development DB: cancelling or moving after session start keeps spent booki
       const signup = good(await db.from("signups").select("created_at").eq("cancel_token", result.r_cancel_token).single());
       bookedAt = signup.created_at;
       if (index === 0) {
-        assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: result.r_cancel_token })), true);
+        assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: result.r_cancel_token })), false);
+        assert.equal(good(await db.from("signups").select("id").eq("cancel_token", result.r_cancel_token)).length, 1);
+        good(await db.from("signups").delete().eq("cancel_token", result.r_cancel_token));
       } else {
         const moved = good(await db.from("signups").update({ status: "waiting_list" }).eq("cancel_token", result.r_cancel_token).select("id").single());
         const rePromotion = await db.from("signups").update({ status: "signed_up" }).eq("id", moved.id);
@@ -221,8 +232,10 @@ test("development DB: cancelling or moving after session start keeps spent booki
   } finally {
     good(await db.from("signups").delete().eq("email", address));
     good(await db.from("booking_credit_spends").delete().eq("email", address));
+    good(await db.from("first_time_signups").delete().eq("email", address));
     if (memberId) good(await db.from("student_whitelist").delete().eq("id", memberId));
     if (sessionIds.length) good(await db.from("sessions").delete().in("id", sessionIds));
+    if (originalQuota !== null && originalQuota !== 2) good(await db.from("settings").update({ weekly_quota: originalQuota }).eq("id", 1));
     assert.equal(good(await db.from("booking_credit_spends").select("signup_id").eq("email", address)).length, 0);
   }
 });
@@ -240,7 +253,10 @@ test("development DB: waitlist promotion skips a person who used their last cred
   };
   const memberIds = [];
   const sessionIds = [];
+  let originalQuota = null;
   try {
+    originalQuota = good(await db.from("settings").select("weekly_quota").eq("id", 1).single()).weekly_quota;
+    if (originalQuota !== 2) good(await db.from("settings").update({ weekly_quota: 2 }).eq("id", 1));
     for (const label of Object.keys(address)) {
       assert.equal((await saveManualMember(db, {
         name: `TEST ${run} ${label}`, studentId: student[label], email: address[label],
@@ -275,8 +291,10 @@ test("development DB: waitlist promotion skips a person who used their last cred
   } finally {
     good(await db.from("signups").delete().in("email", Object.values(address)));
     good(await db.from("booking_credit_spends").delete().in("email", Object.values(address)));
+    good(await db.from("first_time_signups").delete().in("email", Object.values(address)));
     if (memberIds.length) good(await db.from("student_whitelist").delete().in("id", memberIds));
     if (sessionIds.length) good(await db.from("sessions").delete().in("id", sessionIds));
+    if (originalQuota !== null && originalQuota !== 2) good(await db.from("settings").update({ weekly_quota: originalQuota }).eq("id", 1));
     assert.equal(good(await db.from("signups").select("id").in("email", Object.values(address))).length, 0);
   }
 });
@@ -337,7 +355,7 @@ test("development DB: email-only taster can leave a waitlist, be promoted, cance
     assert.equal((await credits(tasterEmail, null, fullSession)).used_credits, 2);
   } finally {
     good(await db.from("signups").delete().in("email", [blockerEmail, tasterEmail]));
-    good(await db.from("first_time_signups").delete().eq("email", tasterEmail));
+    good(await db.from("first_time_signups").delete().in("email", [blockerEmail, tasterEmail]));
     if (memberIds.length) good(await db.from("student_whitelist").delete().in("id", memberIds));
     if (sessionIds.length) good(await db.from("sessions").delete().in("id", sessionIds));
     assert.equal(good(await db.from("signups").select("id").in("email", [blockerEmail, tasterEmail])).length, 0);
@@ -413,6 +431,7 @@ test("development DB: conflicting roster identities reject the whole upload with
   } finally {
     good(await db.from("student_whitelist").delete().in("student_id", [newId, conflictId]));
     if (existingId) good(await db.from("student_whitelist").delete().eq("id", existingId));
+    good(await db.from("first_time_signups").delete().in("email", [existingEmail, newEmail]));
     assert.equal(good(await db.from("student_whitelist").select("id").in("email", [existingEmail, newEmail])).length, 0);
   }
 });
@@ -449,6 +468,7 @@ test("development DB: simultaneous members fill one place, then cancellation pro
     assert.equal((await credits(addresses[signedIndex], studentIds[signedIndex], sessionId)).used_credits, 0);
   } finally {
     good(await db.from("signups").delete().in("email", addresses));
+    good(await db.from("first_time_signups").delete().in("email", addresses));
     if (memberIds.length) good(await db.from("student_whitelist").delete().in("id", memberIds));
     if (sessionId) good(await db.from("sessions").delete().eq("id", sessionId));
     assert.equal(good(await db.from("signups").select("id").in("email", addresses)).length, 0);
@@ -491,9 +511,57 @@ test("development DB: credit balances use the booking week recorded on each sign
     assert.equal((await credits(address, studentId, sessionIds[2])).used_credits, 2);
   } finally {
     good(await db.from("signups").delete().eq("email", address));
+    good(await db.from("first_time_signups").delete().eq("email", address));
     if (memberId) good(await db.from("student_whitelist").delete().eq("id", memberId));
     if (sessionIds.length) good(await db.from("sessions").delete().in("id", sessionIds));
     assert.equal(good(await db.from("signups").select("id").eq("email", address)).length, 0);
+  }
+});
+
+test("development DB: joining membership permanently removes free-taster eligibility", async () => {
+  const studentEmail = email("member-history-student");
+  const studentId = `s5${id.slice(2)}`;
+  const noIdEmail = email("member-history-no-id");
+  const tasterEmail = email("member-history-taster");
+  const memberIds = [];
+  let sessionId = null;
+  try {
+    sessionId = good(await db.from("sessions").insert({
+      name: `TEST ${run} member history`, capacity: 8,
+      starts_at: "2027-05-10T18:00:00Z", ends_at: "2027-05-10T19:00:00Z",
+      allow_name_only: false,
+    }).select("id").single()).id;
+
+    assert.equal((await saveManualMember(db, { name: `TEST ${run} Student`, studentId, email: studentEmail })).status, 200);
+    memberIds.push(good(await db.from("student_whitelist").select("id").eq("student_id", studentId).single()).id);
+    const studentMarker = good(await db.from("first_time_signups").select("member_precluded").eq("student_id", studentId).single());
+    assert.equal(studentMarker.member_precluded, true);
+    assert.equal((await saveManualMember(db, { name: `TEST ${run} No ID`, email: noIdEmail })).status, 200);
+    memberIds.push(good(await db.from("student_whitelist").select("id").eq("email", noIdEmail).single()).id);
+    assert.equal(good(await db.from("first_time_signups").select("member_precluded").eq("email", noIdEmail).single()).member_precluded, true);
+
+    const taster = good(await db.rpc("insert_signup_guarded", {
+      p_session_id: sessionId, p_name: "Taster before membership", p_student_id: null, p_email: tasterEmail,
+    }))[0];
+    assert.equal(good(await db.from("signups").select("is_taster").eq("cancel_token", taster.r_cancel_token).single()).is_taster, true);
+    assert.equal((await saveManualMember(db, { name: `TEST ${run} Former taster`, email: tasterEmail })).status, 200);
+    memberIds.push(good(await db.from("student_whitelist").select("id").eq("email", tasterEmail).single()).id);
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: taster.r_cancel_token })), true);
+    assert.equal(good(await db.from("first_time_signups").select("member_precluded").eq("email", tasterEmail).single()).member_precluded, true);
+
+    good(await db.from("student_whitelist").delete().in("id", memberIds));
+    memberIds.length = 0;
+    for (const [address, sid] of [[studentEmail, null], [email("member-history-new-email"), studentId], [noIdEmail, null], [tasterEmail, null]]) {
+      const denied = await db.rpc("insert_signup_guarded", {
+        p_session_id: sessionId, p_name: "Former member", p_student_id: sid, p_email: address,
+      });
+      assert.match(denied.error?.message ?? "", /membership required/);
+    }
+  } finally {
+    good(await db.from("signups").delete().in("email", [studentEmail, noIdEmail, tasterEmail]));
+    good(await db.from("first_time_signups").delete().in("email", [studentEmail, noIdEmail, tasterEmail]));
+    if (memberIds.length) good(await db.from("student_whitelist").delete().in("id", memberIds));
+    if (sessionId) good(await db.from("sessions").delete().eq("id", sessionId));
   }
 });
 

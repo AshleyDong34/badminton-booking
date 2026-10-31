@@ -22,11 +22,18 @@ export async function POST(req: NextRequest) {
   }
 
   const db = supabaseServer();
-  const { error } = await db.from("first_time_signups").delete().eq("id", id);
+  const { data, error } = await db.from("first_time_signups")
+    .delete().eq("id", id).eq("member_precluded", false).select("id");
 
   if (error) {
     return NextResponse.redirect(
       new URL(`/admin/first-time?error=${encodeURIComponent(error.message)}`, getBaseUrl(req))
+    );
+  }
+
+  if (!data?.length) {
+    return NextResponse.redirect(
+      new URL(`/admin/first-time?error=Membership+history+cannot+be+removed+here`, getBaseUrl(req))
     );
   }
 

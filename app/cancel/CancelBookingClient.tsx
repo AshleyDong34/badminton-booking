@@ -8,6 +8,7 @@ type CancelStatus =
   | "ready"
   | "submitting"
   | "ok"
+  | "expired"
   | "invalid"
   | "error";
 
@@ -45,6 +46,12 @@ export default function CancelBookingClient({ token }: { token: string }) {
 
         if (json.status === "ready") {
           setStatus("ready");
+          return;
+        }
+
+        if (json.status === "expired") {
+          setStatus("expired");
+          setMsg("This session has started, so bookings can no longer be cancelled. Its booking credit remains used even if you do not attend.");
           return;
         }
 
@@ -88,6 +95,9 @@ export default function CancelBookingClient({ token }: { token: string }) {
       setStatus("ok");
       setMsg("Your booking has been cancelled.");
       setRedirectIn(6);
+    } else if (json.status === "expired") {
+      setStatus("expired");
+      setMsg("This session has started, so bookings can no longer be cancelled. Its booking credit remains used even if you do not attend.");
     } else {
       setStatus("invalid");
       setMsg("This cancellation link is invalid or has already been used.");

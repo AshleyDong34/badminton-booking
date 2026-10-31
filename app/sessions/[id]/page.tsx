@@ -450,7 +450,7 @@ export default function SessionBookingPage() {
               </div>
             ) : (
               <div>
-                <label className="text-xs sm:text-sm">Student ID (if you have one)</label>
+                <label className="text-xs sm:text-sm">Student ID (required for students)</label>
                 <input
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value.toLowerCase())}
@@ -458,7 +458,7 @@ export default function SessionBookingPage() {
                   placeholder="s1234567"
                 />
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Enter your student ID if you have one. Members without an ID can use their listed email; first-time tasters without an ID can use their email.
+                  Students must enter their Student ID. If you are not a student, leave this blank and use your listed membership email or your email for a first-time taster booking.
                 </p>
               </div>
             )}

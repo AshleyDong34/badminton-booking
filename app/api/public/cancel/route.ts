@@ -18,12 +18,19 @@ export async function GET(req: NextRequest) {
   const db = supabaseServer();
   const { data: signup, error } = await db
     .from("signups")
-    .select("id,status")
+    .select("id,session_id,status")
     .eq("cancel_token", token)
     .maybeSingle();
 
   if (error || !signup) {
     return NextResponse.json({ status: "invalid" }, { status: 200 });
+  }
+
+  const { data: session, error: sessionError } = await db.from("sessions")
+    .select("starts_at").eq("id", signup.session_id).maybeSingle();
+  if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 500 });
+  if (session?.starts_at && new Date(session.starts_at).getTime() <= Date.now()) {
+    return NextResponse.json({ status: "expired" }, { status: 200 });
   }
 
   const isCancellable =
@@ -47,7 +54,7 @@ export async function POST(req: NextRequest) {
 
   const { data: signup, error: signupErr } = await db
     .from("signups")
-    .select("id,session_id,status,name,email,student_id,created_at,cancel_token")
+    .select("id,session_id,status,name,email,student_id,is_taster,created_at,cancel_token")
     .eq("cancel_token", token)
     .single();
 
@@ -60,6 +67,10 @@ export async function POST(req: NextRequest) {
     .select("name,starts_at,ends_at,notes")
     .eq("id", signup.session_id)
     .single();
+
+  if (session?.starts_at && new Date(session.starts_at).getTime() <= Date.now()) {
+    return NextResponse.json({ status: "expired" }, { status: 200 });
+  }
 
   const waitlistCandidates = signup.status === "signed_up"
     ? await getWaitlistCandidates(db, signup.session_id)
@@ -77,7 +88,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (data !== true) {
-    return NextResponse.json({ status: "invalid" }, { status: 200 });
+    return NextResponse.json({
+      status: session?.starts_at && new Date(session.starts_at).getTime() <= Date.now()
+        ? "expired" : "invalid",
+    }, { status: 200 });
   }
 
   if (session && signup.email) {
@@ -90,6 +104,7 @@ export async function POST(req: NextRequest) {
         session,
         previousStatus: signup.status as "signed_up" | "waiting_list",
         source: "user_cancelled",
+        isFirstTimeTaster: signup.is_taster,
         creditReturned: !spentCredit,
         credits: await getBookingCredits(db, signup),
       });
