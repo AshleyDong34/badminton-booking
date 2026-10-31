@@ -48,7 +48,12 @@ export async function saveManualMember(db: Db, body: Record<string, unknown>): P
     if (emailMatch && existing && emailMatch.id !== existing.id) {
       return { status: 409, body: { error: "That email already belongs to a different member." } };
     }
-    if (emailMatch && !existing) existing = emailMatch;
+    if (emailMatch && !existing) {
+      if (normalizeName(emailMatch.name ?? "") !== normalizeName(name)) {
+        return { status: 409, body: { error: "That email belongs to a member with a different name. Review the existing record before changing it." } };
+      }
+      existing = emailMatch;
+    }
   }
 
   const values: Record<string, string | null> = { name };

@@ -281,6 +281,222 @@ test("development DB: waitlist promotion skips a person who used their last cred
   }
 });
 
+test("development DB: email-only taster can leave a waitlist, be promoted, cancel, and later become a member", async () => {
+  const blockerEmail = email("taster-wait-blocker");
+  const tasterEmail = email("taster-wait-guest");
+  const blockerId = `s2${id.slice(2)}`;
+  const memberIds = [];
+  const sessionIds = [];
+  try {
+    assert.equal((await saveManualMember(db, { name: `TEST ${run} Blocker`, studentId: blockerId, email: blockerEmail })).status, 200);
+    memberIds.push(good(await db.from("student_whitelist").select("id").eq("email", blockerEmail).single()).id);
+    for (const startsAt of ["2027-03-19T18:00:00Z", "2027-03-20T18:00:00Z"]) {
+      sessionIds.push(good(await db.from("sessions").insert({
+        name: `TEST ${run} taster waitlist`, capacity: 1,
+        starts_at: startsAt, ends_at: new Date(Date.parse(startsAt) + 3600000).toISOString(),
+        allow_name_only: false,
+      }).select("id").single()).id);
+    }
+    const [fullSession, secondSession] = sessionIds;
+    const blocker = good(await db.rpc("insert_signup_guarded", {
+      p_session_id: fullSession, p_name: "Blocker", p_student_id: blockerId, p_email: blockerEmail,
+    }))[0];
+    const firstWait = good(await db.rpc("insert_signup_guarded", {
+      p_session_id: fullSession, p_name: "Guest", p_student_id: null, p_email: tasterEmail,
+    }))[0];
+    assert.equal(firstWait.r_status, "waiting_list");
+    assert.equal(good(await db.from("signups").select("is_taster").eq("cancel_token", firstWait.r_cancel_token).single()).is_taster, true);
+    assert.equal(good(await db.from("first_time_signups").select("id").eq("email", tasterEmail)).length, 1);
+    assert.equal((await credits(tasterEmail, null, fullSession)).used_credits, 0);
+
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: firstWait.r_cancel_token })), true);
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: firstWait.r_cancel_token })), false);
+    assert.equal(good(await db.from("first_time_signups").select("id").eq("email", tasterEmail)).length, 0);
+    assert.equal(good(await db.from("signups").select("status").eq("email", blockerEmail).single()).status, "signed_up");
+
+    const secondWait = good(await db.rpc("insert_signup_guarded", {
+      p_session_id: fullSession, p_name: "Guest again", p_student_id: null, p_email: tasterEmail,
+    }))[0];
+    assert.equal(secondWait.r_status, "waiting_list");
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: blocker.r_cancel_token })), true);
+    assert.equal(good(await db.from("signups").select("status,is_taster").eq("cancel_token", secondWait.r_cancel_token).single()).status, "signed_up");
+    assert.equal((await credits(tasterEmail, null, fullSession)).used_credits, 1);
+
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: secondWait.r_cancel_token })), true);
+    assert.equal(good(await db.from("first_time_signups").select("id").eq("email", tasterEmail)).length, 0);
+    assert.equal((await credits(tasterEmail, null, fullSession)).used_credits, 0);
+    good(await db.rpc("insert_signup_guarded", {
+      p_session_id: secondSession, p_name: "Guest again", p_student_id: null, p_email: tasterEmail,
+    }));
+    assert.equal((await saveManualMember(db, { name: `TEST ${run} Guest`, email: tasterEmail })).status, 200);
+    memberIds.push(good(await db.from("student_whitelist").select("id").eq("email", tasterEmail).single()).id);
+    assert.equal(good(await db.from("signups").select("is_taster").eq("session_id", secondSession).eq("email", tasterEmail).single()).is_taster, true);
+    good(await db.rpc("insert_signup_guarded", {
+      p_session_id: fullSession, p_name: "Paid member", p_student_id: null, p_email: tasterEmail,
+    }));
+    assert.equal((await credits(tasterEmail, null, fullSession)).used_credits, 2);
+  } finally {
+    good(await db.from("signups").delete().in("email", [blockerEmail, tasterEmail]));
+    good(await db.from("first_time_signups").delete().eq("email", tasterEmail));
+    if (memberIds.length) good(await db.from("student_whitelist").delete().in("id", memberIds));
+    if (sessionIds.length) good(await db.from("sessions").delete().in("id", sessionIds));
+    assert.equal(good(await db.from("signups").select("id").in("email", [blockerEmail, tasterEmail])).length, 0);
+  }
+});
+
+test("development DB: manual no-ID member is not duplicated when a later roster supplies an ID", async () => {
+  const address = email("manual-then-roster");
+  const studentId = `s1${id.slice(2)}`;
+  const name = `TEST ${run} Manual Then Roster`;
+  let memberId = null;
+  let sessionId = null;
+  try {
+    assert.deepEqual((await saveManualMember(db, { name })).body, { ok: true, action: "added" });
+    memberId = good(await db.from("student_whitelist").select("id").eq("name", name).single()).id;
+    sessionId = good(await db.from("sessions").insert({
+      name: name, capacity: 3, starts_at: "2027-03-24T18:00:00Z",
+      ends_at: "2027-03-24T19:00:00Z", allow_name_only: false,
+    }).select("id").single()).id;
+    const taster = good(await db.rpc("insert_signup_guarded", {
+      p_session_id: sessionId, p_name: name, p_student_id: null, p_email: address,
+    }))[0];
+    assert.equal(good(await db.from("signups").select("is_taster").eq("cancel_token", taster.r_cancel_token).single()).is_taster, true);
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: taster.r_cancel_token })), true);
+    assert.deepEqual((await saveManualMember(db, { name, email: address })).body, { ok: true, action: "updated" });
+    assert.deepEqual((await saveManualMember(db, { name, email: address })).body, { ok: true, action: "updated" });
+    assert.equal(good(await db.from("student_whitelist").select("id").eq("email", address).single()).id, memberId);
+    assert.equal(reviewNoIdMembers([{ name, email: address }], [name])[0].status, "listed");
+    const imported = { name: name.toLowerCase().replaceAll(" ", "  "), student_id: studentId, email: address };
+    assert.equal(good(await db.rpc("upsert_membership_roster", { p_members: [imported] })), 1);
+    assert.equal(good(await db.from("student_whitelist").select("id").eq("student_id", studentId).single()).id, memberId);
+    assert.equal(good(await db.rpc("upsert_membership_roster", { p_members: [imported] })), 1);
+    assert.equal(good(await db.from("student_whitelist").select("id").eq("email", address)).length, 1);
+    const booking = good(await db.rpc("insert_signup_guarded", {
+      p_session_id: sessionId, p_name: name, p_student_id: studentId, p_email: address,
+    }))[0];
+    assert.equal(booking.r_status, "signed_up");
+    assert.equal(good(await db.from("signups").select("is_taster").eq("cancel_token", booking.r_cancel_token).single()).is_taster, false);
+  } finally {
+    good(await db.from("signups").delete().eq("email", address));
+    good(await db.from("first_time_signups").delete().eq("email", address));
+    if (memberId) good(await db.from("student_whitelist").delete().eq("id", memberId));
+    if (sessionId) good(await db.from("sessions").delete().eq("id", sessionId));
+    if (memberId) assert.equal(good(await db.from("student_whitelist").select("id").eq("id", memberId)).length, 0);
+  }
+});
+
+test("development DB: conflicting roster identities reject the whole upload without partial members", async () => {
+  const existingEmail = email("roster-conflict-existing");
+  const newEmail = email("roster-conflict-new");
+  const newId = `s0${id.slice(2)}`;
+  const conflictId = `s1${id.slice(2)}`;
+  const existingName = `TEST ${run} Existing Manual`;
+  let existingId = null;
+  try {
+    assert.equal((await saveManualMember(db, { name: existingName, email: existingEmail })).status, 200);
+    existingId = good(await db.from("student_whitelist").select("id").eq("email", existingEmail).single()).id;
+    assert.equal((await saveManualMember(db, {
+      name: `TEST ${run} Different Person`, email: existingEmail,
+    })).status, 409);
+    assert.equal(good(await db.from("student_whitelist").select("name").eq("id", existingId).single()).name, existingName);
+    const upload = await db.rpc("upsert_membership_roster", { p_members: [
+      { name: `TEST ${run} Safe Row`, student_id: newId, email: newEmail },
+      { name: `TEST ${run} Different Person`, student_id: conflictId, email: existingEmail },
+    ] });
+    assert.match(upload.error?.message ?? "", /name does not match existing email-only member/);
+    assert.equal(good(await db.from("student_whitelist").select("id").eq("student_id", newId)).length, 0);
+    assert.equal(good(await db.from("student_whitelist").select("id").eq("student_id", conflictId)).length, 0);
+    const retained = good(await db.from("student_whitelist").select("id,name,student_id").eq("email", existingEmail).single());
+    assert.equal(retained.id, existingId);
+    assert.equal(retained.name, existingName);
+    assert.equal(retained.student_id, null);
+  } finally {
+    good(await db.from("student_whitelist").delete().in("student_id", [newId, conflictId]));
+    if (existingId) good(await db.from("student_whitelist").delete().eq("id", existingId));
+    assert.equal(good(await db.from("student_whitelist").select("id").in("email", [existingEmail, newEmail])).length, 0);
+  }
+});
+
+test("development DB: simultaneous members fill one place, then cancellation promotes the waitlist", async () => {
+  const addresses = [email("concurrent-a"), email("concurrent-b")];
+  const studentIds = [`s0${id.slice(2)}`, `s8${id.slice(2)}`];
+  const memberIds = [];
+  let sessionId = null;
+  try {
+    for (let index = 0; index < 2; index += 1) {
+      assert.equal((await saveManualMember(db, {
+        name: `TEST ${run} Concurrent ${index}`, studentId: studentIds[index], email: addresses[index],
+      })).status, 200);
+      memberIds.push(good(await db.from("student_whitelist").select("id").eq("student_id", studentIds[index]).single()).id);
+    }
+    sessionId = good(await db.from("sessions").insert({
+      name: `TEST ${run} concurrent capacity`, capacity: 1,
+      starts_at: "2027-03-26T18:00:00Z", ends_at: "2027-03-26T19:00:00Z", allow_name_only: false,
+    }).select("id").single()).id;
+    const results = await Promise.all(addresses.map((address, index) => db.rpc("insert_signup_guarded", {
+      p_session_id: sessionId, p_name: `Concurrent ${index}`,
+      p_student_id: studentIds[index], p_email: address,
+    })));
+    const bookings = results.map((result) => good(result)[0]);
+    assert.deepEqual(bookings.map((booking) => booking.r_status).sort(), ["signed_up", "waiting_list"]);
+    const signedIndex = bookings.findIndex((booking) => booking.r_status === "signed_up");
+    const waitingIndex = 1 - signedIndex;
+    assert.equal((await credits(addresses[signedIndex], studentIds[signedIndex], sessionId)).used_credits, 1);
+    assert.equal((await credits(addresses[waitingIndex], studentIds[waitingIndex], sessionId)).used_credits, 0);
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: bookings[signedIndex].r_cancel_token })), true);
+    assert.equal(good(await db.from("signups").select("status").eq("email", addresses[waitingIndex]).single()).status, "signed_up");
+    assert.equal((await credits(addresses[waitingIndex], studentIds[waitingIndex], sessionId)).used_credits, 1);
+    assert.equal((await credits(addresses[signedIndex], studentIds[signedIndex], sessionId)).used_credits, 0);
+  } finally {
+    good(await db.from("signups").delete().in("email", addresses));
+    if (memberIds.length) good(await db.from("student_whitelist").delete().in("id", memberIds));
+    if (sessionId) good(await db.from("sessions").delete().eq("id", sessionId));
+    assert.equal(good(await db.from("signups").select("id").in("email", addresses)).length, 0);
+  }
+});
+
+test("development DB: credit balances use the booking week recorded on each signup", async () => {
+  const address = email("historical-week");
+  const studentId = `s8${id.slice(2)}`;
+  const sessionIds = [];
+  let memberId = null;
+  try {
+    assert.equal((await saveManualMember(db, { name: `TEST ${run} Week`, studentId, email: address })).status, 200);
+    memberId = good(await db.from("student_whitelist").select("id").eq("email", address).single()).id;
+    for (const startsAt of ["2027-04-06T18:00:00Z", "2027-04-07T18:00:00Z", "2027-04-08T18:00:00Z"]) {
+      sessionIds.push(good(await db.from("sessions").insert({
+        name: `TEST ${run} week`, capacity: 3,
+        starts_at: startsAt, ends_at: new Date(Date.parse(startsAt) + 3600000).toISOString(),
+        allow_name_only: false,
+      }).select("id").single()).id);
+    }
+    const first = good(await db.rpc("insert_signup_guarded", {
+      p_session_id: sessionIds[0], p_name: "Week member", p_student_id: studentId, p_email: address,
+    }))[0];
+    const priorWeek = new Date(Date.now() - 14 * 86400000).toISOString();
+    good(await db.from("signups").update({ created_at: priorWeek }).eq("cancel_token", first.r_cancel_token).select("id").single());
+    good(await db.rpc("insert_signup_guarded", {
+      p_session_id: sessionIds[1], p_name: "Week member", p_student_id: studentId, p_email: address,
+    }));
+    const historical = good(await db.rpc("get_booking_credits", {
+      p_email: address, p_student_id: studentId, p_session_id: sessionIds[0], p_booked_at: priorWeek,
+    }))[0];
+    const current = await credits(address, studentId, sessionIds[1]);
+    assert.equal(historical.used_credits, 1);
+    assert.equal(current.used_credits, 1);
+    assert.notEqual(historical.week_start, current.week_start);
+    good(await db.rpc("insert_signup_guarded", {
+      p_session_id: sessionIds[2], p_name: "Week member", p_student_id: studentId, p_email: address,
+    }));
+    assert.equal((await credits(address, studentId, sessionIds[2])).used_credits, 2);
+  } finally {
+    good(await db.from("signups").delete().eq("email", address));
+    if (memberId) good(await db.from("student_whitelist").delete().eq("id", memberId));
+    if (sessionIds.length) good(await db.from("sessions").delete().in("id", sessionIds));
+    assert.equal(good(await db.from("signups").select("id").eq("email", address)).length, 0);
+  }
+});
+
 test("Monday reset uses UK local midnight, including daylight-saving transitions", async () => {
   const before = good(await db.rpc("booking_week_bounds", { p_at: "2026-10-25T23:59:59Z" }))[0];
   const after = good(await db.rpc("booking_week_bounds", { p_at: "2026-10-26T00:00:00Z" }))[0];
