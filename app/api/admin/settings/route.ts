@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
   const allow_name_only = form.get("allow_name_only") === "on";
   const booking_window_days = Number(form.get("booking_window_days"));
   const sessions_public_enabled = form.get("sessions_public_enabled") === "on";
+  const show_public_signup_names = form.get("show_public_signup_names") === "on";
 
   if (!Number.isFinite(weekly_quota) || weekly_quota < 1) {
     return new NextResponse("Bad weekly quota", { status: 400 });
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
     allow_name_only,
     booking_window_days,
     sessions_public_enabled,
+    show_public_signup_names,
   };
   let { error } = await supabase.from("settings").upsert(payload, { onConflict: "id" });
 

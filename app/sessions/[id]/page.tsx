@@ -21,6 +21,8 @@ type SessionRow = {
   allow_name_only?: boolean | null;
   signed_up_count?: number;
   waitlist_count?: number;
+  show_public_signup_names?: boolean;
+  confirmed_names?: string[];
 };
 
 function formatDateTime(startIso: string | null, endIso?: string | null) {
@@ -65,6 +67,7 @@ export default function SessionBookingPage() {
   >(null);
   const [showRules, setShowRules] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"book" | "players">("book");
   const activeRef = useRef(true);
 
   const [name, setName] = useState("");
@@ -105,6 +108,7 @@ export default function SessionBookingPage() {
       }
 
       setSession(data);
+      if (!data.show_public_signup_names) setActiveTab("book");
       setSignedUp(data.signed_up_count ?? 0);
       setWaitlist(data.waitlist_count ?? 0);
       setStatsLoading(false);
@@ -159,6 +163,14 @@ export default function SessionBookingPage() {
     if (isFull) return "This session is full. New signups will join the waitlist.";
     return "Spots are available.";
   }, [session, statsLoading, isFull]);
+
+  function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const nextTab = activeTab === "book" ? "players" : "book";
+    setActiveTab(nextTab);
+    document.getElementById(`${nextTab}-tab`)?.focus();
+  }
 
   async function submitBooking(e: React.FormEvent) {
     e.preventDefault();
@@ -247,6 +259,7 @@ export default function SessionBookingPage() {
       setName("");
       setStudentId("");
       setEmail("");
+      loadSession("refresh").catch(() => {});
     } catch (err: unknown) {
       const maybeError = err as {
         message?: string;
@@ -398,7 +411,69 @@ export default function SessionBookingPage() {
           </div>
         </div>
 
+        {session.show_public_signup_names && (
+          <div className="mt-6 flex gap-2 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-2 shadow-sm" role="tablist" aria-label="Session details">
+            <button
+              id="book-tab"
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "book"}
+              aria-controls="book-panel"
+              tabIndex={activeTab === "book" ? 0 : -1}
+              onKeyDown={handleTabKeyDown}
+              onClick={() => setActiveTab("book")}
+              className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${activeTab === "book" ? "bg-[var(--ok)] text-white" : "text-[var(--muted)] hover:bg-[var(--chip)]"}`}
+            >
+              Book a spot
+            </button>
+            <button
+              id="players-tab"
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "players"}
+              aria-controls="players-panel"
+              tabIndex={activeTab === "players" ? 0 : -1}
+              onKeyDown={handleTabKeyDown}
+              onClick={() => setActiveTab("players")}
+              className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${activeTab === "players" ? "bg-[var(--ok)] text-white" : "text-[var(--muted)] hover:bg-[var(--chip)]"}`}
+            >
+              Who&apos;s going ({signedUp})
+            </button>
+          </div>
+        )}
+
+        {session.show_public_signup_names && activeTab === "players" && (
+          <section
+            id="players-panel"
+            role="tabpanel"
+            aria-labelledby="players-tab"
+            className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm sm:p-6"
+          >
+            <h2 className="text-lg font-semibold">Confirmed players</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Names of people with a confirmed spot. The waitlist is private.
+            </p>
+            {(session.confirmed_names?.length ?? 0) === 0 ? (
+              <p className="mt-5 rounded-xl bg-[var(--chip)] p-4 text-sm text-[var(--muted)]">
+                No confirmed players yet.
+              </p>
+            ) : (
+              <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+                {session.confirmed_names?.map((player, index) => (
+                  <li key={`${player}-${index}`} className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm font-medium">
+                    {player}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {(!session.show_public_signup_names || activeTab === "book") && (
         <form
+          id={session.show_public_signup_names ? "book-panel" : undefined}
+          role={session.show_public_signup_names ? "tabpanel" : undefined}
+          aria-labelledby={session.show_public_signup_names ? "book-tab" : undefined}
           onSubmit={submitBooking}
           className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5"
         >
@@ -486,6 +561,7 @@ export default function SessionBookingPage() {
             {submitting ? "Submitting..." : isFull ? "Join waitlist" : "Join signup"}
           </button>
         </form>
+        )}
 
         {result && (
           <div

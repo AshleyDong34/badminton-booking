@@ -10,6 +10,7 @@ type SettingsRow = {
   allow_name_only?: boolean; // <-- add this column in settings to persist
   booking_window_days?: number | null;
   sessions_public_enabled?: boolean | null;
+  show_public_signup_names?: boolean | null;
 };
 
 export default async function SettingsPage() {
@@ -29,6 +30,7 @@ export default async function SettingsPage() {
     allow_name_only: false,
     booking_window_days: 7,
     sessions_public_enabled: true,
+    show_public_signup_names: false,
   };
 
   return (
@@ -105,6 +107,22 @@ export default async function SettingsPage() {
             <span className="block font-medium">Show sessions on public site</span>
             <span className="block text-xs text-[var(--muted)]">
               Turn this off to hide all session cards and prevent direct booking-page access.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3 rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
+          <input
+            id="show_public_signup_names"
+            name="show_public_signup_names"
+            type="checkbox"
+            defaultChecked={Boolean(s.show_public_signup_names)}
+            className="mt-1 h-4 w-4"
+          />
+          <span className="text-sm">
+            <span className="block font-medium">Show confirmed players on public session pages</span>
+            <span className="block text-xs text-[var(--muted)]">
+              Adds a Who&apos;s going tab with names only. Waitlisted people and contact details stay private.
             </span>
           </span>
         </label>

@@ -11,6 +11,7 @@ export const revalidate = 0;
 
 type SignupRow = {
   status: "signed_up" | "waiting_list";
+  name?: string | null;
 };
 
 function visibilityMessage(days: number) {
@@ -73,9 +74,10 @@ export async function GET(
     );
   }
 
+  const showPublicSignupNames = settings?.show_public_signup_names === true;
   const { data: signups, error: signupsErr } = await db
     .from("signups")
-    .select("status")
+    .select("status,name")
     .eq("session_id", id);
 
   if (signupsErr) {
@@ -84,10 +86,15 @@ export async function GET(
 
   let signed = 0;
   let waitlist = 0;
+  const confirmedNames: string[] = [];
   for (const row of (signups ?? []) as SignupRow[]) {
-    if (row.status === "signed_up") signed += 1;
+    if (row.status === "signed_up") {
+      signed += 1;
+      if (showPublicSignupNames && row.name?.trim()) confirmedNames.push(row.name.trim());
+    }
     if (row.status === "waiting_list") waitlist += 1;
   }
+  confirmedNames.sort((a, b) => a.localeCompare(b, "en-GB"));
 
   let allowNameOnly = session.allow_name_only;
   if (allowNameOnly == null) {
@@ -100,6 +107,8 @@ export async function GET(
       allow_name_only: Boolean(allowNameOnly),
       signed_up_count: signed,
       waitlist_count: waitlist,
+      show_public_signup_names: showPublicSignupNames,
+      ...(showPublicSignupNames ? { confirmed_names: confirmedNames } : {}),
     },
   });
 }
