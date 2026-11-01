@@ -411,28 +411,30 @@ export default function SessionBookingPage() {
             className="p-5 sm:p-6"
           >
             {(session.confirmed_names?.length ?? 0) === 0 ? (
-              <p className="rounded-xl bg-[var(--chip)] p-4 text-sm text-[var(--muted)]">
+              <p className="text-sm text-[var(--muted)]">
                 No bookings yet.
               </p>
             ) : (
-              <ul className="grid gap-2 sm:grid-cols-2" aria-label="Booked players">
+              <ul className="grid gap-x-8 sm:grid-cols-2" aria-label="Booked players">
                 {session.confirmed_names?.map((player, index) => (
-                  <li key={`${player}-${index}`} className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm font-medium">
-                    {player}
+                  <li key={`${player}-${index}`} className="flex min-w-0 items-center gap-3 border-b border-[var(--line)] py-3 text-sm">
+                    <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--line)] text-xs font-semibold text-[var(--ok)]">✓</span>
+                    <span className="min-w-0 break-words font-medium text-[var(--ink)]">{player}</span>
                   </li>
                 ))}
               </ul>
             )}
             {(session.waitlist_names?.length ?? 0) > 0 && (
-              <div className="mt-5 border-t border-[var(--line)] pt-4">
-                <h2 className="mb-3 text-sm font-semibold text-[var(--muted)]">Waitlist ({session.waitlist_names?.length})</h2>
-                <ul className="grid gap-2 sm:grid-cols-2" aria-label="Waitlisted players">
+              <div className="mt-5 pt-1">
+                <h2 className="text-sm font-semibold text-[var(--ink)]">Waitlist <span className="font-normal text-[var(--muted)]">({session.waitlist_names?.length})</span></h2>
+                <ol className="mt-2 grid gap-x-8 sm:grid-cols-2" aria-label="Waitlisted players">
                   {session.waitlist_names?.map((player, index) => (
-                    <li key={`${player}-${index}`} className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm font-medium">
-                      {player}
+                    <li key={`${player}-${index}`} className="flex min-w-0 items-center gap-3 border-b border-[var(--line)] py-3 text-sm">
+                      <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--paper)] text-xs font-semibold tabular-nums text-[var(--muted)]">{index + 1}</span>
+                      <span className="min-w-0 break-words font-medium text-[var(--ink)]">{player}</span>
                     </li>
                   ))}
-                </ul>
+                </ol>
               </div>
             )}
           </section>
