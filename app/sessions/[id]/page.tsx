@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Space_Grotesk } from "next/font/google";
 import { supabase } from "@/lib/supabaseClient";
+import { displaySessionName, formatSessionDateTime } from "@/lib/session-display";
 
 const space = Space_Grotesk({
   subsets: ["latin"],
@@ -26,27 +27,6 @@ type SessionRow = {
   waitlist_names?: string[];
 };
 
-function formatDateTime(startIso: string | null, endIso?: string | null) {
-  if (!startIso) return "TBC";
-  const day = new Date(startIso).toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-  const start = new Date(startIso).toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const end = endIso
-    ? new Date(endIso).toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
-  return end ? `${day} | ${start} to ${end}` : `${day} | ${start}`;
-}
-
-
 export default function SessionBookingPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -66,7 +46,6 @@ export default function SessionBookingPage() {
         email: string;
       }
   >(null);
-  const [showRules, setShowRules] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"book" | "players">("book");
   const activeRef = useRef(true);
@@ -157,13 +136,6 @@ export default function SessionBookingPage() {
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [loadSession, sessionId]);
-
-  const hint = useMemo(() => {
-    if (!session) return "";
-    if (statsLoading) return "Checking availability...";
-    if (isFull) return "This session is full. New signups will join the waitlist.";
-    return "Spots are available.";
-  }, [session, statsLoading, isFull]);
 
   function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -349,7 +321,7 @@ export default function SessionBookingPage() {
           "--card": "#ffffff",
           "--line": "#e6ddd1",
           "--accent": "#ba8500ff",
-          "--ok": "#2f9f67",
+          "--ok": "#1f7a50",
           "--wait": "#f0b49b",
           "--cool": "#3f8fce",
           "--chip": "#eef5ff",
@@ -361,59 +333,47 @@ export default function SessionBookingPage() {
         <div className="pointer-events-none absolute right-0 top-10 h-40 w-40 rounded-full bg-[#d9ecff] opacity-70 blur-3xl -z-10" />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/" className="text-sm text-[var(--muted)] underline">
-            Back to all sessions
+          <Link href="/" className="text-sm text-[var(--muted)] underline underline-offset-2">
+            ← All sessions
           </Link>
           <button
             type="button"
             onClick={() => loadSession("refresh")}
             disabled={refreshing}
-            className="rounded-xl border border-[var(--line)] bg-[var(--card)] px-4 py-2 text-xs font-medium text-[var(--muted)] shadow-sm transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg px-3 py-2 text-xs font-medium text-[var(--muted)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-6 shadow-sm">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold">{session.name}</h1>
-              <span
-                className={`rounded-full border px-3 py-1 text-xs ${
-                  allowNameOnly
-                    ? "border-[var(--ok)] bg-[var(--chip)] text-[var(--ok)] font-medium"
-                    : "border-[#f2d3c7] bg-[#fff1ea] text-[#c9826c] font-semibold"
-                }`}
-              >
-                {allowNameOnly ? "Club membership not required" : "Club membership required"}
-              </span>
-            </div>
-            <p className="text-xs text-[var(--muted)] sm:text-sm">
-              {formatDateTime(session.starts_at, session.ends_at)}
-            </p>
-            {session.notes ? (
-              <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--chip)] px-2.5 py-1 text-xs text-[var(--ink)]">
-                {session.notes}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)] sm:text-sm">
-            {statsLoading ? (
-              <span>Loading availability...</span>
-            ) : (
-              <span className="font-semibold text-[var(--ink)]">
-                {signedUp}/{session.capacity} booked | {waitlist} waitlist
+        <header className="mt-5 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-5 shadow-sm sm:p-6">
+          <h1 className="text-2xl font-semibold leading-tight sm:text-[1.7rem]">
+            {displaySessionName(session.name, session.starts_at, session.ends_at)}
+          </h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            {formatSessionDateTime(session.starts_at, session.ends_at)}
+          </p>
+          {session.notes && (
+            <p className="mt-3 text-sm text-[var(--muted)]">{session.notes}</p>
+          )}
+          <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-[var(--line)] pt-4 text-sm">
+            <span className="font-semibold text-[var(--ink)]">
+              {statsLoading ? "Checking availability" : isFull ? "Full" : "Spots available"}
+            </span>
+            {!statsLoading && (
+              <span className="text-[var(--muted)]">
+                {signedUp}/{session.capacity} booked · {waitlist} waiting
               </span>
             )}
-            <span className={isFull ? "text-[var(--accent)]" : "text-[var(--ok)]"}>
-              {hint}
+            <span className="text-[var(--muted)] sm:ml-auto">
+              {allowNameOnly ? "No club membership needed" : "Members or first-time tasters"}
             </span>
           </div>
-        </div>
+        </header>
 
+        <div className="mt-5 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-sm">
         {session.show_public_signup_names && (
-          <div className="mt-6 flex gap-2 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-2 shadow-sm" role="tablist" aria-label="Session details">
+          <div className="flex border-b border-[var(--line)] px-2 pt-2" role="tablist" aria-label="Session details">
             <button
               id="book-tab"
               type="button"
@@ -423,7 +383,7 @@ export default function SessionBookingPage() {
               tabIndex={activeTab === "book" ? 0 : -1}
               onKeyDown={handleTabKeyDown}
               onClick={() => setActiveTab("book")}
-              className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${activeTab === "book" ? "bg-[var(--ok)] text-white" : "text-[var(--muted)] hover:bg-[var(--chip)]"}`}
+              className={`flex-1 border-b-2 px-3 py-3 text-sm font-semibold transition ${activeTab === "book" ? "border-[var(--ok)] text-[var(--ink)]" : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"}`}
             >
               Book a spot
             </button>
@@ -436,7 +396,7 @@ export default function SessionBookingPage() {
               tabIndex={activeTab === "players" ? 0 : -1}
               onKeyDown={handleTabKeyDown}
               onClick={() => setActiveTab("players")}
-              className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${activeTab === "players" ? "bg-[var(--ok)] text-white" : "text-[var(--muted)] hover:bg-[var(--chip)]"}`}
+              className={`flex-1 border-b-2 px-3 py-3 text-sm font-semibold transition ${activeTab === "players" ? "border-[var(--ok)] text-[var(--ink)]" : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"}`}
             >
               Who&apos;s going
             </button>
@@ -448,7 +408,7 @@ export default function SessionBookingPage() {
             id="players-panel"
             role="tabpanel"
             aria-labelledby="players-tab"
-            className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm sm:p-6"
+            className="p-5 sm:p-6"
           >
             {(session.confirmed_names?.length ?? 0) === 0 ? (
               <p className="rounded-xl bg-[var(--chip)] p-4 text-sm text-[var(--muted)]">
@@ -484,42 +444,30 @@ export default function SessionBookingPage() {
           role={session.show_public_signup_names ? "tabpanel" : undefined}
           aria-labelledby={session.show_public_signup_names ? "book-tab" : undefined}
           onSubmit={submitBooking}
-          className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5"
+          className="space-y-4 p-5 sm:space-y-5 sm:p-6"
         >
-          <div className="space-y-2">
-            <h2 className="text-base font-semibold sm:text-lg">Book your spot</h2>
-            <p className="text-xs text-[var(--muted)] sm:text-sm">
-              Enter your details below. You will get a confirmation email with a cancel link.
-            </p>
-            <p className="rounded-xl border border-[#f0d28b] bg-[#fff7d8] px-4 py-3 text-sm font-bold text-[#6d4b18]">
-              After booking, check your junk/spam folder, especially if you use
-              your university Outlook email.
-            </p>
-          </div>
+          {!session.show_public_signup_names && (
+            <h2 className="text-lg font-semibold">Book a spot</h2>
+          )}
           {!allowNameOnly && (
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setShowRules((prev) => !prev)}
-                className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--cool)] underline sm:text-sm"
-              >
+            <details className="group text-sm">
+              <summary className="w-fit cursor-pointer font-medium text-[var(--ok)] underline underline-offset-2 marker:text-[var(--ok)]">
                 Membership rules
-                <span className="text-[var(--muted)]">{showRules ? "Hide" : "View"}</span>
-              </button>
-              {showRules && (
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-xs text-[var(--muted)] sm:text-sm">
-                  This session requires paid EUBC club membership. You get one taster session
-                  without club membership; after that, you&apos;ll need club membership to keep
-                  booking.
-                </div>
-              )}
-            </div>
+              </summary>
+              <p className="mt-2 rounded-lg bg-[var(--chip)] px-3 py-2.5 text-[var(--muted)]">
+                Members can book this session. Without club membership, you can book one
+                first-time taster; after that, paid EUBC club membership is required.
+              </p>
+            </details>
           )}
 
           <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="text-xs sm:text-sm">Name (required)</label>
+              <label htmlFor="signup-name" className="text-xs sm:text-sm">Name (required)</label>
               <input
+                id="signup-name"
+                name="name"
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-[var(--line)] p-2.5 text-sm"
@@ -527,15 +475,12 @@ export default function SessionBookingPage() {
                 required
               />
             </div>
-            {allowNameOnly ? (
-              <div className="sm:col-span-2 rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-xs text-[var(--muted)] sm:text-sm">
-                EUBC club membership is not required for this session, but you still need the
-                required gym/Pleasance access to attend. Only name and email are required here.
-              </div>
-            ) : (
+            {!allowNameOnly && (
               <div>
-                <label className="text-xs sm:text-sm">Student ID (required for students)</label>
+                <label htmlFor="signup-student-id" className="text-xs sm:text-sm">Student ID (required for students)</label>
                 <input
+                  id="signup-student-id"
+                  name="studentId"
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value.toLowerCase())}
                   className="mt-1 w-full rounded-xl border border-[var(--line)] p-2.5 text-sm"
@@ -544,8 +489,11 @@ export default function SessionBookingPage() {
               </div>
             )}
             <div className={allowNameOnly ? "sm:col-span-2" : ""}>
-              <label className="text-xs sm:text-sm">Email (required)</label>
+              <label htmlFor="signup-email" className="text-xs sm:text-sm">Email (required)</label>
               <input
+                id="signup-email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-[var(--line)] p-2.5 text-sm"
@@ -555,19 +503,32 @@ export default function SessionBookingPage() {
               />
             </div>
           </div>
+          {allowNameOnly && (
+            <p className="text-xs text-[var(--muted)] sm:text-sm">
+              Gym/Pleasance access is still required to attend.
+            </p>
+          )}
 
-          {message && <p className="mt-2 text-xs text-[var(--muted)] sm:text-sm">{message}</p>}
+          {message && <p role="status" className="text-sm text-[var(--ink)]">{message}</p>}
 
-          <button
-            disabled={submitting}
-            className={`w-full sm:w-auto rounded-xl px-4 py-2 text-sm font-semibold shadow-sm ${
-              isFull ? "bg-[var(--wait)] text-[var(--ink)]" : "bg-[var(--ok)] text-white"
-            }`}
-          >
-            {submitting ? "Submitting..." : isFull ? "Join waitlist" : "Join signup"}
-          </button>
+          <div className="flex flex-col gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs leading-relaxed text-[var(--muted)] sm:max-w-sm">
+              We&apos;ll email your confirmation and cancellation link. Check junk mail,
+              especially with university Outlook.
+            </p>
+            <button
+              type="submit"
+              disabled={submitting}
+              className={`w-full shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${
+                isFull ? "bg-[var(--wait)] text-[var(--ink)]" : "bg-[var(--ok)] text-white"
+              }`}
+            >
+              {submitting ? "Submitting..." : isFull ? "Join waitlist" : "Book a spot"}
+            </button>
+          </div>
         </form>
         )}
+        </div>
 
         {result && (
           <div
