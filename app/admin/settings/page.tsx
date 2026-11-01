@@ -120,9 +120,9 @@ export default async function SettingsPage() {
             className="mt-1 h-4 w-4"
           />
           <span className="text-sm">
-            <span className="block font-medium">Show confirmed players on public session pages</span>
+            <span className="block font-medium">Show booking and waitlist names on public session pages</span>
             <span className="block text-xs text-[var(--muted)]">
-              Adds a Who&apos;s going tab with names only. Waitlisted people and contact details stay private.
+              Adds a Who&apos;s going tab with names from both lists. Contact details stay private.
             </span>
           </span>
         </label>

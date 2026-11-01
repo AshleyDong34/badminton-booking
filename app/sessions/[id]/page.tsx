@@ -23,6 +23,7 @@ type SessionRow = {
   waitlist_count?: number;
   show_public_signup_names?: boolean;
   confirmed_names?: string[];
+  waitlist_names?: string[];
 };
 
 function formatDateTime(startIso: string | null, endIso?: string | null) {
@@ -437,7 +438,7 @@ export default function SessionBookingPage() {
               onClick={() => setActiveTab("players")}
               className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${activeTab === "players" ? "bg-[var(--ok)] text-white" : "text-[var(--muted)] hover:bg-[var(--chip)]"}`}
             >
-              Who&apos;s going ({signedUp})
+              Who&apos;s going
             </button>
           </div>
         )}
@@ -449,22 +450,30 @@ export default function SessionBookingPage() {
             aria-labelledby="players-tab"
             className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--card)] p-4 shadow-sm sm:p-6"
           >
-            <h2 className="text-lg font-semibold">Confirmed players</h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Names of people with a confirmed spot. The waitlist is private.
-            </p>
             {(session.confirmed_names?.length ?? 0) === 0 ? (
-              <p className="mt-5 rounded-xl bg-[var(--chip)] p-4 text-sm text-[var(--muted)]">
-                No confirmed players yet.
+              <p className="rounded-xl bg-[var(--chip)] p-4 text-sm text-[var(--muted)]">
+                No bookings yet.
               </p>
             ) : (
-              <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+              <ul className="grid gap-2 sm:grid-cols-2" aria-label="Booked players">
                 {session.confirmed_names?.map((player, index) => (
                   <li key={`${player}-${index}`} className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm font-medium">
                     {player}
                   </li>
                 ))}
               </ul>
+            )}
+            {(session.waitlist_names?.length ?? 0) > 0 && (
+              <div className="mt-5 border-t border-[var(--line)] pt-4">
+                <h2 className="mb-3 text-sm font-semibold text-[var(--muted)]">Waitlist ({session.waitlist_names?.length})</h2>
+                <ul className="grid gap-2 sm:grid-cols-2" aria-label="Waitlisted players">
+                  {session.waitlist_names?.map((player, index) => (
+                    <li key={`${player}-${index}`} className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-4 py-3 text-sm font-medium">
+                      {player}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </section>
         )}
@@ -509,7 +518,7 @@ export default function SessionBookingPage() {
 
           <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="text-xs sm:text-sm">Name</label>
+              <label className="text-xs sm:text-sm">Name (required)</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -532,9 +541,6 @@ export default function SessionBookingPage() {
                   className="mt-1 w-full rounded-xl border border-[var(--line)] p-2.5 text-sm"
                   placeholder="s1234567"
                 />
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  Students must enter their Student ID. If you are not a student, leave this blank and use your listed membership email or your email for a first-time taster booking.
-                </p>
               </div>
             )}
             <div className={allowNameOnly ? "sm:col-span-2" : ""}>

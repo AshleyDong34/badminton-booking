@@ -12,6 +12,8 @@ export const revalidate = 0;
 type SignupRow = {
   status: "signed_up" | "waiting_list";
   name?: string | null;
+  created_at: string;
+  id: string;
 };
 
 function visibilityMessage(days: number) {
@@ -77,8 +79,10 @@ export async function GET(
   const showPublicSignupNames = settings?.show_public_signup_names === true;
   const { data: signups, error: signupsErr } = await db
     .from("signups")
-    .select("status,name")
-    .eq("session_id", id);
+    .select("id,status,name,created_at")
+    .eq("session_id", id)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
 
   if (signupsErr) {
     return NextResponse.json({ error: signupsErr.message }, { status: 500 });
@@ -87,12 +91,16 @@ export async function GET(
   let signed = 0;
   let waitlist = 0;
   const confirmedNames: string[] = [];
+  const waitlistNames: string[] = [];
   for (const row of (signups ?? []) as SignupRow[]) {
     if (row.status === "signed_up") {
       signed += 1;
       if (showPublicSignupNames && row.name?.trim()) confirmedNames.push(row.name.trim());
     }
-    if (row.status === "waiting_list") waitlist += 1;
+    if (row.status === "waiting_list") {
+      waitlist += 1;
+      if (showPublicSignupNames && row.name?.trim()) waitlistNames.push(row.name.trim());
+    }
   }
   confirmedNames.sort((a, b) => a.localeCompare(b, "en-GB"));
 
@@ -108,7 +116,7 @@ export async function GET(
       signed_up_count: signed,
       waitlist_count: waitlist,
       show_public_signup_names: showPublicSignupNames,
-      ...(showPublicSignupNames ? { confirmed_names: confirmedNames } : {}),
+      ...(showPublicSignupNames ? { confirmed_names: confirmedNames, waitlist_names: waitlistNames } : {}),
     },
   });
 }

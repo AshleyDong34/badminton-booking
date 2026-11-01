@@ -44,7 +44,7 @@ async function waitForServer(baseUrl, child) {
   throw new Error("Next.js did not start within 15 seconds");
 }
 
-test("public player list obeys the setting, excludes waitlist, and blocks direct anonymous reads", { timeout: 60000 }, async () => {
+test("public player list obeys the setting, shows waitlist order, and blocks direct anonymous reads", { timeout: 60000 }, async () => {
   let sessionId;
   let originalSetting;
   let child;
@@ -87,6 +87,7 @@ test("public player list obeys the setting, excludes waitlist, and blocks direct
     assert.equal(hidden.session.signed_up_count, 1);
     assert.equal(hidden.session.waitlist_count, 1);
     assert.equal("confirmed_names" in hidden.session, false);
+    assert.equal("waitlist_names" in hidden.session, false);
     assert.doesNotMatch(JSON.stringify(hidden), /Confirmed|Waiting|example\.invalid/);
 
     const directRead = await anon.from("signups").select("*").eq("session_id", sessionId);
@@ -105,15 +106,18 @@ test("public player list obeys the setting, excludes waitlist, and blocks direct
     const visible = await getPublic();
     assert.equal(visible.session.show_public_signup_names, true);
     assert.deepEqual(visible.session.confirmed_names, [`TEST ${run} Confirmed`]);
-    assert.doesNotMatch(JSON.stringify(visible), /example\.invalid|cancel_token|student_id|Waiting|Browser booking/);
+    assert.deepEqual(visible.session.waitlist_names, [`TEST ${run} Waiting`, `TEST ${run} Browser booking`]);
+    assert.doesNotMatch(JSON.stringify(visible), /example\.invalid|cancel_token|student_id/);
 
     good(await db.from("signups").delete().eq("session_id", sessionId).eq("status", "signed_up"));
     const afterPromotion = await getPublic();
     assert.deepEqual(afterPromotion.session.confirmed_names, [`TEST ${run} Waiting`]);
+    assert.deepEqual(afterPromotion.session.waitlist_names, [`TEST ${run} Browser booking`]);
 
     good(await db.from("settings").update({ show_public_signup_names: false }).eq("id", 1));
     const hiddenAgain = await getPublic();
     assert.equal("confirmed_names" in hiddenAgain.session, false);
+    assert.equal("waitlist_names" in hiddenAgain.session, false);
   } finally {
     if (child && child.exitCode === null) child.kill();
     if (sessionId) {
