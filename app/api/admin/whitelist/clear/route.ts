@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     p_expected_count: expectedCount,
   });
   if (error) {
+    console.error("Membership reset failed", { code: error.code, message: error.message });
     const changed = error.message.includes("membership list changed");
     return NextResponse.json(
       { error: changed ? "The membership list changed. Refresh and confirm again." : "Could not clear the membership list." },
