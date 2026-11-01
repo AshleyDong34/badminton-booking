@@ -5,6 +5,7 @@ import { useState } from "react";
 
 type ReviewStatus = "listed" | "needs_manual" | "ambiguous" | "added";
 type ReviewEntry = { key: string; name: string; email: string | null; status: ReviewStatus };
+type IdConflict = { student_id: string; rows: Array<{ row: number; name: string; email: string | null }> };
 
 type Props = {
   defaultNameColumn: string;
@@ -20,6 +21,7 @@ export default function WhitelistUploadForm({
   const router = useRouter();
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [review, setReview] = useState<ReviewEntry[]>([]);
+  const [idConflicts, setIdConflicts] = useState<IdConflict[]>([]);
   const [idMembersProcessed, setIdMembersProcessed] = useState(0);
   const [importing, setImporting] = useState(false);
   const [fileName, setFileName] = useState("");
@@ -36,6 +38,8 @@ export default function WhitelistUploadForm({
   async function onImport(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setImportMessage(null);
+    setReview([]);
+    setIdConflicts([]);
     setImporting(true);
 
     try {
@@ -50,11 +54,15 @@ export default function WhitelistUploadForm({
         (entry: Omit<ReviewEntry, "key">, index: number) => ({ ...entry, key: String(index) })
       );
       setReview(entries);
+      const conflicts: IdConflict[] = result.idConflicts ?? [];
+      setIdConflicts(conflicts);
       setIdMembersProcessed(result.idMembersProcessed ?? 0);
+      const conflictRows = conflicts.reduce((count, conflict) => count + conflict.rows.length, 0);
+      const summary = `Read ${result.sourceRows ?? 0} rows: ${result.idMembersAdded ?? 0} student IDs added, ${result.idMembersUpdated ?? 0} updated, ${entries.length} without an ID for review, ${conflictRows} rows across ${conflicts.length} conflicting ${conflicts.length === 1 ? "ID" : "IDs"} skipped.`;
       setImportMessage(
         result.mappingSaved === false
-          ? `Processed ${result.idMembersProcessed ?? 0} rows with student IDs, but the column mapping could not be saved. Check the settings table.`
-          : `Processed ${result.idMembersProcessed ?? 0} unique student IDs: ${result.idMembersAdded ?? 0} added, ${result.idMembersUpdated ?? 0} already listed and updated. No duplicate members were created.`
+          ? `${summary} The column mapping could not be saved; check the settings table.`
+          : summary
       );
       router.refresh();
     } catch (error: unknown) {
@@ -137,7 +145,7 @@ export default function WhitelistUploadForm({
         <details className="rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
           <summary className="cursor-pointer text-sm font-medium">Column mapping (optional)</summary>
           <p className="mt-2 text-xs text-[var(--muted)]">
-            Map the exact headers in your file. Name and student ID are required; email is optional. These mappings are saved for next time.
+            Map the exact headers in your file. Name and student ID columns are required; individual student IDs and emails can be blank. These mappings are saved for next time.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <label className="block">
@@ -155,13 +163,36 @@ export default function WhitelistUploadForm({
           </div>
         </details>
         <p className="text-sm text-[var(--muted)]">
-          Rows with a student ID are added or updated by ID. Rows without one are checked against existing names and shown below for review. Uploads never delete existing members.
+          Rows with a consistent student ID are added or updated by ID. Conflicting IDs and rows without an ID are shown below for review. Uploads never delete existing members.
         </p>
         <button disabled={importing} className="rounded-xl bg-[var(--ok)] px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60">
           {importing ? "Processing roster..." : "Upload and review roster"}
         </button>
         {importMessage && <p role="status" className="rounded-xl border border-[var(--line)] bg-[var(--chip)] px-3 py-2 text-sm">{importMessage}</p>}
       </form>
+
+      {idConflicts.length > 0 && (
+        <section className="space-y-3 border-t border-[var(--line)] pt-6">
+          <div>
+            <h2 className="text-lg font-semibold">Conflicting student IDs ({idConflicts.length})</h2>
+            <p className="text-sm text-[var(--muted)]">
+              These IDs appear with different names or emails. Their rows were skipped; correct the spreadsheet and upload it again. Existing member records were not changed for these IDs.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {idConflicts.map((conflict) => (
+              <div key={conflict.student_id} className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm">
+                <p className="font-semibold">{conflict.student_id}</p>
+                <ul className="mt-2 space-y-1">
+                  {conflict.rows.map((entry) => (
+                    <li key={entry.row}>Row {entry.row}: {entry.name}{entry.email ? ` (${entry.email})` : ""}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {review.length > 0 && (
         <section className="space-y-3 border-t border-[var(--line)] pt-6">

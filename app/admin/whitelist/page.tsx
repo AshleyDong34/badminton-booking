@@ -6,6 +6,7 @@ import {
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+const PAGE_SIZE = 1000;
 
 export default async function WhitelistPage() {
   const db = supabaseServer();
@@ -13,11 +14,22 @@ export default async function WhitelistPage() {
     .from("student_whitelist")
     .select("*", { count: "exact", head: true });
 
-  const { data: whitelist, error: listErr } = await db
-    .from("student_whitelist")
-    .select("id,name,email,student_id")
-    .order("name", { ascending: true, nullsFirst: false })
-    .limit(200);
+  const rows: Array<{ id: string; name: string | null; email: string | null; student_id: string | null }> = [];
+  let listError: string | null = null;
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error: pageError } = await db
+      .from("student_whitelist")
+      .select("id,name,email,student_id")
+      .order("name", { ascending: true, nullsFirst: false })
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
+    if (pageError) {
+      listError = pageError.message;
+      break;
+    }
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) break;
+  }
   const { data: settingsData } = await db
     .from("settings")
     .select("membership_import_columns")
@@ -26,8 +38,6 @@ export default async function WhitelistPage() {
   const membershipColumns = normalizeMembershipImportColumns(
     settingsData?.membership_import_columns
   );
-
-  const rows = whitelist ?? [];
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -43,9 +53,9 @@ export default async function WhitelistPage() {
           Failed to load count: {error.message}
         </p>
       )}
-      {listErr && (
+      {listError && (
         <p className="text-sm text-red-600">
-          Failed to load rows: {listErr.message}
+          Failed to load rows: {listError}
         </p>
       )}
 

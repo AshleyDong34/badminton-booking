@@ -17,6 +17,8 @@ test("XLSX import maps columns, deduplicates IDs, and keeps ID-less people for r
   const parsed = await parseMembershipRoster(asArrayBuffer(await workbook.xlsx.writeBuffer()), "members.xlsx", columns);
   assert.deepEqual(parsed.idMembers, [{ name: "Alex Student", student_id: "s1234567", email: "alex@example.com" }]);
   assert.deepEqual(parsed.withoutStudentId, [{ name: "Pat Member", email: "pat@example.com" }]);
+  assert.deepEqual(parsed.idConflicts, []);
+  assert.equal(parsed.sourceRows, 3);
 });
 
 test("CSV import accepts an absent email column and flags manual member review", async () => {
@@ -42,9 +44,35 @@ test("EUBC workbook headers are recognized without changing the saved column map
   assert.equal(parsed.withoutStudentId.length, 1);
 });
 
-test("roster import rejects conflicting duplicate IDs and invalid addresses", async () => {
-  const conflicting = new TextEncoder().encode("Member Name,Student Number,Contact Email\nAlex Student,s1234567,a@example.com\nOther Person,s1234567,b@example.com\n");
-  await assert.rejects(parseMembershipRoster(asArrayBuffer(conflicting), "members.csv", columns), /conflicting details/);
+test("conflicting ID at row 174 is skipped while later members and no-ID review survive", async () => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Members");
+  sheet.addRow(["Member Name", "Student Number", "Contact Email"]);
+  for (let row = 2; row <= 172; row += 1) {
+    sheet.addRow([`Member ${row}`, `s${String(row).padStart(7, "0")}`, ""]);
+  }
+  sheet.addRow(["First person", "s7777777", "first@example.com"]); // Row 173
+  sheet.addRow(["Second person", "s7777777", "second@example.com"]); // Row 174
+  sheet.addRow(["Later member", "s8888888", ""]);
+  sheet.addRow(["No ID member", "", "no-id@example.com"]);
+
+  const parsed = await parseMembershipRoster(asArrayBuffer(await workbook.xlsx.writeBuffer()), "members.xlsx", columns);
+  assert.equal(parsed.sourceRows, 175);
+  assert.equal(parsed.idMembers.length, 172);
+  assert.equal(parsed.idMembers.some((member) => member.student_id === "s7777777"), false);
+  assert.equal(parsed.idMembers.at(-1).student_id, "s8888888");
+  assert.deepEqual(parsed.idConflicts[0].rows.map((entry) => entry.row), [173, 174]);
+  assert.deepEqual(parsed.withoutStudentId, [{ name: "No ID member", email: "no-id@example.com" }]);
+});
+
+test("conflicting CSV IDs are reported without losing safe IDs; invalid addresses still reject", async () => {
+  const conflicting = new TextEncoder().encode("Member Name,Student Number,Contact Email\nAlex Student,s1234567,a@example.com\nOther Person,s1234567,b@example.com\nLater Member,s7654321,\nPat Member,,pat@example.com\n");
+  const parsed = await parseMembershipRoster(asArrayBuffer(conflicting), "members.csv", columns);
+  assert.equal(parsed.idMembers.length, 1);
+  assert.equal(parsed.idMembers[0].student_id, "s7654321");
+  assert.equal(parsed.idConflicts.length, 1);
+  assert.deepEqual(parsed.idConflicts[0].rows.map((entry) => entry.row), [2, 3]);
+  assert.equal(parsed.withoutStudentId.length, 1);
   const invalid = new TextEncoder().encode("Member Name,Student Number,Contact Email\nAlex Student,s1234567,not-an-email\n");
   await assert.rejects(parseMembershipRoster(asArrayBuffer(invalid), "members.csv", columns), /invalid email/);
 });

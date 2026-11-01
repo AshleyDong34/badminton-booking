@@ -67,9 +67,11 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    sourceRows: roster.sourceRows,
     idMembersProcessed: roster.idMembers.length,
     idMembersAdded: roster.idMembers.filter((member) => !existingIds.has(member.student_id)).length,
     idMembersUpdated: roster.idMembers.filter((member) => existingIds.has(member.student_id)).length,
+    idConflicts: roster.idConflicts,
     noIdReview: reviewNoIdMembers(roster.withoutStudentId, existingNames),
     mappingSaved: !mappingError,
   });

@@ -5,6 +5,7 @@ type Columns = { name: string; email: string; studentId: string };
 export type RosterEntry = { name: string; student_id: string; email: string | null };
 export type NoIdEntry = { name: string; email: string | null };
 export type ReviewEntry = NoIdEntry & { status: "listed" | "needs_manual" | "ambiguous" };
+export type IdConflict = { student_id: string; rows: Array<NoIdEntry & { row: number }> };
 
 const EMAIL_KEYS = new Set(["email", "emailaddress", "mail"]);
 const ID_KEYS = new Set(["studentid", "studentnumber", "universityid", "memberid", "membershipid", "cardnumber", "id"]);
@@ -69,8 +70,9 @@ export async function parseMembershipRoster(buffer: ArrayBuffer, fileName: strin
     throw new Error("A name column and a student ID column are required. Email is optional.");
   }
 
-  const byStudentId = new Map<string, RosterEntry>();
+  const byStudentId = new Map<string, IdConflict["rows"]>();
   const withoutStudentId: NoIdEntry[] = [];
+  let sourceRows = 0;
   for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber += 1) {
     const row = sheet.getRow(rowNumber);
     if (!row.hasValues) continue;
@@ -79,6 +81,7 @@ export async function parseMembershipRoster(buffer: ArrayBuffer, fileName: strin
     const rawEmail = emailCol == null ? "" : cellToText(row.getCell(emailCol).value).trim();
     const email = rawEmail ? rawEmail.toLowerCase() : null;
     if (!name && !rawId && !rawEmail) continue;
+    sourceRows += 1;
     if (!name) throw new Error(`Row ${rowNumber} has membership data but no name.`);
     if (email && !validEmail(email)) throw new Error(`Row ${rowNumber} has an invalid email address.`);
     const studentId = normalizeStudentId(rawId);
@@ -87,18 +90,23 @@ export async function parseMembershipRoster(buffer: ArrayBuffer, fileName: strin
       continue;
     }
     if (!/^s[0-9]{7}$/.test(studentId)) throw new Error(`Row ${rowNumber} has an invalid student ID.`);
-    const existing = byStudentId.get(studentId);
-    if (existing) {
-      if (normalizeName(existing.name) !== normalizeName(name) || (existing.email && email && existing.email !== email)) {
-        throw new Error(`Student ID appears more than once with conflicting details (row ${rowNumber}).`);
-      }
-      if (!existing.email && email) existing.email = email;
+    const entries = byStudentId.get(studentId) ?? [];
+    entries.push({ row: rowNumber, name, email });
+    byStudentId.set(studentId, entries);
+  }
+  const idMembers: RosterEntry[] = [];
+  const idConflicts: IdConflict[] = [];
+  for (const [studentId, entries] of byStudentId) {
+    const names = new Set(entries.map((entry) => normalizeName(entry.name)));
+    const emails = new Set(entries.map((entry) => entry.email).filter(Boolean));
+    if (names.size > 1 || emails.size > 1) {
+      idConflicts.push({ student_id: studentId, rows: entries });
     } else {
-      byStudentId.set(studentId, { name, student_id: studentId, email });
+      idMembers.push({ name: entries[0].name, student_id: studentId, email: entries.find((entry) => entry.email)?.email ?? null });
     }
   }
-  if (byStudentId.size === 0 && withoutStudentId.length === 0) throw new Error("No member rows were found in the file.");
-  return { idMembers: [...byStudentId.values()], withoutStudentId };
+  if (sourceRows === 0) throw new Error("No member rows were found in the file.");
+  return { idMembers, withoutStudentId, idConflicts, sourceRows };
 }
 
 export function reviewNoIdMembers(rows: NoIdEntry[], existingNames: Array<string | null>): ReviewEntry[] {
