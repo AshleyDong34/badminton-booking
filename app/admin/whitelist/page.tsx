@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import WhitelistUploadForm from "./WhitelistUploadForm";
+import ClearMembershipForm from "./ClearMembershipForm";
 import {
   normalizeMembershipImportColumns,
 } from "@/lib/import-column-mappings";
@@ -98,6 +99,8 @@ export default async function WhitelistPage() {
       ) : (
         <p className="text-sm text-[var(--muted)]">Membership list is empty.</p>
       )}
+
+      <ClearMembershipForm count={error || listError ? null : count} />
     </div>
   );
 }
