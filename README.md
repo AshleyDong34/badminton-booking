@@ -105,5 +105,5 @@ npm run lint
 - Docs index: `docs/README.md`
 - Onboarding: `docs/onboarding.md`
 - Architecture: `docs/architecture/system-overview.md`
-- Business rules: `docs/feature-and-flow.md`
+- Booking and membership rules: `docs/business-rules.md`
 - Deploy runbook: `docs/runbooks/deploy-and-rollback.md`
