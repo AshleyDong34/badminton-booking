@@ -61,13 +61,15 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
     good(taster);
     const firstTaster = good(await db.from("signups").select("is_taster,name").eq("email", tasterEmail).single());
     assert.equal(firstTaster.is_taster, true);
-    assert.equal(good(await db.from("first_time_signups").select("name").eq("email", tasterEmail).single()).name, firstTaster.name);
+    const tasterRecord = good(await db.from("first_time_signups").select("name,is_taster_record").eq("email", tasterEmail).single());
+    assert.equal(tasterRecord.name, firstTaster.name);
+    assert.equal(tasterRecord.is_taster_record, true);
     assert.match((await book(b, "Repeat", id, email("new-address"))).error?.message ?? "", /membership required/);
     assert.match((await book(b, "Repeat", `s8${id.slice(2)}`, tasterEmail)).error?.message ?? "", /membership required/);
     assert.equal((await credits(tasterEmail, id, a)).remaining_credits, 1);
     await cancel(taster);
     assert.equal((await credits(tasterEmail, id, a)).remaining_credits, 2);
-    good(await book(a, "Taster again", id, tasterEmail));
+    const repeatTaster = good(await book(a, "Taster again", id, tasterEmail))[0];
 
     // Adding paid membership later does not remove or invalidate an existing signup.
     const memberAddress = email("new-member-address");
@@ -77,14 +79,18 @@ test("development DB: roster identity, taster, same-day, weekly credits, cancell
     assert.equal(good(await db.from("signups").select("id").eq("email", tasterEmail)).length, 1);
     assert.equal(good(await db.from("signups").select("is_taster").eq("email", tasterEmail).single()).is_taster, true);
     const tasterSignup = good(await db.from("signups").select("created_at").eq("email", tasterEmail).single());
-    const memberHistory = good(await db.from("first_time_signups").select("id,member_precluded,created_at").eq("student_id", id).single());
+    const memberHistory = good(await db.from("first_time_signups").select("id,member_precluded,is_taster_record,created_at").eq("student_id", id).single());
     assert.equal(memberHistory.member_precluded, true);
+    assert.equal(memberHistory.is_taster_record, true);
     assert.equal(memberHistory.created_at, tasterSignup.created_at);
     assert.match((await book(sameDay, "Member", id, memberAddress)).error?.message ?? "", /same-day booking/);
     good(await book(c, "Member", id, memberAddress));
     assert.equal(good(await db.from("signups").select("is_taster").eq("email", memberAddress).single()).is_taster, false);
     assert.equal((await credits(memberAddress, id, c)).remaining_credits, 0);
     assert.match((await book(a, "Member", id, memberAddress)).error?.message ?? "", /weekly limit/);
+    good(await db.from("signups").update({ attended: true }).eq("cancel_token", repeatTaster.r_cancel_token).select("id").single());
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: repeatTaster.r_cancel_token })), true);
+    assert.equal(good(await db.from("first_time_signups").select("member_precluded,is_taster_record").eq("student_id", id).single()).is_taster_record, true);
 
     // A person without an ID may taster by email; cancelling restores it.
     const noIdTasterEmail = email("no-id-taster");
@@ -523,6 +529,7 @@ test("development DB: joining membership permanently removes free-taster eligibi
   const studentId = `s5${id.slice(2)}`;
   const noIdEmail = email("member-history-no-id");
   const tasterEmail = email("member-history-taster");
+  const manualTasterEmail = email("member-history-manual-taster");
   const memberIds = [];
   let sessionId = null;
   try {
@@ -534,20 +541,38 @@ test("development DB: joining membership permanently removes free-taster eligibi
 
     assert.equal((await saveManualMember(db, { name: `TEST ${run} Student`, studentId, email: studentEmail })).status, 200);
     memberIds.push(good(await db.from("student_whitelist").select("id").eq("student_id", studentId).single()).id);
-    const studentMarker = good(await db.from("first_time_signups").select("member_precluded").eq("student_id", studentId).single());
+    const studentMarker = good(await db.from("first_time_signups").select("member_precluded,is_taster_record").eq("student_id", studentId).single());
     assert.equal(studentMarker.member_precluded, true);
+    assert.equal(studentMarker.is_taster_record, false);
     assert.equal((await saveManualMember(db, { name: `TEST ${run} No ID`, email: noIdEmail })).status, 200);
     memberIds.push(good(await db.from("student_whitelist").select("id").eq("email", noIdEmail).single()).id);
-    assert.equal(good(await db.from("first_time_signups").select("member_precluded").eq("email", noIdEmail).single()).member_precluded, true);
+    const noIdMarker = good(await db.from("first_time_signups").select("member_precluded,is_taster_record").eq("email", noIdEmail).single());
+    assert.equal(noIdMarker.member_precluded, true);
+    assert.equal(noIdMarker.is_taster_record, false);
+    const manualRecord = good(await db.from("first_time_signups").insert({ name: "Manual taster history", email: manualTasterEmail }).select("member_precluded,is_taster_record").single());
+    assert.equal(manualRecord.member_precluded, false);
+    assert.equal(manualRecord.is_taster_record, true);
+    const memberBooking = good(await db.rpc("insert_signup_guarded", {
+      p_session_id: sessionId, p_name: "First booking as member", p_student_id: studentId, p_email: studentEmail,
+    }))[0];
+    assert.equal(good(await db.from("signups").select("is_taster").eq("cancel_token", memberBooking.r_cancel_token).single()).is_taster, false);
+    assert.equal((await credits(studentEmail, studentId, sessionId)).used_credits, 1);
+    assert.equal(good(await db.from("first_time_signups").select("is_taster_record").eq("student_id", studentId).single()).is_taster_record, false);
+    assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: memberBooking.r_cancel_token })), true);
 
     const taster = good(await db.rpc("insert_signup_guarded", {
       p_session_id: sessionId, p_name: "Taster before membership", p_student_id: null, p_email: tasterEmail,
     }))[0];
     assert.equal(good(await db.from("signups").select("is_taster").eq("cancel_token", taster.r_cancel_token).single()).is_taster, true);
+    assert.equal(good(await db.from("first_time_signups").select("is_taster_record").eq("email", tasterEmail).single()).is_taster_record, true);
     assert.equal((await saveManualMember(db, { name: `TEST ${run} Former taster`, email: tasterEmail })).status, 200);
     memberIds.push(good(await db.from("student_whitelist").select("id").eq("email", tasterEmail).single()).id);
+    assert.equal(good(await db.from("first_time_signups").select("member_precluded,is_taster_record").eq("email", tasterEmail).single()).is_taster_record, true);
+    assert.deepEqual(good(await db.from("first_time_signups").select("email").eq("is_taster_record", true).like("email", `test-${run}-member-history-%`).order("email")).map(({ email: address }) => address), [manualTasterEmail, tasterEmail]);
     assert.equal(good(await db.rpc("cancel_signup_by_token", { p_token: taster.r_cancel_token })), true);
-    assert.equal(good(await db.from("first_time_signups").select("member_precluded").eq("email", tasterEmail).single()).member_precluded, true);
+    const cancelledTaster = good(await db.from("first_time_signups").select("member_precluded,is_taster_record").eq("email", tasterEmail).single());
+    assert.equal(cancelledTaster.member_precluded, true);
+    assert.equal(cancelledTaster.is_taster_record, false);
 
     good(await db.from("student_whitelist").delete().in("id", memberIds));
     memberIds.length = 0;
@@ -559,7 +584,7 @@ test("development DB: joining membership permanently removes free-taster eligibi
     }
   } finally {
     good(await db.from("signups").delete().in("email", [studentEmail, noIdEmail, tasterEmail]));
-    good(await db.from("first_time_signups").delete().in("email", [studentEmail, noIdEmail, tasterEmail]));
+    good(await db.from("first_time_signups").delete().in("email", [studentEmail, noIdEmail, tasterEmail, manualTasterEmail]));
     if (memberIds.length) good(await db.from("student_whitelist").delete().in("id", memberIds));
     if (sessionId) good(await db.from("sessions").delete().eq("id", sessionId));
   }

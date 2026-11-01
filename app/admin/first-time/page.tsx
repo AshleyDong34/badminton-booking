@@ -32,6 +32,7 @@ export default async function FirstTimePage({
   let query = db
     .from("first_time_signups")
     .select("id,name,email,student_id,member_precluded,created_at")
+    .eq("is_taster_record", true)
     .order("email", { ascending: true, nullsFirst: false })
     .order("student_id", { ascending: true, nullsFirst: false });
 
@@ -45,9 +46,9 @@ export default async function FirstTimePage({
   return (
     <div className="max-w-6xl space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">First-time booking eligibility</h1>
+        <h1 className="text-2xl font-semibold">Free taster bookings</h1>
         <p className="text-sm text-[var(--muted)]">
-          People who used a free taster or were added as members. Membership removes free-taster eligibility, even if it ends later.
+          People who booked a free taster without membership. Members who never used a taster are hidden from this list.
         </p>
       </div>
 
@@ -156,7 +157,7 @@ export default async function FirstTimePage({
                 </td>
                 <td className="py-3 px-4">{row.email ?? ""}</td>
                 <td className="py-3 px-4">{row.student_id ?? ""}</td>
-                <td className="py-3 px-4">{row.member_precluded ? "Membership added" : "Taster record"}</td>
+                <td className="py-3 px-4">{row.member_precluded ? "Now a member" : "Taster used"}</td>
                 <td className="py-3 px-4">
                   {row.created_at
                     ? new Date(row.created_at).toLocaleString("en-GB")
@@ -164,7 +165,7 @@ export default async function FirstTimePage({
                 </td>
                 <td className="py-3 px-4">
                   {row.member_precluded ? (
-                    <span className="text-xs text-[var(--muted)]">Membership history</span>
+                    <span className="text-xs text-[var(--muted)]">Member history retained</span>
                   ) : (
                     <form action="/api/admin/first-time/remove" method="post">
                       <input type="hidden" name="id" value={row.id} />
@@ -181,7 +182,7 @@ export default async function FirstTimePage({
         </table>
         {rows.length === 0 && (
           <p className="px-4 py-6 text-sm text-[var(--muted)]">
-            No first-time bookings yet.
+            No free taster bookings yet.
           </p>
         )}
       </div>
