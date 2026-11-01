@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { randomInt } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import ExcelJS from "exceljs";
 import { parseMembershipRoster, reviewNoIdMembers } from "../../lib/membership-roster.ts";
 import { saveManualMember } from "../../lib/manual-member.ts";
 
@@ -17,6 +18,67 @@ const good = (result) => {
   assert.equal(result.error, null, result.error?.message);
   return result.data;
 };
+
+test("development DB: product purchase report adds only memberships and keeps no-ID buyers for manual review", async () => {
+  const suffix = String(randomInt(100000, 1000000));
+  const memberId = `s5${suffix}`;
+  const teamId = `s4${suffix}`;
+  const nextSemesterId = `s3${suffix}`;
+  const noIdName = `TEST report ${suffix}, No ID`;
+  const noIdEmail = `test-report-${suffix}@example.invalid`;
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Product Purchasers Report");
+  sheet.mergeCells("A1:G1");
+  sheet.getCell("A1").value = "Product Purchasers Report";
+  for (const [cell, value] of Object.entries({ A8: "Trans #", B8: "Name", G8: "Card #", K8: "Qty" })) {
+    sheet.getCell(cell).value = value;
+  }
+  const section = (row, label) => {
+    sheet.mergeCells(`A${row}:N${row}`);
+    sheet.getCell(`A${row}`).value = `[10000000] Badminton Club - ${label}`;
+  };
+  const purchase = (row, name, card) => {
+    sheet.getCell(`A${row}`).value = row + 10000;
+    sheet.getCell(`B${row}`).value = name;
+    sheet.getCell(`G${row}`).value = card;
+    sheet.getCell(`K${row}`).value = 1;
+  };
+  section(9, "Full Year - Student");
+  purchase(10, `TEST report ${suffix}, Student`, memberId);
+  section(11, "Full Year - 2nd Team Fees");
+  purchase(12, `TEST report ${suffix}, Team only`, teamId);
+  section(13, "Semester 1");
+  purchase(14, noIdName, "(Unknown)");
+  section(15, "Semester 2");
+  purchase(16, `TEST report ${suffix}, Future`, nextSemesterId);
+
+  const parsed = await parseMembershipRoster(asArrayBuffer(await workbook.xlsx.writeBuffer()), "purchases.xlsx", {
+    name: "Name", studentId: "Card Number", email: "Email",
+  }, "semester1");
+  assert.equal(parsed.sourceRows, 2);
+  assert.equal(parsed.ignoredTeamFeeRows, 1);
+  assert.equal(parsed.outsidePeriodRows, 1);
+  assert.deepEqual(parsed.idMembers.map((member) => member.student_id), [memberId]);
+  assert.deepEqual(parsed.withoutStudentId, [{ name: noIdName, email: null }]);
+  assert.equal(good(await db.from("student_whitelist").select("id").in("student_id", [memberId, teamId, nextSemesterId])).length, 0);
+
+  try {
+    good(await db.rpc("upsert_membership_roster", { p_members: parsed.idMembers }));
+    good(await db.rpc("upsert_membership_roster", { p_members: parsed.idMembers }));
+    assert.equal(good(await db.from("student_whitelist").select("id").eq("student_id", memberId)).length, 1);
+    assert.equal(good(await db.from("student_whitelist").select("id").in("student_id", [teamId, nextSemesterId])).length, 0);
+    assert.equal(reviewNoIdMembers(parsed.withoutStudentId, [])[0].status, "needs_manual");
+    assert.equal((await saveManualMember(db, { name: noIdName, email: noIdEmail })).status, 200);
+    assert.equal(reviewNoIdMembers(parsed.withoutStudentId, [noIdName])[0].status, "listed");
+    assert.equal(good(await db.from("first_time_signups").select("member_precluded").eq("student_id", memberId).single()).member_precluded, true);
+    assert.equal(good(await db.from("first_time_signups").select("member_precluded").eq("email", noIdEmail).single()).member_precluded, true);
+  } finally {
+    good(await db.from("student_whitelist").delete().eq("student_id", memberId));
+    good(await db.from("student_whitelist").delete().eq("email", noIdEmail));
+    good(await db.from("first_time_signups").delete().eq("student_id", memberId));
+    good(await db.from("first_time_signups").delete().eq("email", noIdEmail));
+  }
+});
 
 test("development DB: roster import survives an ID conflict, remains idempotent, and no-ID members can book", async () => {
   const suffix = String(randomInt(100000, 1000000));

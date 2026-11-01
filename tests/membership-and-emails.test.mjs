@@ -7,6 +7,81 @@ import { buildSignupEmail, buildCancellationEmail, buildPromotionEmail } from ".
 const columns = { name: "Member Name", studentId: "Student Number", email: "Contact Email" };
 const asArrayBuffer = (buffer) => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
 
+function purchaseReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Product Purchasers Report");
+  sheet.mergeCells("A1:G1");
+  sheet.getCell("A1").value = "Product Purchasers Report";
+  for (const [cell, value] of Object.entries({ A8: "Trans #", B8: "Name", G8: "Card #", K8: "Qty", M8: "Purchase Date" })) {
+    sheet.getCell(cell).value = value;
+  }
+  const section = (row, label) => {
+    sheet.mergeCells(`A${row}:N${row}`);
+    sheet.getCell(`A${row}`).value = `[10000000] Badminton Club - ${label}`;
+  };
+  const purchase = (row, name, card, quantity = 1) => {
+    sheet.getCell(`A${row}`).value = row + 10000;
+    sheet.getCell(`B${row}`).value = name;
+    sheet.getCell(`G${row}`).value = card;
+    sheet.getCell(`K${row}`).value = quantity;
+  };
+  section(9, "Full Year - Student");
+  purchase(10, "Student, Alex", "S1234567");
+  section(11, "Full Year - Non-Student");
+  purchase(12, "Member, Pat", "(Unknown)");
+  section(13, "Full Year - 1st Team Fees");
+  purchase(14, "Team, Only", "s7654321");
+  section(15, "Semester 1");
+  purchase(16, "One, Sam", "s2345678");
+  section(17, "Semester 2");
+  purchase(18, "Two, Jo", "s3456789");
+  return { workbook, sheet, section, purchase };
+}
+
+test("purchase report imports only current-period memberships and retains non-student manual review", async () => {
+  const { workbook } = purchaseReport();
+  const buffer = asArrayBuffer(await workbook.xlsx.writeBuffer());
+  const semester1 = await parseMembershipRoster(buffer, "purchases.xlsx", columns, "semester1");
+  assert.equal(semester1.format, "purchase_report");
+  assert.equal(semester1.sourceRows, 3);
+  assert.deepEqual(semester1.idMembers, [
+    { name: "Student, Alex", student_id: "s1234567", email: null },
+    { name: "One, Sam", student_id: "s2345678", email: null },
+  ]);
+  assert.deepEqual(semester1.withoutStudentId, [{ name: "Member, Pat", email: null }]);
+  assert.equal(reviewNoIdMembers(semester1.withoutStudentId, ["Member, Pat"])[0].status, "listed");
+  assert.equal(reviewNoIdMembers(semester1.withoutStudentId, [])[0].status, "needs_manual");
+  assert.equal(semester1.ignoredTeamFeeRows, 1);
+  assert.equal(semester1.outsidePeriodRows, 1);
+
+  const semester2 = await parseMembershipRoster(buffer, "purchases.xlsx", columns, "semester2");
+  assert.deepEqual(semester2.idMembers.map((member) => member.student_id), ["s1234567", "s3456789"]);
+  assert.equal(semester2.withoutStudentId.length, 1);
+  assert.equal(semester2.ignoredTeamFeeRows, 1);
+  assert.equal(semester2.outsidePeriodRows, 1);
+});
+
+test("purchase report rejects unrecognized products and refund or multi-buyer quantities", async () => {
+  const { workbook, sheet, section, purchase } = purchaseReport();
+  sheet.getCell("K16").value = -1;
+  await assert.rejects(parseMembershipRoster(asArrayBuffer(await workbook.xlsx.writeBuffer()), "purchases.xlsx", columns), /quantity -1/);
+  sheet.getCell("K16").value = 2;
+  await assert.rejects(parseMembershipRoster(asArrayBuffer(await workbook.xlsx.writeBuffer()), "purchases.xlsx", columns), /quantity 2/);
+  sheet.getCell("K16").value = 1;
+  section(19, "Semester 3");
+  purchase(20, "Future, Member", "s4567890");
+  await assert.rejects(parseMembershipRoster(asArrayBuffer(await workbook.xlsx.writeBuffer()), "purchases.xlsx", columns), /Unrecognized Badminton Club product at row 19/);
+});
+
+test("conflicting student IDs in purchase reports are held for review without blocking safe IDs", async () => {
+  const { workbook, purchase } = purchaseReport();
+  purchase(19, "Someone, Else", "s1234567");
+  const parsed = await parseMembershipRoster(asArrayBuffer(await workbook.xlsx.writeBuffer()), "purchases.xlsx", columns, "semester2");
+  assert.equal(parsed.idConflicts.length, 1);
+  assert.deepEqual(parsed.idConflicts[0].rows.map((entry) => entry.row), [10, 19]);
+  assert.deepEqual(parsed.idMembers.map((member) => member.student_id), ["s3456789"]);
+});
+
 test("XLSX import maps columns, deduplicates IDs, and keeps ID-less people for review", async () => {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Members");

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminGuard";
 import { supabaseServer } from "@/lib/supabase-server";
 import { DEFAULT_MEMBERSHIP_IMPORT_COLUMNS } from "@/lib/import-column-mappings";
-import { normalizeStudentId, parseMembershipRoster, reviewNoIdMembers } from "@/lib/membership-roster";
+import { normalizeStudentId, parseMembershipRoster, reviewNoIdMembers, type ImportPeriod } from "@/lib/membership-roster";
 
 export const runtime = "nodejs";
 const PAGE_SIZE = 1000;
@@ -21,11 +21,15 @@ export async function POST(req: NextRequest) {
     email: String(form.get("membership_col_email") ?? "").trim() || DEFAULT_MEMBERSHIP_IMPORT_COLUMNS.email,
     studentId: String(form.get("membership_col_student_id") ?? "").trim() || DEFAULT_MEMBERSHIP_IMPORT_COLUMNS.studentId,
   };
+  const period = String(form.get("membership_period") ?? "semester1");
+  if (period !== "semester1" && period !== "semester2") {
+    return NextResponse.json({ error: "Choose Semester 1 or Semester 2." }, { status: 400 });
+  }
   if (!(file instanceof File)) return NextResponse.json({ error: "Missing file upload." }, { status: 400 });
 
   let roster: Awaited<ReturnType<typeof parseMembershipRoster>>;
   try {
-    roster = await parseMembershipRoster(await file.arrayBuffer(), file.name, columns);
+    roster = await parseMembershipRoster(await file.arrayBuffer(), file.name, columns, period as ImportPeriod);
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not parse roster." }, { status: 400 });
   }
@@ -68,6 +72,9 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     sourceRows: roster.sourceRows,
+    format: roster.format,
+    ignoredTeamFeeRows: roster.ignoredTeamFeeRows,
+    outsidePeriodRows: roster.outsidePeriodRows,
     idMembersProcessed: roster.idMembers.length,
     idMembersAdded: roster.idMembers.filter((member) => !existingIds.has(member.student_id)).length,
     idMembersUpdated: roster.idMembers.filter((member) => existingIds.has(member.student_id)).length,

@@ -58,7 +58,10 @@ export default function WhitelistUploadForm({
       setIdConflicts(conflicts);
       setIdMembersProcessed(result.idMembersProcessed ?? 0);
       const conflictRows = conflicts.reduce((count, conflict) => count + conflict.rows.length, 0);
-      const summary = `Read ${result.sourceRows ?? 0} rows: ${result.idMembersAdded ?? 0} student IDs added, ${result.idMembersUpdated ?? 0} updated, ${entries.length} without an ID for review, ${conflictRows} rows across ${conflicts.length} conflicting ${conflicts.length === 1 ? "ID" : "IDs"} skipped.`;
+      const source = result.format === "purchase_report"
+        ? `Read ${result.sourceRows ?? 0} qualifying membership purchases; ignored ${result.ignoredTeamFeeRows ?? 0} team-fee purchases and ${result.outsidePeriodRows ?? 0} purchases outside the selected semester.`
+        : `Read ${result.sourceRows ?? 0} roster rows.`;
+      const summary = `${source} ${result.idMembersAdded ?? 0} student IDs added, ${result.idMembersUpdated ?? 0} updated, ${entries.length} without an ID for review, ${conflictRows} rows across ${conflicts.length} conflicting ${conflicts.length === 1 ? "ID" : "IDs"} skipped.`;
       setImportMessage(
         result.mappingSaved === false
           ? `${summary} The column mapping could not be saved; check the settings table.`
@@ -142,10 +145,20 @@ export default function WhitelistUploadForm({
           />
           {fileName && <p className="text-xs opacity-70">Selected: {fileName}</p>}
         </div>
+        <label className="block max-w-sm text-sm font-medium">
+          Membership period for purchase reports
+          <select name="membership_period" defaultValue="semester1" className="mt-1 block w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm">
+            <option value="semester1">Semester 1: full year + Semester 1</option>
+            <option value="semester2">Semester 2: full year + Semester 2</option>
+          </select>
+        </label>
+        <p className="text-xs text-[var(--muted)]">
+          Purchase reports are recognized automatically; team fees are ignored. Include full-year purchases in the report date range. This selector does not affect a standard roster. Uploads do not expire old memberships, so clear the old list before a new period when needed.
+        </p>
         <details className="rounded-xl border border-[var(--line)] bg-[var(--chip)] p-3">
           <summary className="cursor-pointer text-sm font-medium">Column mapping (optional)</summary>
           <p className="mt-2 text-xs text-[var(--muted)]">
-            Map the exact headers in your file. Name and student ID columns are required; individual student IDs and emails can be blank. These mappings are saved for next time.
+            For a standard roster, map the exact headers in your file. Name and student ID columns are required; individual student IDs and emails can be blank. Purchase reports use their built-in columns. These mappings are saved for next time.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <label className="block">
@@ -201,6 +214,7 @@ export default function WhitelistUploadForm({
             <p className="text-sm text-[var(--muted)]">
               {idMembersProcessed} ID-bearing rows processed. {counts.listed} names already matched; {counts.needsManual} need adding; {counts.ambiguous} need identity review; {counts.added} added manually in this review.
             </p>
+            <p className="text-xs text-[var(--muted)]">Purchase reports do not include email addresses. Add an email for each no-ID member before they can book.</p>
           </div>
           <div className="space-y-2">
             {review.map((entry) => (

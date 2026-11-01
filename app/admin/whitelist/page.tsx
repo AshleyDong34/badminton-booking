@@ -45,7 +45,7 @@ export default async function WhitelistPage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold">Membership List</h1>
         <p className="text-sm text-[var(--muted)]">
-          Import the member roster by student ID, review people without IDs by name, and maintain individual entries manually.
+          Import a roster or product purchase report, review members without student IDs, and maintain individual entries manually.
         </p>
       </div>
 
